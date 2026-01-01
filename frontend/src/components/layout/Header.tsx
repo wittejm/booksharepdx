@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../../contexts/UserContext';
 import { authService } from '../../services/dataService';
+import logo from '../../assets/logo.png';
 
 export default function Header() {
   const { currentUser, updateCurrentUser } = useUser();
@@ -38,10 +39,11 @@ export default function Header() {
           {/* Logo */}
           <Link
             to="/"
-            className="flex-shrink-0 text-2xl font-bold text-blue-600 hover:text-blue-700"
+            className="flex-shrink-0 flex items-center gap-3 hover:opacity-90 transition-opacity"
             onClick={closeMenu}
           >
-            BookSharePDX
+            <img src={logo} alt="BookSharePDX Logo" className="h-10 w-auto" />
+            <span className="text-2xl font-bold text-[#164E4A]">BookSharePDX</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -49,7 +51,7 @@ export default function Header() {
             {/* Common Links */}
             <Link
               to="/browse"
-              className="text-gray-700 hover:text-blue-600 font-medium transition-colors"
+              className="text-gray-700 hover:text-[#164E4A] font-medium transition-colors"
             >
               Browse
             </Link>
@@ -59,13 +61,13 @@ export default function Header() {
                 {/* Logged-in Navigation */}
                 <Link
                   to="/post/create"
-                  className="text-gray-700 hover:text-blue-600 font-medium transition-colors"
+                  className="text-gray-700 hover:text-[#164E4A] font-medium transition-colors"
                 >
                   Post
                 </Link>
                 <Link
                   to="/messages"
-                  className="text-gray-700 hover:text-blue-600 font-medium transition-colors"
+                  className="text-gray-700 hover:text-[#164E4A] font-medium transition-colors"
                 >
                   Messages
                 </Link>
@@ -75,7 +77,7 @@ export default function Header() {
                 {/* Anonymous Navigation */}
                 <Link
                   to="/about"
-                  className="text-gray-700 hover:text-blue-600 font-medium transition-colors"
+                  className="text-gray-700 hover:text-[#164E4A] font-medium transition-colors"
                 >
                   About
                 </Link>
@@ -87,7 +89,7 @@ export default function Header() {
               href="https://discord.gg/KsN2rapS"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-gray-700 hover:text-blue-600 transition-colors"
+              className="text-gray-700 hover:text-[#164E4A] transition-colors"
               title="Join our Discord"
             >
               <svg
@@ -106,7 +108,7 @@ export default function Header() {
                   onClick={toggleProfileDropdown}
                   className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
+                  <div className="w-8 h-8 rounded-full bg-[#164E4A] text-white flex items-center justify-center text-sm font-semibold">
                     {currentUser.username?.charAt(0).toUpperCase() || 'U'}
                   </div>
                   <span className="text-gray-700 font-medium hidden sm:inline">
@@ -159,13 +161,13 @@ export default function Header() {
               <div className="flex gap-3">
                 <Link
                   to="/signup"
-                  className="px-4 py-2 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 rounded-lg font-medium text-white bg-[#164E4A] hover:bg-[#0F3A37] transition-colors"
                 >
                   Sign Up
                 </Link>
                 <Link
                   to="/login"
-                  className="px-4 py-2 rounded-lg font-medium text-blue-600 border border-blue-600 hover:bg-blue-50 transition-colors"
+                  className="px-4 py-2 rounded-lg font-medium text-[#164E4A] border border-[#164E4A] hover:bg-[#164E4A]/5 transition-colors"
                 >
                   Login
                 </Link>
@@ -272,14 +274,14 @@ export default function Header() {
                 <div className="border-t border-gray-200 pt-2 mt-2 flex gap-2">
                   <Link
                     to="/signup"
-                    className="flex-1 text-center px-4 py-2 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                    className="flex-1 text-center px-4 py-2 rounded-lg font-medium text-white bg-[#164E4A] hover:bg-[#0F3A37] transition-colors"
                     onClick={closeMenu}
                   >
                     Sign Up
                   </Link>
                   <Link
                     to="/login"
-                    className="flex-1 text-center px-4 py-2 rounded-lg font-medium text-blue-600 border border-blue-600 hover:bg-blue-50 transition-colors"
+                    className="flex-1 text-center px-4 py-2 rounded-lg font-medium text-[#164E4A] border border-[#164E4A] hover:bg-[#164E4A]/5 transition-colors"
                     onClick={closeMenu}
                   >
                     Login

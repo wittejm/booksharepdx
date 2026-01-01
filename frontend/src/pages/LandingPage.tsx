@@ -47,7 +47,7 @@ export default function LandingPage() {
                   Share books with your neighbors.
                 </h1>
                 <p className="text-xl text-gray-600 mt-6 leading-relaxed">
-                  Build community, one page at a time. Discover local books, connect with readers in your neighborhood, and grow your library sustainably.
+                  Build community, one page at a time. Discover local books, connect with readers in your neighborhood.
                 </p>
               </div>
 
@@ -83,8 +83,8 @@ export default function LandingPage() {
 
             {/* Right side - Recent Books Feed (desktop: 5, tablet: 3, mobile: 2) */}
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide md:hidden">
-                Recently Shared
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                Shared by neighbors
               </h3>
               {loading ? (
                 <div className="hidden md:flex flex-col gap-3">
@@ -102,22 +102,30 @@ export default function LandingPage() {
                   {recentPosts.slice(0, 5).map((post, index) => {
                     const author = authors.get(post.userId);
                     // Desktop: show 5, Tablet (lg): show 3, Mobile: show 2
-                    const hideOnTablet = index >= 3 ? 'hidden lg:flex' : '';
-                    const hideOnMobile = index >= 2 ? 'hidden md:flex' : '';
+                    const hideOnTablet = index >= 3 ? 'hidden lg:block' : '';
+                    const hideOnMobile = index >= 2 ? 'hidden md:block' : '';
 
                     return (
                       <Link
                         key={post.id}
                         to={`/post/${post.id}`}
-                        className={`${hideOnMobile} ${hideOnTablet} bg-white rounded-lg shadow-md hover:shadow-lg transition-all overflow-hidden border border-gray-200 hover:border-primary-400 group`}
+                        className={`${hideOnMobile} ${hideOnTablet} block bg-white rounded-lg shadow-md hover:shadow-lg transition-all overflow-hidden border border-gray-200 hover:border-primary-400 group`}
                       >
-                        <div className="flex gap-3 p-3">
-                          {/* Book Cover */}
-                          <div className="flex-shrink-0 w-16 h-20 bg-gradient-to-br from-primary-200 to-warm-200 rounded flex items-center justify-center text-2xl">
-                            📖
+                        <div className="flex gap-3 p-3 items-start">
+                          {/* Column 1: Book Cover */}
+                          <div className="flex-shrink-0 w-16 h-20 bg-gradient-to-br from-primary-200 to-warm-200 rounded flex items-center justify-center overflow-hidden">
+                            {post.book.coverImage ? (
+                              <img
+                                src={post.book.coverImage}
+                                alt={post.book.title}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-2xl">📖</span>
+                            )}
                           </div>
 
-                          {/* Book Details */}
+                          {/* Column 2: Book Details */}
                           <div className="flex-1 min-w-0">
                             <h4 className="font-semibold text-gray-900 text-sm truncate group-hover:text-primary-600 transition-colors">
                               {post.book.title}
@@ -125,29 +133,41 @@ export default function LandingPage() {
                             <p className="text-xs text-gray-600 truncate mt-0.5">
                               {post.book.author}
                             </p>
-                            {author && (
-                              <p className="text-xs text-gray-500 truncate mt-1">
-                                by {author.username}
-                              </p>
-                            )}
                             <div className="flex items-center gap-2 mt-1.5">
                               <span className="text-xs font-semibold text-primary-600">
-                                {post.type === 'giveaway' ? 'Free' : 'Trade'}
+                                {post.type === 'giveaway' ? 'Gift' : 'Exchange'}
                               </span>
-                              {post.status === 'active' && (
-                                <span className="text-xs text-green-600 font-medium">•  Available</span>
-                              )}
                             </div>
                           </div>
+
+                          {/* Column 3: User info - Right aligned */}
+                          {author && (
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <span className="text-xs text-gray-600 font-medium whitespace-nowrap">
+                                {author.username}
+                              </span>
+                              {author.profilePicture ? (
+                                <img
+                                  src={author.profilePicture}
+                                  alt={author.username}
+                                  className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-6 h-6 rounded-full bg-[#164E4A] text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                                  {author.username?.charAt(0).toUpperCase() || 'U'}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </Link>
                     );
                   })}
 
-                  {/* "See all" link - only on desktop */}
+                  {/* "See all" link */}
                   <Link
                     to="/browse"
-                    className="hidden md:flex items-center justify-center gap-2 bg-primary-50 hover:bg-primary-100 rounded-lg p-3 text-primary-700 font-semibold text-sm transition-colors group"
+                    className="flex items-center justify-center gap-2 bg-primary-50 hover:bg-primary-100 rounded-lg p-3 text-primary-700 font-semibold text-sm transition-colors group"
                   >
                     <span>Browse All Books</span>
                     <span className="group-hover:translate-x-1 transition-transform">→</span>
@@ -163,10 +183,7 @@ export default function LandingPage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">How It Works</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Getting started is simple. Join thousands of Portlanders sharing their love of reading.
-            </p>
+            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-4">Join our growing community!</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -192,7 +209,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">List Your Books</h3>
               <p className="text-gray-600">
-                Share books you want to lend or give away. Add photos and details about each book.
+                List books you want to give away or trade.
               </p>
             </div>
 
@@ -265,79 +282,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
-      {/* More Books Section - skip first 5 shown in hero */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">More Available Books</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Discover more books shared by your neighbors across Portland.
-            </p>
-          </div>
-
-          {loading ? (
-            <div className="text-center py-12">
-              <p className="text-gray-600">Loading books...</p>
-            </div>
-          ) : recentPosts.length <= 5 ? (
-            <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <p className="text-gray-600 mb-4">That's all for now! Check back soon for more.</p>
-              <Link to="/browse" className="btn-primary inline-block">
-                Browse All Books
-              </Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-              {recentPosts.slice(5, 10).map((post) => {
-                const author = authors.get(post.userId);
-                return (
-                  <Link
-                    key={post.id}
-                    to={`/post/${post.id}`}
-                    className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden border border-gray-200 hover:border-primary-300"
-                  >
-                    {/* Book Cover Placeholder */}
-                    <div className="w-full h-48 bg-gradient-to-br from-primary-200 to-warm-200 flex items-center justify-center text-5xl">
-                      📖
-                    </div>
-
-                    {/* Post Details */}
-                    <div className="p-4">
-                      <h3 className="font-semibold text-gray-900 truncate text-sm">
-                        {post.book.title}
-                      </h3>
-                      <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                        by {post.book.author}
-                      </p>
-                      {author && (
-                        <p className="text-xs text-gray-500 mt-3 font-medium">
-                          posted by {author.username}
-                        </p>
-                      )}
-                      <div className="mt-3 flex items-center justify-between">
-                        <span className="text-xs font-semibold text-primary-600">
-                          {post.type === 'giveaway' ? 'Free' : 'Trade'}
-                        </span>
-                        {post.status === 'active' && (
-                          <span className="text-xs text-green-600 font-medium">Available</span>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-
-          <div className="text-center mt-12">
-            <Link to="/browse" className="btn-primary text-lg px-8 py-3">
-              Browse All Books
-            </Link>
-          </div>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-primary-600 to-primary-700 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">

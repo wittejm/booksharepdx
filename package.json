@@ -1,0 +1,19 @@
+{
+  "name": "@booksharepdx/root",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=frontend",
+    "preview": "npm run preview --workspace=frontend",
+    "deploy": "npm run deploy --workspace=frontend"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

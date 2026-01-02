@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { authService } from '../services/dataService';
+import { authService } from '../services';
 import { useUser } from '../contexts/UserContext';
-import Toast from '../components/Toast';
+import { useToast } from '../components/useToast';
+import ToastContainer from '../components/ToastContainer';
+import { isValidEmail } from '../utils/validation';
 
 export default function SignUpPage() {
   const [formData, setFormData] = useState({
@@ -14,7 +16,8 @@ export default function SignUpPage() {
 
   const [agreedToGuidelines, setAgreedToGuidelines] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const { showToast, toasts, dismiss } = useToast();
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const navigate = useNavigate();
@@ -25,7 +28,7 @@ export default function SignUpPage() {
 
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (!isValidEmail(formData.email)) {
       newErrors.email = 'Please enter a valid email';
     }
 
@@ -43,14 +46,6 @@ export default function SignUpPage() {
 
     if (!formData.bio.trim()) {
       newErrors.bio = 'Bio is required';
-    } else {
-      const sentences = formData.bio
-        .trim()
-        .split(/[.!?]+/)
-        .filter((s) => s.trim().length > 0);
-      if (sentences.length < 1) {
-        newErrors.bio = 'Bio must be at least one sentence';
-      }
     }
 
     if (!agreedToGuidelines) {
@@ -87,13 +82,25 @@ export default function SignUpPage() {
     try {
       const user = await authService.signup(formData);
       updateCurrentUser(user);
-      setToast({ message: 'A verification email has been sent', type: 'success' });
+      showToast('A verification email has been sent', 'success', 2000);
 
       setTimeout(() => {
         navigate('/location-selection');
       }, 1500);
     } catch (error) {
-      setToast({ message: 'Sign up failed. Please try again.', type: 'error' });
+      const err = error as Error & { code?: string };
+      const code = err.code;
+      const message = err.message;
+
+      if (code === 'EMAIL_TAKEN') {
+        setErrors({ email: 'This email is already registered. Please login instead.' });
+        showToast('Email already in use', 'error');
+      } else if (code === 'USERNAME_TAKEN') {
+        setErrors({ username: 'This username is already taken. Please choose another.' });
+        showToast('Username already taken', 'error');
+      } else {
+        showToast(message, 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -144,22 +151,41 @@ export default function SignUpPage() {
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 Password
               </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                placeholder="••••••••"
-                className={`input ${errors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
-                disabled={loading}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  placeholder="••••••••"
+                  className={`input pr-10 ${errors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
               {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
             </div>
 
             <div>
               <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-2">
-                Bio (at least one sentence)
+                Bio
               </label>
               <textarea
                 id="bio"
@@ -226,15 +252,7 @@ export default function SignUpPage() {
         </div>
       </div>
 
-      {toast && (
-        <Toast
-          id="signup-toast"
-          message={toast.message}
-          type={toast.type}
-          duration={toast.type === 'success' ? 2000 : 3000}
-          onDismiss={() => setToast(null)}
-        />
-      )}
+      <ToastContainer toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

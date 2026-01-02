@@ -26,8 +26,9 @@ import {
   commentService,
   moderationActionService,
   notificationService,
-} from '../services/dataService';
+} from '../services';
 import { useToast } from '../components/useToast';
+import LoadingSpinner from '../components/LoadingSpinner';
 import ToastContainer from '../components/ToastContainer';
 
 type TabType = 'new' | 'in_review' | 'resolved';
@@ -461,7 +462,7 @@ export default function ModerationPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <LoadingSpinner size="lg" className="text-primary-600" />
       </div>
     );
   }

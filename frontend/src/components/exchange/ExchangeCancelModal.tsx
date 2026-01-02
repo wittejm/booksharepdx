@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Post } from '@booksharepdx/shared';
 import Modal from '../Modal';
-import { postService, messageService, userService } from '../../services/dataService';
+import { postService, messageService, userService } from '../../services';
 import { useToast } from '../useToast';
 
 interface ExchangeCancelModalProps {
@@ -43,14 +43,11 @@ export default function ExchangeCancelModal({ open, onClose, post, currentUserId
         ? post.pendingExchange.recipientUserId
         : post.pendingExchange.initiatorUserId;
 
-      const threads = await messageService.getThreads(currentUserId);
-      let thread = threads.find(
-        t => t.postId === post.pendingExchange!.givingPostId && t.participants.includes(otherUserId)
+      const thread = await messageService.getOrCreateThread(
+        currentUserId,
+        otherUserId,
+        post.pendingExchange.givingPostId
       );
-
-      if (!thread) {
-        thread = await messageService.createThread(post.pendingExchange.givingPostId, [currentUserId, otherUserId]);
-      }
 
       await messageService.sendMessage({
         threadId: thread.id,

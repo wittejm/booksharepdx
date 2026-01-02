@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { MessageThread, Message, Post, User } from '@booksharepdx/shared';
-import { messageService, postService, userService, vouchService } from '../services/dataService';
+import { messageService, postService, userService, vouchService } from '../services';
 import { useUser } from '../contexts/UserContext';
-import Toast from '../components/Toast';
+import { useToast } from '../components/useToast';
+import ToastContainer from '../components/ToastContainer';
+import { formatTimestamp } from '../utils/time';
 
 export default function MessagesPage() {
   const { threadId } = useParams<{ threadId?: string }>();
@@ -16,7 +18,7 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const { showToast, toasts, dismiss } = useToast();
 
   // Thread data cache
   const [threadPosts, setThreadPosts] = useState<{ [threadId: string]: Post }>({});
@@ -78,7 +80,7 @@ export default function MessagesPage() {
       setThreadPosts(posts);
       setThreadUsers(users);
     } catch (error) {
-      setToast({ message: 'Failed to load messages', type: 'error' });
+      showToast('Failed to load messages', 'error');
     } finally {
       setLoading(false);
     }
@@ -167,7 +169,7 @@ export default function MessagesPage() {
       // Reload threads to get updated unread counts
       await loadThreads();
     } catch (error) {
-      setToast({ message: 'Failed to send message', type: 'error' });
+      showToast('Failed to send message', 'error');
     } finally {
       setSending(false);
     }
@@ -184,30 +186,14 @@ export default function MessagesPage() {
       await vouchService.create(currentUser.id, otherUserId);
       setHasVouched(true);
       setCanVouch(false);
-      setToast({ message: 'You vouched for this person!', type: 'success' });
+      showToast('You vouched for this person!', 'success');
     } catch (error) {
-      setToast({ message: 'Failed to vouch', type: 'error' });
+      showToast('Failed to vouch', 'error');
     } finally {
       setVouchLoading(false);
     }
   };
 
-  const formatTimestamp = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays}d ago`;
-
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
 
   const getSystemMessageDisplay = (type: Message['systemMessageType']) => {
     switch (type) {
@@ -490,17 +476,7 @@ export default function MessagesPage() {
         </div>
       </div>
 
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <Toast
-            id="messages-toast"
-            message={toast.message}
-            type={toast.type}
-            duration={3000}
-            onDismiss={() => setToast(null)}
-          />
-        </div>
-      )}
+      <ToastContainer toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

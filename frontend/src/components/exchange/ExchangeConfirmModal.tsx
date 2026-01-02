@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Post, User } from '@booksharepdx/shared';
 import Modal from '../Modal';
-import { postService, userService, messageService } from '../../services/dataService';
+import { postService, userService, messageService } from '../../services';
 import { useToast } from '../useToast';
 
 interface ExchangeConfirmModalProps {
@@ -81,31 +81,15 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
       });
 
       // Update stats for both users
-      await userService.update(post.pendingExchange.initiatorUserId, {
-        stats: {
-          ...initiatorUser.stats,
-          booksGiven: initiatorUser.stats.booksGiven + 1,
-          booksReceived: initiatorUser.stats.booksReceived + 1,
-        },
-      });
-
-      await userService.update(currentUserId, {
-        stats: {
-          ...currentUser.stats,
-          booksGiven: currentUser.stats.booksGiven + 1,
-          booksReceived: currentUser.stats.booksReceived + 1,
-        },
-      });
+      await userService.incrementExchangeStats(post.pendingExchange.initiatorUserId);
+      await userService.incrementExchangeStats(currentUserId);
 
       // Send completion message
-      const threads = await messageService.getThreads(currentUserId);
-      let thread = threads.find(
-        t => t.postId === givingPost.id && t.participants.includes(post.pendingExchange!.initiatorUserId)
+      const thread = await messageService.getOrCreateThread(
+        currentUserId,
+        post.pendingExchange!.initiatorUserId,
+        givingPost.id
       );
-
-      if (!thread) {
-        thread = await messageService.createThread(givingPost.id, [currentUserId, post.pendingExchange.initiatorUserId]);
-      }
 
       await messageService.sendMessage({
         threadId: thread.id,
@@ -145,14 +129,11 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
       });
 
       // Send decline message
-      const threads = await messageService.getThreads(currentUserId);
-      let thread = threads.find(
-        t => t.postId === givingPost.id && t.participants.includes(post.pendingExchange!.initiatorUserId)
+      const thread = await messageService.getOrCreateThread(
+        currentUserId,
+        post.pendingExchange!.initiatorUserId,
+        givingPost.id
       );
-
-      if (!thread) {
-        thread = await messageService.createThread(givingPost.id, [currentUserId, post.pendingExchange.initiatorUserId]);
-      }
 
       const reasonText = {
         'no-longer-available': 'This book is no longer available',
@@ -220,14 +201,11 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
       });
 
       // Send system message
-      const threads = await messageService.getThreads(currentUserId);
-      let thread = threads.find(
-        t => t.postId === givingPost.id && t.participants.includes(post.pendingExchange!.initiatorUserId)
+      const thread = await messageService.getOrCreateThread(
+        currentUserId,
+        post.pendingExchange!.initiatorUserId,
+        givingPost.id
       );
-
-      if (!thread) {
-        thread = await messageService.createThread(givingPost.id, [currentUserId, post.pendingExchange.initiatorUserId]);
-      }
 
       await messageService.sendMessage({
         threadId: thread.id,
@@ -269,12 +247,7 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
       });
 
       // Update stats (only for giving)
-      await userService.update(post.pendingExchange.initiatorUserId, {
-        stats: {
-          ...initiatorUser.stats,
-          booksGiven: initiatorUser.stats.booksGiven + 1,
-        },
-      });
+      await userService.incrementBooksGiven(post.pendingExchange.initiatorUserId);
 
       await userService.update(currentUserId, {
         stats: {
@@ -284,14 +257,11 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
       });
 
       // Send completion message
-      const threads = await messageService.getThreads(currentUserId);
-      let thread = threads.find(
-        t => t.postId === givingPost.id && t.participants.includes(post.pendingExchange!.initiatorUserId)
+      const thread = await messageService.getOrCreateThread(
+        currentUserId,
+        post.pendingExchange!.initiatorUserId,
+        givingPost.id
       );
-
-      if (!thread) {
-        thread = await messageService.createThread(givingPost.id, [currentUserId, post.pendingExchange.initiatorUserId]);
-      }
 
       await messageService.sendMessage({
         threadId: thread.id,

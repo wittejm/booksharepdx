@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../../contexts/UserContext';
-import { authService } from '../../services/dataService';
+import { authService } from '../../services';
 import logo from '../../assets/logo.png';
 
 export default function Header() {

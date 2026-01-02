@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { User, SocialLink } from '@booksharepdx/shared';
-import { authService, blockService, userService, neighborhoodService } from '../services/dataService';
+import { authService, blockService, userService, neighborhoodService } from '../services';
 import { useUser } from '../contexts/UserContext';
-import Toast from '../components/Toast';
+import { useToast } from '../components/useToast';
+import ToastContainer from '../components/ToastContainer';
 
 const GENRE_OPTIONS = [
   'Literary Fiction',
@@ -28,9 +29,7 @@ export default function SettingsPage() {
   const { currentUser, updateCurrentUser } = useUser();
 
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(
-    null
-  );
+  const { showToast, toasts, dismiss } = useToast();
 
   // Form states
   const [username, setUsername] = useState('');
@@ -86,7 +85,7 @@ export default function SettingsPage() {
     if (!currentUser) return;
 
     if (!username.trim()) {
-      setToast({ message: 'Username is required', type: 'error' });
+      showToast('Username is required', 'error');
       return;
     }
 
@@ -106,10 +105,10 @@ export default function SettingsPage() {
       const updatedUser = authService.updateCurrentUser(updates);
       if (updatedUser) {
         updateCurrentUser(updatedUser);
-        setToast({ message: 'Profile updated successfully!', type: 'success' });
+        showToast('Profile updated successfully!', 'success');
       }
     } catch (error) {
-      setToast({ message: 'Failed to update profile', type: 'error' });
+      showToast('Failed to update profile', 'error');
     } finally {
       setLoading(false);
     }
@@ -120,7 +119,7 @@ export default function SettingsPage() {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      setToast({ message: 'Image must be less than 5MB', type: 'error' });
+      showToast('Image must be less than 5MB', 'error');
       return;
     }
 
@@ -158,9 +157,9 @@ export default function SettingsPage() {
     try {
       await blockService.unblock(currentUser.id, userId);
       setBlockedUsers(blockedUsers.filter((u) => u.id !== userId));
-      setToast({ message: 'User unblocked', type: 'success' });
+      showToast('User unblocked', 'success');
     } catch (error) {
-      setToast({ message: 'Failed to unblock user', type: 'error' });
+      showToast('Failed to unblock user', 'error');
     }
   };
 
@@ -174,11 +173,11 @@ export default function SettingsPage() {
       });
       if (updatedUser) {
         updateCurrentUser(updatedUser);
-        setToast({ message: 'Location updated successfully!', type: 'success' });
+        showToast('Location updated successfully!', 'success');
         setShowChangeLocation(false);
       }
     } catch (error) {
-      setToast({ message: 'Failed to update location', type: 'error' });
+      showToast('Failed to update location', 'error');
     } finally {
       setLoading(false);
     }
@@ -539,16 +538,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Toast */}
-      {toast && (
-        <Toast
-          id="settings-toast"
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onDismiss={() => setToast(null)}
-        />
-      )}
+      <ToastContainer toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

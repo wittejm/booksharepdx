@@ -1,0 +1,95 @@
+name: Deploy Backend to Cloud Run
+
+# Currently: Push to main deploys to BOTH staging and prod
+# TODO: Change to version tags (v*) for prod deploys only
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'shared/**'
+      - '.github/workflows/deploy-backend.yml'
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-west1
+  SERVICE_NAME: booksharepdx-api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Configure Docker for GCP
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Create Artifact Registry repository (if not exists)
+        run: |
+          gcloud artifacts repositories describe booksharepdx \
+            --location=${{ env.REGION }} 2>/dev/null || \
+          gcloud artifacts repositories create booksharepdx \
+            --repository-format=docker \
+            --location=${{ env.REGION }} \
+            --description="BookSharePDX container images"
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/booksharepdx/api:${{ github.sha }}
+          docker build -f backend/Dockerfile -t $IMAGE .
+          docker push $IMAGE
+
+      - name: Deploy to Cloud Run (Staging)
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }}-staging \
+            --image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/booksharepdx/api:${{ github.sha }} \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --set-env-vars="NODE_ENV=staging,FRONTEND_URL=https://staging.booksharepdx.com" \
+            --set-secrets="DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
+            --min-instances=0 \
+            --max-instances=2 \
+            --memory=256Mi \
+            --cpu=1 \
+            --cpu-throttling \
+            --no-cpu-boost \
+            --timeout=60s \
+            --concurrency=80
+
+      - name: Deploy to Cloud Run (Production)
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/booksharepdx/api:${{ github.sha }} \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --set-env-vars="NODE_ENV=production,FRONTEND_URL=https://booksharepdx.com" \
+            --set-secrets="DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
+            --min-instances=0 \
+            --max-instances=5 \
+            --memory=256Mi \
+            --cpu=1 \
+            --cpu-throttling \
+            --startup-cpu-boost \
+            --timeout=60s \
+            --concurrency=80
+
+      - name: Output service URLs
+        run: |
+          echo "Staging: $(gcloud run services describe ${{ env.SERVICE_NAME }}-staging --region=${{ env.REGION }} --format='value(status.url)')"
+          echo "Production: $(gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(status.url)')"

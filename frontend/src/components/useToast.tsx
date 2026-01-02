@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { generateId } from '../utils/idGenerator';
 
 export interface ToastMessage {
   id: string;
@@ -20,10 +21,6 @@ interface UseToastReturn {
 
 export function useToast(): UseToastReturn {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-
-  const generateId = useCallback((): string => {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  }, []);
 
   const addToast = useCallback(
     (message: string, type: 'success' | 'error' | 'warning' | 'info', duration: number = 3000) => {

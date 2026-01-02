@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Post, User } from '@booksharepdx/shared';
-import { postService, userService } from '../services/dataService';
+import { postService, userService } from '../services';
+import PortlandMap from '../components/PortlandMap';
 
 export default function LandingPage() {
   const [recentPosts, setRecentPosts] = useState<Post[]>([]);
@@ -12,13 +13,14 @@ export default function LandingPage() {
     const loadData = async () => {
       try {
         const posts = await postService.getActive();
+
         // Get last 10 posts, sorted by most recent
         const sorted = posts.sort((a, b) => b.createdAt - a.createdAt).slice(0, 10);
         setRecentPosts(sorted);
 
         // Load author data
-        const allUsers = await userService.getAll();
-        const userMap = new Map(allUsers.map(u => [u.id, u]));
+        const users = await userService.getAll();
+        const userMap = new Map(users.map(u => [u.id, u]));
         setAuthors(userMap);
       } catch (error) {
         console.error('Error loading posts:', error);
@@ -38,10 +40,10 @@ export default function LandingPage() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-primary-100 rounded-full blur-3xl opacity-20 -mr-48"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-warm-100 rounded-full blur-3xl opacity-20 -ml-48"></div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 z-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 z-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-start">
             {/* Left side - Text content */}
-            <div className="space-y-8">
+            <div className="space-y-6">
               <div>
                 <h1 className="text-5xl md:text-6xl font-bold text-gray-900 leading-tight">
                   Share books with your neighbors.
@@ -52,39 +54,25 @@ export default function LandingPage() {
               </div>
 
               {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex justify-center">
                 <Link
                   to="/signup"
                   className="btn-primary text-center px-8 py-3 text-lg rounded-lg font-semibold hover:bg-primary-700 transition-all shadow-lg hover:shadow-xl"
                 >
                   Get Started
                 </Link>
-                <Link
-                  to="/browse"
-                  className="btn bg-white text-primary-600 border-2 border-primary-600 px-8 py-3 text-lg rounded-lg font-semibold hover:bg-primary-50 transition-all"
-                >
-                  Browse Books
-                </Link>
               </div>
 
-              {/* Trust indicators */}
-              <div className="flex items-center space-x-6 pt-4">
-                <div>
-                  <p className="text-2xl font-bold text-primary-600">{recentPosts.length}+</p>
-                  <p className="text-sm text-gray-600">Books Available</p>
-                </div>
-                <div className="w-px h-12 bg-gray-300"></div>
-                <div>
-                  <p className="text-2xl font-bold text-primary-600">{authors.size}+</p>
-                  <p className="text-sm text-gray-600">Community Members</p>
-                </div>
+              {/* Map - Desktop only, below buttons */}
+              <div className="hidden md:block mt-8">
+                <PortlandMap />
               </div>
             </div>
 
             {/* Right side - Recent Books Feed (desktop: 5, tablet: 3, mobile: 2) */}
             <div className="space-y-3">
               <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                Shared by neighbors
+                Books near you
               </h3>
               {loading ? (
                 <div className="hidden md:flex flex-col gap-3">
@@ -95,7 +83,7 @@ export default function LandingPage() {
               ) : recentPosts.length === 0 ? (
                 <div className="hidden md:block bg-white rounded-lg p-8 shadow-md text-center">
                   <div className="text-4xl mb-2">📚</div>
-                  <p className="text-gray-600 text-sm">No books yet. Be the first to share!</p>
+                  <p className="text-gray-600 text-sm">No books in this area yet. Be the first to share!</p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
@@ -174,6 +162,11 @@ export default function LandingPage() {
                   </Link>
                 </div>
               )}
+
+              {/* Map - Mobile only, after book cards */}
+              <div className="md:hidden mt-8">
+                <PortlandMap />
+              </div>
             </div>
           </div>
         </div>
@@ -242,52 +235,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Why BookSharePDX Section */}
-      <section className="py-20 bg-warm-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Why BookSharePDX?</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              We believe in building connections and reducing waste. Here's what makes us different.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Community Focused */}
-            <div className="bg-white rounded-lg p-8 shadow-md hover:shadow-lg transition-shadow border border-gray-200">
-              <div className="text-4xl mb-4">🤝</div>
-              <h3 className="text-2xl font-semibold text-gray-900 mb-3">Community Focused</h3>
-              <p className="text-gray-600 leading-relaxed">
-                BookSharePDX is built for neighbors helping neighbors. We prioritize building real relationships and strengthening local communities across Portland.
-              </p>
-            </div>
-
-            {/* Sustainable */}
-            <div className="bg-white rounded-lg p-8 shadow-md hover:shadow-lg transition-shadow border border-gray-200">
-              <div className="text-4xl mb-4">🌱</div>
-              <h3 className="text-2xl font-semibold text-gray-900 mb-3">Sustainable</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Keep books in circulation. Sharing reduces waste, saves money, and gives books a second life. Every exchange matters.
-              </p>
-            </div>
-
-            {/* Local First */}
-            <div className="bg-white rounded-lg p-8 shadow-md hover:shadow-lg transition-shadow border border-gray-200">
-              <div className="text-4xl mb-4">📍</div>
-              <h3 className="text-2xl font-semibold text-gray-900 mb-3">Neighborhood Based</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Browse books in your neighborhood or nearby areas. Meet locals, make new friends, and discover your community.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-primary-600 to-primary-700 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl md:text-5xl font-bold mb-6">Ready to share?</h2>
           <p className="text-lg text-primary-100 mb-8 max-w-2xl mx-auto">
-            Join the BookSharePDX community today and start building meaningful connections through the power of reading.
+            Join the BookSharePDX community today and start building meaningful connections through a shared love of reading.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link

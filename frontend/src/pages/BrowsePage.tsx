@@ -1,14 +1,18 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { Post, User } from '@booksharepdx/shared';
-import { postService, userService, neighborhoodService } from '../services/dataService';
+import { postService, userService, neighborhoodService } from '../services';
 import { useUser } from '../contexts/UserContext';
 import PostCard from '../components/PostCard';
+import MultiSelectTagInput from '../components/MultiSelectTagInput';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { calculateDistance, getLocationCoords } from '../utils/distance';
 
 const POSTS_PER_PAGE = 10;
 
 export default function BrowsePage() {
   const { currentUser } = useUser();
+  const [searchParams] = useSearchParams();
   const [posts, setPosts] = useState<Post[]>([]);
   const [displayedPosts, setDisplayedPosts] = useState<Post[]>([]);
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
@@ -16,13 +20,23 @@ export default function BrowsePage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
+  const [infiniteScrollEnabled, setInfiniteScrollEnabled] = useState(false);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedGenre, setSelectedGenre] = useState('');
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | 'giveaway' | 'exchange'>('all');
   const [maxDistance, setMaxDistance] = useState(10);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Handle neighborhood filter from URL parameter
+  useEffect(() => {
+    const neighborhoodParam = searchParams.get('neighborhood');
+    if (neighborhoodParam) {
+      setSelectedNeighborhood(neighborhoodParam);
+    }
+  }, [searchParams]);
 
   // Infinite scroll
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -83,9 +97,25 @@ export default function BrowsePage() {
       );
     }
 
-    // Filter by genre
-    if (selectedGenre) {
-      filtered = filtered.filter(p => p.book.genre === selectedGenre);
+    // Filter by genres (if any selected)
+    if (selectedGenres.length > 0) {
+      filtered = filtered.filter(p => selectedGenres.includes(p.book.genre));
+    }
+
+    // Filter by neighborhood
+    if (selectedNeighborhood) {
+      filtered = filtered.filter(p => {
+        const postUser = users.get(p.userId);
+        if (!postUser) return false;
+
+        // Get neighborhood name from user's location
+        const neighborhoods = neighborhoodService.getAll();
+        if (postUser.location.type === 'neighborhood') {
+          const neighborhood = neighborhoods.find(n => n.id === postUser.location.neighborhoodId);
+          return neighborhood?.name === selectedNeighborhood;
+        }
+        return false;
+      });
     }
 
     // Filter by type
@@ -112,7 +142,8 @@ export default function BrowsePage() {
 
     setFilteredPosts(filtered);
     setPage(1); // Reset to first page when filters change
-  }, [posts, searchTerm, selectedGenre, selectedType, maxDistance, currentUser, getPostDistance]);
+    setInfiniteScrollEnabled(false); // Reset infinite scroll when filters change
+  }, [posts, searchTerm, selectedGenres, selectedNeighborhood, selectedType, maxDistance, currentUser, getPostDistance, users]);
 
   // Update displayed posts based on page
   useEffect(() => {
@@ -120,28 +151,31 @@ export default function BrowsePage() {
     setDisplayedPosts(filteredPosts.slice(0, endIndex));
   }, [filteredPosts, page]);
 
-  // Infinite scroll
+  // Infinite scroll (only when enabled)
   useEffect(() => {
     if (observerRef.current) {
       observerRef.current.disconnect();
     }
 
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        const target = entries[0];
-        if (target.isIntersecting && !loadingMore && displayedPosts.length < filteredPosts.length) {
-          setLoadingMore(true);
-          setTimeout(() => {
-            setPage(prev => prev + 1);
-            setLoadingMore(false);
-          }, 500);
-        }
-      },
-      { threshold: 0.8 }
-    );
+    // Only setup observer if infinite scroll is enabled
+    if (infiniteScrollEnabled) {
+      observerRef.current = new IntersectionObserver(
+        (entries) => {
+          const target = entries[0];
+          if (target.isIntersecting && !loadingMore && displayedPosts.length < filteredPosts.length) {
+            setLoadingMore(true);
+            setTimeout(() => {
+              setPage(prev => prev + 1);
+              setLoadingMore(false);
+            }, 500);
+          }
+        },
+        { threshold: 0.8 }
+      );
 
-    if (loadMoreRef.current) {
-      observerRef.current.observe(loadMoreRef.current);
+      if (loadMoreRef.current) {
+        observerRef.current.observe(loadMoreRef.current);
+      }
     }
 
     return () => {
@@ -149,20 +183,30 @@ export default function BrowsePage() {
         observerRef.current.disconnect();
       }
     };
-  }, [displayedPosts.length, filteredPosts.length, loadingMore]);
+  }, [displayedPosts.length, filteredPosts.length, loadingMore, infiniteScrollEnabled]);
 
   const clearFilters = () => {
     setSearchTerm('');
-    setSelectedGenre('');
+    setSelectedGenres([]);
+    setSelectedNeighborhood('');
     setSelectedType('all');
     setMaxDistance(10);
+  };
+
+  const handleLoadMore = () => {
+    setLoadingMore(true);
+    setTimeout(() => {
+      setPage(prev => prev + 1);
+      setInfiniteScrollEnabled(true);
+      setLoadingMore(false);
+    }, 300);
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <LoadingSpinner size="lg" className="mx-auto mb-4 text-primary-600" />
           <p className="text-gray-600">Loading books...</p>
         </div>
       </div>
@@ -203,7 +247,7 @@ export default function BrowsePage() {
             <div className="card p-4 sticky top-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold text-gray-900">Filters</h2>
-                {(searchTerm || selectedGenre || selectedType !== 'all' || maxDistance !== 10) && (
+                {(searchTerm || selectedGenres.length > 0 || selectedNeighborhood || selectedType !== 'all' || maxDistance !== 10) && (
                   <button
                     onClick={clearFilters}
                     className="text-sm text-primary-600 hover:text-primary-700 font-medium"
@@ -221,28 +265,52 @@ export default function BrowsePage() {
                   </label>
                   <input
                     type="text"
-                    placeholder="Title, author, genre..."
+                    placeholder="Title, author, comments..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="input text-sm"
                   />
                 </div>
 
+                {/* Neighborhood (if filtered from map) */}
+                {selectedNeighborhood && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Neighborhood
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-sm bg-primary-100 text-primary-700 flex-1">
+                        {selectedNeighborhood}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedNeighborhood('')}
+                        className="text-gray-500 hover:text-gray-700"
+                        title="Clear neighborhood filter"
+                      >
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path
+                            fillRule="evenodd"
+                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Genre */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Genre
                   </label>
-                  <select
-                    value={selectedGenre}
-                    onChange={(e) => setSelectedGenre(e.target.value)}
-                    className="input text-sm"
-                  >
-                    <option value="">All Genres</option>
-                    {genres.map(genre => (
-                      <option key={genre} value={genre}>{genre}</option>
-                    ))}
-                  </select>
+                  <MultiSelectTagInput
+                    options={genres}
+                    selectedTags={selectedGenres}
+                    onChange={setSelectedGenres}
+                    placeholder="All Genres"
+                  />
                 </div>
 
                 {/* Type */}
@@ -338,7 +406,7 @@ export default function BrowsePage() {
                     ? "No books found nearby matching your filters."
                     : "Try adjusting your filters or clearing them."}
                 </p>
-                {(searchTerm || selectedGenre || selectedType !== 'all' || maxDistance !== 10) && (
+                {(searchTerm || selectedGenres.length > 0 || selectedNeighborhood || selectedType !== 'all' || maxDistance !== 10) && (
                   <button onClick={clearFilters} className="btn-primary">
                     Clear Filters
                   </button>
@@ -357,13 +425,36 @@ export default function BrowsePage() {
 
                 {/* Load More Trigger */}
                 {displayedPosts.length < filteredPosts.length && (
-                  <div ref={loadMoreRef} className="py-8 text-center">
-                    {loadingMore ? (
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+                  <>
+                    {!infiniteScrollEnabled ? (
+                      // Show button before infinite scroll is enabled
+                      <div className="py-8 text-center">
+                        <button
+                          onClick={handleLoadMore}
+                          disabled={loadingMore}
+                          className="btn-primary disabled:opacity-50"
+                        >
+                          {loadingMore ? (
+                            <span className="flex items-center gap-2">
+                              <LoadingSpinner size="sm" className="text-white" />
+                              Loading...
+                            </span>
+                          ) : (
+                            `Load More (${filteredPosts.length - displayedPosts.length} remaining)`
+                          )}
+                        </button>
+                      </div>
                     ) : (
-                      <p className="text-gray-500 text-sm">Scroll for more...</p>
+                      // Show automatic loading trigger after button is clicked
+                      <div ref={loadMoreRef} className="py-8 text-center">
+                        {loadingMore ? (
+                          <LoadingSpinner size="md" className="mx-auto text-primary-600" />
+                        ) : (
+                          <p className="text-gray-500 text-sm">Scroll for more...</p>
+                        )}
+                      </div>
                     )}
-                  </div>
+                  </>
                 )}
 
                 {/* End of Results */}

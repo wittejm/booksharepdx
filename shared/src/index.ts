@@ -35,6 +35,10 @@ export interface UserStats {
 export interface ReadingPreferences {
   favoriteGenres: string[];
   favoriteAuthors: string[];
+  favoriteBooks?: BookInfo[]; // Books they own/love but not actively sharing
+  lookingForBooks?: BookInfo[]; // Books they're looking for
+  lookingForGenres?: string[]; // Genres they're interested in for exchanges
+  lookingForAuthors?: string[]; // Authors they're interested in
 }
 
 export interface SocialLink {

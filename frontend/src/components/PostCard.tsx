@@ -1,31 +1,51 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import type { Post, User } from '@booksharepdx/shared';
-import { userService, postService, savedPostService, blockService, reportService } from '../services/dataService';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import type { Post, User, Comment } from '@booksharepdx/shared';
+import { userService, postService, savedPostService, blockService, reportService, commentService } from '../services';
 import { useUser } from '../contexts/UserContext';
+import { useConfirm } from './useConfirm';
+import ReportModal from './ReportModal';
 
 interface PostCardProps {
   post: Post;
   expanded?: boolean;
   onToggle?: () => void;
-  currentUserId?: string;
   distance?: number;
 }
 
 export default function PostCard({ post, expanded = false, onToggle, distance }: PostCardProps) {
   const { currentUser } = useUser();
+  const navigate = useNavigate();
+  const { confirm, ConfirmDialogComponent } = useConfirm();
   const [isExpanded, setIsExpanded] = useState(expanded);
   const [showMenu, setShowMenu] = useState(false);
   const [postUser, setPostUser] = useState<User | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [reportReasons, setReportReasons] = useState<string[]>([]);
-  const [reportDetails, setReportDetails] = useState('');
   const [isInterested, setIsInterested] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentUsers, setCommentUsers] = useState<Record<string, User>>({});
 
-  // Load post user on mount
-  useState(() => {
+  // Load post user and comments on mount
+  useEffect(() => {
     userService.getById(post.userId).then(setPostUser);
-  });
+
+    // Load comments for this post
+    const loadComments = async () => {
+      const postComments = await commentService.getByPostId(post.id);
+      setComments(postComments);
+
+      // Load users for each comment
+      const users: Record<string, User> = {};
+      for (const comment of postComments) {
+        const user = await userService.getById(comment.userId);
+        if (user) {
+          users[comment.userId] = user;
+        }
+      }
+      setCommentUsers(users);
+    };
+    loadComments();
+  }, [post.id, post.userId]);
 
   const handleToggle = () => {
     if (onToggle) {
@@ -35,63 +55,71 @@ export default function PostCard({ post, expanded = false, onToggle, distance }:
     }
   };
 
-  const handleEdit = () => {
-    // Navigate to edit page (to be implemented)
-    window.location.href = `/post/edit/${post.id}`;
-    setShowMenu(false);
-  };
-
   const handleMarkAsGiven = async () => {
-    if (!confirm('Mark this book as given away?')) return;
+    const confirmed = await confirm({
+      title: 'Mark as Given',
+      message: 'Mark this book as given away?',
+      confirmText: 'Mark as Given',
+      variant: 'info'
+    });
+    if (!confirmed) return;
 
     await postService.update(post.id, {
       status: 'archived',
       archivedAt: Date.now(),
     });
     setShowMenu(false);
-    window.location.reload();
+    navigate(0);
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this post?')) return;
+    const confirmed = await confirm({
+      title: 'Delete Post',
+      message: 'Are you sure you want to delete this post? This action cannot be undone.',
+      confirmText: 'Delete',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
 
     await postService.delete(post.id);
     setShowMenu(false);
-    window.location.reload();
+    navigate('/browse');
   };
 
   const handleBlock = async () => {
-    if (!currentUser || !confirm('Block this user? You will no longer see their posts.')) return;
+    if (!currentUser) return;
+
+    const confirmed = await confirm({
+      title: 'Block User',
+      message: 'Block this user? You will no longer see their posts.',
+      confirmText: 'Block',
+      variant: 'warning'
+    });
+    if (!confirmed) return;
 
     await blockService.block(currentUser.id, post.userId);
     setShowMenu(false);
-    window.location.reload();
+    navigate(0);
   };
 
-  const handleReport = async () => {
+  const handleReport = async (reasons: string[], details?: string) => {
     if (!currentUser) return;
-
-    if (reportReasons.length === 0) {
-      alert('Please select at least one reason');
-      return;
-    }
 
     await reportService.create({
       reporterId: currentUser.id,
       reportedPostId: post.id,
       reportedUserId: post.userId,
-      reasons: reportReasons as any,
-      details: reportDetails,
+      reasons: reasons as any,
+      details,
     });
 
     setShowReportModal(false);
     setShowMenu(false);
-    alert('Report submitted. Thank you for keeping our community safe.');
   };
 
   const handleInterested = async () => {
     if (!currentUser) {
-      window.location.href = '/login';
+      navigate('/login');
       return;
     }
 
@@ -104,7 +132,9 @@ export default function PostCard({ post, expanded = false, onToggle, distance }:
   const isOwnPost = currentUser?.id === post.userId;
 
   return (
-    <div className="card hover:shadow-lg transition-shadow">
+    <>
+      {ConfirmDialogComponent}
+      <div className="card hover:shadow-lg transition-shadow">
       {/* Collapsed State - Always Visible */}
       <div className="flex gap-4 p-4 cursor-pointer" onClick={handleToggle}>
         {/* Book Cover */}
@@ -165,15 +195,6 @@ export default function PostCard({ post, expanded = false, onToggle, distance }:
                 >
                   {postUser.username}
                 </Link>
-                {postUser.verified && (
-                  <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                )}
               </>
             )}
             {distance !== undefined && (
@@ -182,10 +203,12 @@ export default function PostCard({ post, expanded = false, onToggle, distance }:
           </div>
 
           {/* Expand/Collapse Indicator */}
-          <div className="mt-3 flex items-center text-sm text-primary-600 font-medium">
-            <span>{isExpanded ? 'Show less' : 'Show more'}</span>
+          <div className="mt-3 flex items-center gap-1 text-sm text-primary-600 font-medium">
+            {comments.length > 0 && (
+              <span className="text-base">💬</span>
+            )}
             <svg
-              className={`w-4 h-4 ml-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+              className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -221,15 +244,6 @@ export default function PostCard({ post, expanded = false, onToggle, distance }:
               <div className="absolute right-0 top-10 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 w-48">
                 {isOwnPost ? (
                   <>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit();
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      Edit
-                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -313,66 +327,61 @@ export default function PostCard({ post, expanded = false, onToggle, distance }:
             </div>
           )}
 
-          {/* Comments Section Placeholder */}
-          <div className="mt-4">
-            <h4 className="font-semibold text-gray-900 mb-2">Comments</h4>
-            <p className="text-gray-500 text-sm italic">Comments feature coming soon...</p>
-          </div>
+          {/* Public Responses */}
+          {comments.length > 0 && (
+            <div className="mt-4">
+              <h4 className="font-semibold text-gray-900 mb-3">Public Responses ({comments.length})</h4>
+              <div className="space-y-3">
+                {comments.map((comment) => {
+                  const commentUser = commentUsers[comment.userId];
+                  return (
+                    <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex items-start gap-2 mb-2">
+                        {commentUser?.profilePicture && (
+                          <img
+                            src={commentUser.profilePicture}
+                            alt={commentUser.username}
+                            className="w-8 h-8 rounded-full"
+                          />
+                        )}
+                        <div className="flex-grow min-w-0">
+                          <div className="flex items-center gap-2">
+                            {commentUser && (
+                              <Link
+                                to={`/profile/${commentUser.username}`}
+                                className="font-medium text-gray-900 hover:text-primary-600 transition-colors text-sm"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {commentUser.username}
+                              </Link>
+                            )}
+                            <span className="text-xs text-gray-500">
+                              {new Date(comment.timestamp).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-gray-700 text-sm mt-1">{comment.content}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Report Modal */}
-      {showReportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-xl font-bold mb-4">Report Post</h3>
-
-            <div className="space-y-3 mb-4">
-              <p className="text-sm text-gray-600">Select all that apply:</p>
-              {['spam', 'harassment', 'scam', 'inappropriate', 'other'].map((reason) => (
-                <label key={reason} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={reportReasons.includes(reason)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setReportReasons([...reportReasons, reason]);
-                      } else {
-                        setReportReasons(reportReasons.filter(r => r !== reason));
-                      }
-                    }}
-                    className="mr-2"
-                  />
-                  <span className="text-sm capitalize">{reason}</span>
-                </label>
-              ))}
-            </div>
-
-            <textarea
-              value={reportDetails}
-              onChange={(e) => setReportDetails(e.target.value)}
-              placeholder="Additional details (optional)"
-              className="input w-full h-24 mb-4"
-            />
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowReportModal(false);
-                  setReportReasons([]);
-                  setReportDetails('');
-                }}
-                className="btn-secondary flex-1"
-              >
-                Cancel
-              </button>
-              <button onClick={handleReport} className="btn-primary flex-1">
-                Submit Report
-              </button>
-            </div>
-          </div>
-        </div>
+      {postUser && (
+        <ReportModal
+          open={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          targetUserId={post.userId}
+          targetPostId={post.id}
+          onSubmit={handleReport}
+        />
       )}
-    </div>
+      </div>
+    </>
   );
 }

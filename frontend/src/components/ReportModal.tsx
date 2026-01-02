@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Modal from './Modal';
 import { useToast } from './useToast';
-import { blockService } from '../services/dataService';
+import { blockService } from '../services';
 
 interface ReportModalProps {
   open: boolean;

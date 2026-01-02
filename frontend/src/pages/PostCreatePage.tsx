@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { postService } from '../services/dataService';
+import { postService } from '../services';
 import { useUser } from '../contexts/UserContext';
-import Toast from '../components/Toast';
+import { useToast } from '../components/useToast';
+import ToastContainer from '../components/ToastContainer';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 // Common book genres
 const GENRES = [
@@ -59,7 +61,7 @@ export default function PostCreatePage() {
   // UI state
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const { showToast, toasts, dismiss } = useToast();
 
   // Redirect if not logged in
   if (!currentUser) {
@@ -121,7 +123,7 @@ export default function PostCreatePage() {
     e.preventDefault();
 
     if (!validateForm()) {
-      setToast({ message: 'Please fill in all required fields', type: 'error' });
+      showToast('Please fill in all required fields', 'error');
       return;
     }
 
@@ -153,7 +155,7 @@ export default function PostCreatePage() {
         status: 'active',
       });
 
-      setToast({ message: 'Post created successfully!', type: 'success' });
+      showToast('Post created successfully!', 'success');
 
       // Redirect to profile after a short delay
       setTimeout(() => {
@@ -162,7 +164,7 @@ export default function PostCreatePage() {
 
     } catch (err) {
       console.error('Failed to create post:', err);
-      setToast({ message: 'Failed to create post. Please try again.', type: 'error' });
+      showToast('Failed to create post. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -439,10 +441,7 @@ export default function PostCreatePage() {
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+                  <LoadingSpinner size="sm" className="text-white" />
                   Creating Post...
                 </span>
               ) : (
@@ -453,16 +452,7 @@ export default function PostCreatePage() {
         </form>
       </div>
 
-      {/* Toast */}
-      {toast && (
-        <Toast
-          id="post-create-toast"
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onDismiss={() => setToast(null)}
-        />
-      )}
+      <ToastContainer toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

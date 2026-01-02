@@ -7,15 +7,7 @@ export default function Footer() {
     <footer className="bg-gray-50 border-t border-gray-200 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-          {/* Brand & About */}
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-4">BookSharePDX</h3>
-            <p className="text-gray-600 text-sm">
-              Share books with your neighbors. Build community, one page at a time.
-            </p>
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
           {/* Links */}
           <div>
             <h3 className="font-semibold text-gray-900 mb-4">Resources</h3>

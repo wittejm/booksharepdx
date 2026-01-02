@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import type { Post, User } from '@booksharepdx/shared';
 import Modal from '../Modal';
-import { postService, userService, messageService, commentService } from '../../services/dataService';
+import { postService, userService, messageService, commentService } from '../../services';
 import { useToast } from '../useToast';
+import { formatTimestamp } from '../../utils/time';
 
 interface Interaction {
   userId: string;
@@ -169,14 +170,11 @@ export default function MarkAsGivenModal({ open, onClose, post, currentUserId }:
         });
 
         // Create system message in thread
-        const threads = await messageService.getThreads(currentUserId);
-        let thread = threads.find(
-          t => t.postId === post.id && t.participants.includes(selectedRecipient.id)
+        const thread = await messageService.getOrCreateThread(
+          currentUserId,
+          selectedRecipient.id,
+          post.id
         );
-
-        if (!thread) {
-          thread = await messageService.createThread(post.id, [currentUserId, selectedRecipient.id]);
-        }
 
         await messageService.sendMessage({
           threadId: thread.id,
@@ -196,35 +194,16 @@ export default function MarkAsGivenModal({ open, onClose, post, currentUserId }:
         });
 
         // Update stats
-        const currentUser = await userService.getById(currentUserId);
-        if (currentUser) {
-          await userService.update(currentUserId, {
-            stats: {
-              ...currentUser.stats,
-              booksGiven: currentUser.stats.booksGiven + 1,
-            },
-          });
-        }
+        await userService.incrementBooksGiven(currentUserId);
 
-        const recipient = await userService.getById(selectedRecipient.id);
-        if (recipient) {
-          await userService.update(selectedRecipient.id, {
-            stats: {
-              ...recipient.stats,
-              booksReceived: recipient.stats.booksReceived + 1,
-            },
-          });
-        }
+        await userService.incrementBooksReceived(selectedRecipient.id);
 
         // Create system message in thread
-        const threads = await messageService.getThreads(currentUserId);
-        let thread = threads.find(
-          t => t.postId === post.id && t.participants.includes(selectedRecipient.id)
+        const thread = await messageService.getOrCreateThread(
+          currentUserId,
+          selectedRecipient.id,
+          post.id
         );
-
-        if (!thread) {
-          thread = await messageService.createThread(post.id, [currentUserId, selectedRecipient.id]);
-        }
 
         await messageService.sendMessage({
           threadId: thread.id,
@@ -258,13 +237,6 @@ export default function MarkAsGivenModal({ open, onClose, post, currentUserId }:
     return Math.random() * 3 + 0.1;
   };
 
-  const formatTimestamp = (timestamp: number): string => {
-    const diff = Date.now() - timestamp;
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days === 0) return 'today';
-    if (days === 1) return 'yesterday';
-    return `${days} days ago`;
-  };
 
   if (step === 1) {
     return (

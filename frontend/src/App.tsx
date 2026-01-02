@@ -1,17 +1,19 @@
-import { HashRouter, BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import type { User } from '@booksharepdx/shared';
-import { authService } from './services/dataService';
+import { authService } from './services';
 
 // Layout components
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
+import ScrollToTop from './components/ScrollToTop';
 
 // Page components
 import LandingPage from './pages/LandingPage';
 import BrowsePage from './pages/BrowsePage';
 import LoginPage from './pages/LoginPage';
 import SignUpPage from './pages/SignUpPage';
+import LocationSelectionPage from './pages/LocationSelectionPage';
 import PostCreatePage from './pages/PostCreatePage';
 import PostDetailPage from './pages/PostDetailPage';
 import MessagesPage from './pages/MessagesPage';
@@ -22,8 +24,6 @@ import ModerationPage from './pages/ModerationPage';
 
 // Context for current user
 import { UserContext } from './contexts/UserContext';
-
-const USE_HASH_ROUTER = import.meta.env.VITE_USE_HASH_ROUTER === 'true';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -60,6 +60,7 @@ function AppRoutes() {
 
   return (
     <UserContext.Provider value={{ currentUser, updateCurrentUser }}>
+      <ScrollToTop />
       <div className="flex flex-col min-h-screen">
         <Header />
         <main className="flex-grow">
@@ -70,6 +71,9 @@ function AppRoutes() {
             } />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignUpPage />} />
+            <Route path="/location-selection" element={
+              <ProtectedRoute><LocationSelectionPage /></ProtectedRoute>
+            } />
             <Route path="/about" element={<AboutPage />} />
 
             {/* Browse page - accessible to all */}
@@ -109,11 +113,9 @@ function AppRoutes() {
 }
 
 export default function App() {
-  const Router = USE_HASH_ROUTER ? HashRouter : BrowserRouter;
-
   return (
-    <Router>
+    <BrowserRouter>
       <AppRoutes />
-    </Router>
+    </BrowserRouter>
   );
 }

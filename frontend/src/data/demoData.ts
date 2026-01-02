@@ -4,9 +4,9 @@ import type {
   MessageThread,
   Message,
   Comment,
-  Neighborhood,
   Vouch,
 } from '@booksharepdx/shared';
+import { neighborhoods } from './neighborhoods';
 
 // Helper function to generate IDs
 let idCounter = 0;
@@ -27,189 +27,8 @@ const randomItems = <T>(arr: T[], count: number): T[] => {
   return shuffled.slice(0, count);
 };
 
-// Portland Neighborhoods Data
-export const neighborhoods: Neighborhood[] = [
-  {
-    id: 'sellwood',
-    name: 'Sellwood',
-    centroid: { lat: 45.4656, lng: -122.6486 },
-    boundaries: {
-      type: 'Polygon',
-      coordinates: [[
-        [-122.6586, 45.4556],
-        [-122.6386, 45.4556],
-        [-122.6386, 45.4756],
-        [-122.6586, 45.4756],
-        [-122.6586, 45.4556],
-      ]],
-    },
-  },
-  {
-    id: 'pearl-district',
-    name: 'Pearl District',
-    centroid: { lat: 45.5267, lng: -122.6819 },
-    boundaries: {
-      type: 'Polygon',
-      coordinates: [[
-        [-122.6919, 45.5167],
-        [-122.6719, 45.5167],
-        [-122.6719, 45.5367],
-        [-122.6919, 45.5367],
-        [-122.6919, 45.5167],
-      ]],
-    },
-  },
-  {
-    id: 'hawthorne',
-    name: 'Hawthorne',
-    centroid: { lat: 45.5122, lng: -122.6270 },
-    boundaries: {
-      type: 'Polygon',
-      coordinates: [[
-        [-122.6370, 45.5022],
-        [-122.6170, 45.5022],
-        [-122.6170, 45.5222],
-        [-122.6370, 45.5222],
-        [-122.6370, 45.5022],
-      ]],
-    },
-  },
-  {
-    id: 'division',
-    name: 'Division',
-    centroid: { lat: 45.5050, lng: -122.6381 },
-    boundaries: {
-      type: 'Polygon',
-      coordinates: [[
-        [-122.6481, 45.4950],
-        [-122.6281, 45.4950],
-        [-122.6281, 45.5150],
-        [-122.6481, 45.5150],
-        [-122.6481, 45.4950],
-      ]],
-    },
-  },
-  {
-    id: 'alberta',
-    name: 'Alberta',
-    centroid: { lat: 45.5589, lng: -122.6539 },
-    boundaries: {
-      type: 'Polygon',
-      coordinates: [[
-        [-122.6639, 45.5489],
-        [-122.6439, 45.5489],
-        [-122.6439, 45.5689],
-        [-122.6639, 45.5689],
-        [-122.6639, 45.5489],
-      ]],
-    },
-  },
-  {
-    id: 'mississippi',
-    name: 'Mississippi',
-    centroid: { lat: 45.5500, lng: -122.6750 },
-    boundaries: {
-      type: 'Polygon',
-      coordinates: [[
-        [-122.6850, 45.5400],
-        [-122.6650, 45.5400],
-        [-122.6650, 45.5600],
-        [-122.6850, 45.5600],
-        [-122.6850, 45.5400],
-      ]],
-    },
-  },
-  {
-    id: 'st-johns',
-    name: 'St. Johns',
-    centroid: { lat: 45.5900, lng: -122.7536 },
-    boundaries: {
-      type: 'Polygon',
-      coordinates: [[
-        [-122.7636, 45.5800],
-        [-122.7436, 45.5800],
-        [-122.7436, 45.6000],
-        [-122.7636, 45.6000],
-        [-122.7636, 45.5800],
-      ]],
-    },
-  },
-  {
-    id: 'nob-hill',
-    name: 'Nob Hill',
-    centroid: { lat: 45.5300, lng: -122.6978 },
-    boundaries: {
-      type: 'Polygon',
-      coordinates: [[
-        [-122.7078, 45.5200],
-        [-122.6878, 45.5200],
-        [-122.6878, 45.5400],
-        [-122.7078, 45.5400],
-        [-122.7078, 45.5200],
-      ]],
-    },
-  },
-  {
-    id: 'belmont',
-    name: 'Belmont',
-    centroid: { lat: 45.5165, lng: -122.6209 },
-    boundaries: {
-      type: 'Polygon',
-      coordinates: [[
-        [-122.6309, 45.5065],
-        [-122.6109, 45.5065],
-        [-122.6109, 45.5265],
-        [-122.6309, 45.5265],
-        [-122.6309, 45.5065],
-      ]],
-    },
-  },
-  {
-    id: 'richmond',
-    name: 'Richmond',
-    centroid: { lat: 45.4769, lng: -122.6394 },
-    boundaries: {
-      type: 'Polygon',
-      coordinates: [[
-        [-122.6494, 45.4669],
-        [-122.6294, 45.4669],
-        [-122.6294, 45.4869],
-        [-122.6494, 45.4869],
-        [-122.6494, 45.4669],
-      ]],
-    },
-  },
-  {
-    id: 'northwest-district',
-    name: 'Northwest District',
-    centroid: { lat: 45.5311, lng: -122.6950 },
-    boundaries: {
-      type: 'Polygon',
-      coordinates: [[
-        [-122.7050, 45.5211],
-        [-122.6850, 45.5211],
-        [-122.6850, 45.5411],
-        [-122.7050, 45.5411],
-        [-122.7050, 45.5211],
-      ]],
-    },
-  },
-  {
-    id: 'buckman',
-    name: 'Buckman',
-    centroid: { lat: 45.5156, lng: -122.6556 },
-    boundaries: {
-      type: 'Polygon',
-      coordinates: [[
-        [-122.6656, 45.5056],
-        [-122.6456, 45.5056],
-        [-122.6456, 45.5256],
-        [-122.6656, 45.5256],
-        [-122.6656, 45.5056],
-      ]],
-    },
-  },
-];
+// Portland Neighborhoods Data - imported from neighborhoods.ts
+export { neighborhoods };
 
 // Demo Users
 export const users: User[] = [
@@ -226,6 +45,47 @@ export const users: User[] = [
     readingPreferences: {
       favoriteGenres: ['Literary Fiction', 'Memoir', 'Contemporary Fiction'],
       favoriteAuthors: ['Zadie Smith', 'Ocean Vuong', 'Jhumpa Lahiri'],
+      favoriteBooks: [
+        {
+          title: 'White Teeth',
+          author: 'Zadie Smith',
+          coverImage: 'https://covers.openlibrary.org/b/isbn/9780375703867-L.jpg',
+          genre: 'Literary Fiction',
+          isbn: '9780375703867',
+        },
+        {
+          title: 'On Earth We\'re Briefly Gorgeous',
+          author: 'Ocean Vuong',
+          coverImage: 'https://covers.openlibrary.org/b/isbn/9781984822178-L.jpg',
+          genre: 'Literary Fiction',
+          isbn: '9781984822178',
+        },
+        {
+          title: 'The Namesake',
+          author: 'Jhumpa Lahiri',
+          coverImage: 'https://covers.openlibrary.org/b/isbn/9780618485222-L.jpg',
+          genre: 'Literary Fiction',
+          isbn: '9780618485222',
+        },
+      ],
+      lookingForBooks: [
+        {
+          title: 'The Marriage Plot',
+          author: 'Jeffrey Eugenides',
+          coverImage: 'https://covers.openlibrary.org/b/isbn/9780374203054-L.jpg',
+          genre: 'Literary Fiction',
+          isbn: '9780374203054',
+        },
+        {
+          title: 'Hamnet',
+          author: 'Maggie O\'Farrell',
+          coverImage: 'https://covers.openlibrary.org/b/isbn/9780525657606-L.jpg',
+          genre: 'Historical Fiction',
+          isbn: '9780525657606',
+        },
+      ],
+      lookingForGenres: ['Historical Fiction', 'Magical Realism'],
+      lookingForAuthors: ['Colson Whitehead', 'Jennifer Egan', 'Chimamanda Ngozi Adichie'],
     },
     role: 'admin',
   },
@@ -236,12 +96,39 @@ export const users: User[] = [
     bio: 'Sci-fi enthusiast and tech professional. Love hard science fiction and cyberpunk. Let\'s trade some speculative futures!',
     verified: true,
     createdAt: getRandomPastDate(150),
-    location: { type: 'neighborhood', neighborhoodId: 'hawthorne' },
+    location: { type: 'neighborhood', neighborhoodId: 'hosford-abernethy' },
     profilePicture: 'https://i.pravatar.cc/150?img=12',
     stats: { booksGiven: 15, booksReceived: 14, bookshares: 8 },
     readingPreferences: {
       favoriteGenres: ['Science Fiction', 'Cyberpunk', 'Fantasy'],
       favoriteAuthors: ['Neal Stephenson', 'William Gibson', 'Kim Stanley Robinson'],
+      favoriteBooks: [
+        {
+          title: 'Snow Crash',
+          author: 'Neal Stephenson',
+          coverImage: 'https://covers.openlibrary.org/b/isbn/9780553380958-L.jpg',
+          genre: 'Cyberpunk',
+          isbn: '9780553380958',
+        },
+        {
+          title: 'Neuromancer',
+          author: 'William Gibson',
+          coverImage: 'https://covers.openlibrary.org/b/isbn/9780441569595-L.jpg',
+          genre: 'Cyberpunk',
+          isbn: '9780441569595',
+        },
+      ],
+      lookingForBooks: [
+        {
+          title: 'The Diamond Age',
+          author: 'Neal Stephenson',
+          coverImage: 'https://covers.openlibrary.org/b/isbn/9780553380965-L.jpg',
+          genre: 'Science Fiction',
+          isbn: '9780553380965',
+        },
+      ],
+      lookingForGenres: ['Hard Science Fiction', 'Space Opera'],
+      lookingForAuthors: ['Iain M. Banks', 'Alastair Reynolds'],
     },
     role: 'moderator',
   },
@@ -252,12 +139,46 @@ export const users: User[] = [
     bio: 'Mystery and thriller addict! From cozy mysteries to psychological thrillers, I read them all. Happy to share my collection.',
     verified: true,
     createdAt: getRandomPastDate(120),
-    location: { type: 'neighborhood', neighborhoodId: 'sellwood' },
+    location: { type: 'neighborhood', neighborhoodId: 'sellwood-moreland' },
     profilePicture: 'https://i.pravatar.cc/150?img=5',
     stats: { booksGiven: 20, booksReceived: 18, bookshares: 12 },
     readingPreferences: {
       favoriteGenres: ['Mystery', 'Thriller', 'Crime Fiction'],
       favoriteAuthors: ['Tana French', 'Ruth Ware', 'Agatha Christie'],
+      favoriteBooks: [
+        {
+          title: 'In the Woods',
+          author: 'Tana French',
+          coverImage: 'https://covers.openlibrary.org/b/isbn/9780143113492-L.jpg',
+          genre: 'Mystery',
+          isbn: '9780143113492',
+        },
+        {
+          title: 'The Woman in Cabin 10',
+          author: 'Ruth Ware',
+          coverImage: 'https://covers.openlibrary.org/b/isbn/9781501132933-L.jpg',
+          genre: 'Thriller',
+          isbn: '9781501132933',
+        },
+        {
+          title: 'Murder on the Orient Express',
+          author: 'Agatha Christie',
+          coverImage: 'https://covers.openlibrary.org/b/isbn/9780062693662-L.jpg',
+          genre: 'Mystery',
+          isbn: '9780062693662',
+        },
+      ],
+      lookingForBooks: [
+        {
+          title: 'The Secret Place',
+          author: 'Tana French',
+          coverImage: 'https://covers.openlibrary.org/b/isbn/9780143127512-L.jpg',
+          genre: 'Mystery',
+          isbn: '9780143127512',
+        },
+      ],
+      lookingForGenres: ['Psychological Thriller', 'Nordic Noir'],
+      lookingForAuthors: ['Gillian Flynn', 'Paula Hawkins'],
     },
     role: 'moderator',
   },
@@ -268,7 +189,7 @@ export const users: User[] = [
     bio: 'History teacher with a passion for historical non-fiction and biographies. Currently on a WWII kick but love all eras!',
     verified: true,
     createdAt: getRandomPastDate(200),
-    location: { type: 'neighborhood', neighborhoodId: 'alberta' },
+    location: { type: 'neighborhood', neighborhoodId: 'sabin' },
     profilePicture: 'https://i.pravatar.cc/150?img=14',
     stats: { booksGiven: 9, booksReceived: 7, bookshares: 4 },
     readingPreferences: {
@@ -300,7 +221,7 @@ export const users: User[] = [
     bio: 'Philosophy grad student. Interested in existentialism, ethics, and the meaning of life. Also enjoy literary classics.',
     verified: true,
     createdAt: getRandomPastDate(160),
-    location: { type: 'neighborhood', neighborhoodId: 'division' },
+    location: { type: 'neighborhood', neighborhoodId: 'richmond' },
     profilePicture: 'https://i.pravatar.cc/150?img=33',
     stats: { booksGiven: 11, booksReceived: 10, bookshares: 6 },
     readingPreferences: {
@@ -316,7 +237,7 @@ export const users: User[] = [
     bio: 'Environmental scientist and nature lover. Reading mostly climate change, ecology, and environmental justice books these days.',
     verified: true,
     createdAt: getRandomPastDate(140),
-    location: { type: 'neighborhood', neighborhoodId: 'mississippi' },
+    location: { type: 'neighborhood', neighborhoodId: 'boise' },
     profilePicture: 'https://i.pravatar.cc/150?img=24',
     stats: { booksGiven: 6, booksReceived: 4, bookshares: 2 },
     readingPreferences: {
@@ -348,7 +269,7 @@ export const users: User[] = [
     bio: 'Romance reader unapologetically! Love contemporary romance, rom-coms, and happily-ever-afters. Life is too short for sad endings.',
     verified: true,
     createdAt: getRandomPastDate(75),
-    location: { type: 'neighborhood', neighborhoodId: 'nob-hill' },
+    location: { type: 'neighborhood', neighborhoodId: 'northwest-district' },
     profilePicture: 'https://i.pravatar.cc/150?img=16',
     stats: { booksGiven: 14, booksReceived: 13, bookshares: 9 },
     readingPreferences: {
@@ -380,7 +301,7 @@ export const users: User[] = [
     bio: 'Yoga instructor and wellness enthusiast. Love self-help, mindfulness, and personal development books.',
     verified: true,
     createdAt: getRandomPastDate(85),
-    location: { type: 'neighborhood', neighborhoodId: 'belmont' },
+    location: { type: 'neighborhood', neighborhoodId: 'sunnyside' },
     profilePicture: 'https://i.pravatar.cc/150?img=47',
     stats: { booksGiven: 5, booksReceived: 4, bookshares: 2 },
     readingPreferences: {
@@ -460,7 +381,7 @@ export const users: User[] = [
     bio: 'Comic book collector and graphic novel fanatic. From superheroes to indie comics, I love them all!',
     verified: true,
     createdAt: getRandomPastDate(60),
-    location: { type: 'neighborhood', neighborhoodId: 'hawthorne' },
+    location: { type: 'neighborhood', neighborhoodId: 'hosford-abernethy' },
     profilePicture: 'https://i.pravatar.cc/150?img=15',
     stats: { booksGiven: 4, booksReceived: 3, bookshares: 1 },
     readingPreferences: {
@@ -476,7 +397,7 @@ export const users: User[] = [
     bio: 'Parent of two, always looking for great middle grade and YA books to share with my kids (and enjoy myself!).',
     verified: true,
     createdAt: getRandomPastDate(125),
-    location: { type: 'neighborhood', neighborhoodId: 'sellwood' },
+    location: { type: 'neighborhood', neighborhoodId: 'sellwood-moreland' },
     profilePicture: 'https://i.pravatar.cc/150?img=43',
     stats: { booksGiven: 13, booksReceived: 11, bookshares: 7 },
     readingPreferences: {
@@ -492,7 +413,7 @@ export const users: User[] = [
     bio: 'Psychology PhD student. Fascinated by neuroscience, psychology, and human behavior. Science nerd through and through.',
     verified: true,
     createdAt: getRandomPastDate(105),
-    location: { type: 'neighborhood', neighborhoodId: 'alberta' },
+    location: { type: 'neighborhood', neighborhoodId: 'sabin' },
     profilePicture: 'https://i.pravatar.cc/150?img=13',
     stats: { booksGiven: 6, booksReceived: 5, bookshares: 3 },
     readingPreferences: {
@@ -508,7 +429,7 @@ export const users: User[] = [
     bio: 'Horror fan and Halloween enthusiast year-round. Love horror fiction, gothic literature, and anything spooky!',
     verified: true,
     createdAt: getRandomPastDate(80),
-    location: { type: 'neighborhood', neighborhoodId: 'division' },
+    location: { type: 'neighborhood', neighborhoodId: 'richmond' },
     profilePicture: 'https://i.pravatar.cc/150?img=20',
     stats: { booksGiven: 8, booksReceived: 7, bookshares: 4 },
     readingPreferences: {

@@ -12,6 +12,7 @@ build/
 
 # Misc
 .DS_Store
+.env
 .env.local
 .env.development.local
 .env.test.local
@@ -39,3 +40,11 @@ lerna-debug.log*
 
 # gh-pages
 .gh-pages/
+
+# GCP service account keys
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!vercel.json
+!*.geojson

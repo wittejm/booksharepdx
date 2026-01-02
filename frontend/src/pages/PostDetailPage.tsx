@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type { Post, User, Comment } from '@booksharepdx/shared';
-import { postService, userService, commentService, messageService, neighborhoodService } from '../services/dataService';
+import { postService, userService, commentService, messageService, neighborhoodService } from '../services';
 import { useUser } from '../contexts/UserContext';
-import Toast from '../components/Toast';
+import { useToast } from '../components/useToast';
+import ToastContainer from '../components/ToastContainer';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { useConfirm } from '../components/useConfirm';
+import { formatTimestamp } from '../utils/time';
 
 export default function PostDetailPage() {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
   const { currentUser } = useUser();
+  const { confirm, ConfirmDialogComponent } = useConfirm();
 
   const [post, setPost] = useState<Post | null>(null);
   const [postOwner, setPostOwner] = useState<User | null>(null);
@@ -28,7 +33,7 @@ export default function PostDetailPage() {
   const [submittingInterest, setSubmittingInterest] = useState(false);
 
   // Toast state
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const { showToast, toasts, dismiss } = useToast();
 
   // Distance calculation (placeholder)
   const [distance, setDistance] = useState<string>('');
@@ -129,9 +134,9 @@ export default function PostDetailPage() {
         [currentUser.id]: currentUser,
       });
       setNewComment('');
-      setToast({ message: 'Comment added!', type: 'success' });
+      showToast('Comment added!', 'success');
     } catch (err) {
-      setToast({ message: 'Failed to add comment', type: 'error' });
+      showToast('Failed to add comment', 'error');
       console.error(err);
     } finally {
       setSubmittingComment(false);
@@ -151,24 +156,28 @@ export default function PostDetailPage() {
           userId: currentUser.id,
           content: interestedMessage.trim() || "I'm interested in this book!",
         });
-        setToast({ message: 'Comment posted!', type: 'success' });
+        showToast('Comment posted!', 'success');
         await loadPostData();
       } else {
         // Send private message
-        const thread = await messageService.createThread(post.id, [currentUser.id, post.userId]);
+        const thread = await messageService.getOrCreateThread(
+          currentUser.id,
+          post.userId,
+          post.id
+        );
         await messageService.sendMessage({
           threadId: thread.id,
           senderId: currentUser.id,
           content: interestedMessage.trim() || "Hi! I'm interested in this book.",
           type: 'user',
         });
-        setToast({ message: 'Message sent!', type: 'success' });
+        showToast('Message sent!', 'success');
       }
 
       setShowInterestedModal(false);
       setInterestedMessage('');
     } catch (err) {
-      setToast({ message: 'Failed to express interest', type: 'error' });
+      showToast('Failed to express interest', 'error');
       console.error(err);
     } finally {
       setSubmittingInterest(false);
@@ -178,17 +187,23 @@ export default function PostDetailPage() {
   const handleMarkAsGiven = async () => {
     if (!post || !currentUser || post.userId !== currentUser.id) return;
 
-    if (!confirm('Mark this book as given away?')) return;
+    const confirmed = await confirm({
+      title: 'Mark as Given',
+      message: 'Mark this book as given away?',
+      confirmText: 'Mark as Given',
+      variant: 'info'
+    });
+    if (!confirmed) return;
 
     try {
       await postService.update(post.id, {
         status: 'archived',
         archivedAt: Date.now(),
       });
-      setToast({ message: 'Post marked as given!', type: 'success' });
+      showToast('Post marked as given!', 'success');
       setTimeout(() => navigate('/profile/' + currentUser.username), 1000);
     } catch (err) {
-      setToast({ message: 'Failed to update post', type: 'error' });
+      showToast('Failed to update post', 'error');
       console.error(err);
     }
   };
@@ -196,38 +211,29 @@ export default function PostDetailPage() {
   const handleDelete = async () => {
     if (!post || !currentUser || post.userId !== currentUser.id) return;
 
-    if (!confirm('Are you sure you want to delete this post?')) return;
+    const confirmed = await confirm({
+      title: 'Delete Post',
+      message: 'Are you sure you want to delete this post? This action cannot be undone.',
+      confirmText: 'Delete',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
 
     try {
       await postService.delete(post.id);
-      setToast({ message: 'Post deleted!', type: 'success' });
+      showToast('Post deleted!', 'success');
       setTimeout(() => navigate('/profile/' + currentUser.username), 1000);
     } catch (err) {
-      setToast({ message: 'Failed to delete post', type: 'error' });
+      showToast('Failed to delete post', 'error');
       console.error(err);
     }
-  };
-
-  const formatTimestamp = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
   };
 
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-600 border-t-transparent"></div>
+          <LoadingSpinner size="lg" className="text-primary-600" />
           <p className="mt-4 text-gray-600">Loading post...</p>
         </div>
       </div>
@@ -251,7 +257,9 @@ export default function PostDetailPage() {
   const isOwnPost = currentUser?.id === post.userId;
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <>
+      {ConfirmDialogComponent}
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
       {/* Back button */}
       <button
         onClick={() => navigate(-1)}
@@ -583,16 +591,8 @@ export default function PostDetailPage() {
         </div>
       )}
 
-      {/* Toast */}
-      {toast && (
-        <Toast
-          id="post-detail-toast"
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onDismiss={() => setToast(null)}
-        />
-      )}
-    </div>
+      <ToastContainer toasts={toasts} onDismiss={dismiss} />
+      </div>
+    </>
   );
 }

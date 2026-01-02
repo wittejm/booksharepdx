@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { MoreVertical, Shield, Flag } from 'lucide-react';
-import { blockService, reportService } from '../services/dataService';
+import { blockService, reportService } from '../services';
 import { useToast } from './useToast';
 import ReportModal from './ReportModal';
 

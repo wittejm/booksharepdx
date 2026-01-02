@@ -1,26 +1,25 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { authService } from '../services/dataService';
+import { authService } from '../services';
 import { useUser } from '../contexts/UserContext';
-import Toast from '../components/Toast';
+import { useToast } from '../components/useToast';
+import ToastContainer from '../components/ToastContainer';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ identifier?: string; password?: string }>({});
 
   const navigate = useNavigate();
   const { updateCurrentUser } = useUser();
+  const { addToast, toasts } = useToast();
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
 
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Please enter a valid email';
+    if (!identifier.trim()) {
+      newErrors.identifier = 'Email or username is required';
     }
 
     if (!password.trim()) {
@@ -40,19 +39,15 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const user = await authService.login(email, password);
-
-      if (user) {
-        updateCurrentUser(user);
-        setToast({ message: 'Login successful!', type: 'success' });
-        setTimeout(() => {
-          navigate('/browse');
-        }, 500);
-      } else {
-        setToast({ message: 'Invalid email or password', type: 'error' });
-      }
+      const user = await authService.login(identifier, password);
+      updateCurrentUser(user);
+      addToast('Login successful!', 'success', 2000);
+      setTimeout(() => {
+        navigate('/browse');
+      }, 500);
     } catch (error) {
-      setToast({ message: 'Login failed. Please try again.', type: 'error' });
+      const err = error as Error;
+      addToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -66,22 +61,22 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
+              <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-2">
+                Email or Username
               </label>
               <input
-                type="email"
-                id="email"
-                value={email}
+                type="text"
+                id="identifier"
+                value={identifier}
                 onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (errors.email) setErrors({ ...errors, email: undefined });
+                  setIdentifier(e.target.value);
+                  if (errors.identifier) setErrors({ ...errors, identifier: undefined });
                 }}
-                placeholder="you@example.com"
-                className={`input ${errors.email ? 'border-red-500 focus:ring-red-500' : ''}`}
+                placeholder="you@example.com or username"
+                className={`input ${errors.identifier ? 'border-red-500 focus:ring-red-500' : ''}`}
                 disabled={loading}
               />
-              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+              {errors.identifier && <p className="text-red-500 text-sm mt-1">{errors.identifier}</p>}
             </div>
 
             <div>
@@ -138,17 +133,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <Toast
-            id="login-toast"
-            message={toast.message}
-            type={toast.type}
-            duration={toast.type === 'success' ? 2000 : 3000}
-            onDismiss={() => setToast(null)}
-          />
-        </div>
-      )}
+      <ToastContainer toasts={toasts} />
     </div>
   );
 }

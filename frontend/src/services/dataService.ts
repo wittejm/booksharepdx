@@ -13,6 +13,7 @@ import type {
   Neighborhood,
 } from '@booksharepdx/shared';
 import { getDemoData } from '../data/demoData';
+import { generateId } from '../utils/idGenerator';
 
 const USE_DEMO_DATA = import.meta.env.VITE_USE_DEMO_DATA === 'true';
 
@@ -86,22 +87,21 @@ function saveToStorage<T>(key: string, data: T[]): void {
   localStorage.setItem(key, JSON.stringify(data));
 }
 
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
-
 // Authentication Service
 export const authService = {
-  login: async (email: string, password: string): Promise<User | null> => {
+  login: async (identifier: string, password: string): Promise<User> => {
     const users = getFromStorage<User>(KEYS.USERS);
-    const user = users.find(u => u.email === email);
+    const isEmail = identifier.includes('@');
+    const user = users.find(u =>
+      isEmail ? u.email === identifier : u.username.toLowerCase() === identifier.toLowerCase()
+    );
 
     // In demo mode, any password works for demo users
     if (user && !user.banned) {
       localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(user));
       return user;
     }
-    return null;
+    throw new Error('Invalid email/username or password');
   },
 
   signup: async (data: {
@@ -111,6 +111,18 @@ export const authService = {
     bio: string;
   }): Promise<User> => {
     const users = getFromStorage<User>(KEYS.USERS);
+
+    // Check if email already exists
+    const emailExists = users.find(u => u.email.toLowerCase() === data.email.toLowerCase());
+    if (emailExists) {
+      throw new Error('EMAIL_TAKEN');
+    }
+
+    // Check if username already exists
+    const usernameExists = users.find(u => u.username.toLowerCase() === data.username.toLowerCase());
+    if (usernameExists) {
+      throw new Error('USERNAME_TAKEN');
+    }
 
     const newUser: User = {
       id: generateId(),
@@ -185,6 +197,43 @@ export const userService = {
     saveToStorage(KEYS.USERS, users);
 
     return users[index];
+  },
+
+  incrementBooksGiven: async (userId: string): Promise<User | null> => {
+    const user = await userService.getById(userId);
+    if (!user) return null;
+
+    return await userService.update(userId, {
+      stats: {
+        ...user.stats,
+        booksGiven: user.stats.booksGiven + 1,
+      },
+    });
+  },
+
+  incrementBooksReceived: async (userId: string): Promise<User | null> => {
+    const user = await userService.getById(userId);
+    if (!user) return null;
+
+    return await userService.update(userId, {
+      stats: {
+        ...user.stats,
+        booksReceived: user.stats.booksReceived + 1,
+      },
+    });
+  },
+
+  incrementExchangeStats: async (userId: string): Promise<User | null> => {
+    const user = await userService.getById(userId);
+    if (!user) return null;
+
+    return await userService.update(userId, {
+      stats: {
+        ...user.stats,
+        booksGiven: user.stats.booksGiven + 1,
+        booksReceived: user.stats.booksReceived + 1,
+      },
+    });
   },
 };
 
@@ -311,6 +360,19 @@ export const messageService = {
     saveToStorage(KEYS.MESSAGE_THREADS, threads);
 
     return newThread;
+  },
+
+  getOrCreateThread: async (currentUserId: string, otherUserId: string, postId: string): Promise<MessageThread> => {
+    const threads = await messageService.getThreads(currentUserId);
+    let thread = threads.find(
+      t => t.postId === postId && t.participants.includes(otherUserId)
+    );
+
+    if (!thread) {
+      thread = await messageService.createThread(postId, [currentUserId, otherUserId]);
+    }
+
+    return thread;
   },
 
   markAsRead: async (threadId: string, userId: string): Promise<void> => {
@@ -568,6 +630,45 @@ export const notificationService = {
   },
 };
 
+// Neighborhood book count demo data
+// Clusters books MOSTLY in inner SE and NE neighborhoods
+const demoNeighborhoodBookCounts: Record<string, number> = {
+  // Inner SE - high counts
+  'Hawthorne': 18,
+  'Richmond': 15,
+  'Buckman': 22,
+  'Hosford-Abernethy': 14,
+  'Portland Downtown': 19,
+  'Division': 12,
+  'Sunnyside': 16,
+  'Creston-Kenilworth': 11,
+  'Mt. Tabor': 13,
+
+  // Inner NE - high counts
+  'Alberta': 17,
+  'Eliot': 20,
+  'Irvington': 14,
+  'Kerns': 16,
+  'Lloyd': 21,
+  'Grant Park': 12,
+  'Beaumont-Wilshire': 10,
+
+  // Northwest/close-in - moderate counts
+  'Pearl District': 8,
+  'Northwest District': 7,
+  'Nob Hill': 9,
+  'Goose Hollow': 5,
+
+  // A few scattered elsewhere with low numbers
+  'Sellwood-Moreland': 4,
+  'St. Johns': 3,
+  'Mississippi': 6,
+  'Brooklyn': 4,
+  'Woodstock': 5,
+
+  // All others default to 0
+};
+
 // Neighborhood Service
 export const neighborhoodService = {
   getAll: (): Neighborhood[] => {
@@ -577,6 +678,18 @@ export const neighborhoodService = {
   getById: (id: string): Neighborhood | null => {
     const neighborhoods = getDemoData().neighborhoods;
     return neighborhoods.find(n => n.id === id) || null;
+  },
+
+  // Get book counts by neighborhood name
+  // Returns a map of neighborhood name -> book count
+  // In the future, this will query the backend database
+  getBookCounts: async (): Promise<Record<string, number>> => {
+    // Simulate async call (will be replaced with real API call)
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(demoNeighborhoodBookCounts);
+      }, 100);
+    });
   },
 };
 

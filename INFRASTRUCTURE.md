@@ -66,3 +66,265 @@ When implementing Terraform:
 - Store state in GCS bucket or Terraform Cloud
 - Never commit `.tfstate` files to git
 - Use remote state for team collaboration
+
+---
+
+## Setup Instructions
+
+### Domain Architecture
+
+| Subdomain | Purpose | Points To |
+|-----------|---------|-----------|
+| `staging.booksharepdx.com` | Staging frontend | Vercel |
+| `api-staging.booksharepdx.com` | Staging backend API | Cloud Run |
+| `booksharepdx.com` | Production frontend (later) | Vercel |
+| `api.booksharepdx.com` | Production backend (later) | Cloud Run |
+
+---
+
+### 1. Neon Database Setup
+
+**URL:** https://neon.tech
+
+#### Steps:
+1. Sign up with GitHub or email
+2. Click "Create Project"
+3. **Project name:** `booksharepdx-staging`
+4. **Cloud provider:** AWS
+5. **Region:** US West 2 (Oregon)
+6. **Postgres version:** 16 (latest)
+7. Click "Create Project"
+
+#### After Creation:
+1. Go to your project dashboard
+2. Click "Connection Details" in the sidebar
+3. Copy the connection string (looks like):
+   ```
+   postgresql://username:password@ep-something-123456.us-west-2.aws.neon.tech/neondb?sslmode=require
+   ```
+
+#### Enable PostGIS (for geospatial queries):
+1. Go to "SQL Editor" in sidebar
+2. Run:
+   ```sql
+   CREATE EXTENSION IF NOT EXISTS postgis;
+   ```
+3. Verify with:
+   ```sql
+   SELECT PostGIS_Version();
+   ```
+
+#### What to report back:
+- [X] Connection string (keep password secret - share privately or use env vars)
+- [X] Confirm PostGIS is enabled
+
+---
+
+### 2. Resend Email Setup
+
+**URL:** https://resend.com
+
+#### Steps:
+1. Sign up with GitHub or email
+2. From dashboard, go to "API Keys"
+3. Click "Create API Key"
+   - **Name:** `booksharepdx-staging`
+   - **Permission:** Full access
+   - **Domain:** All domains (for now)
+4. Copy the API key (starts with `re_`)
+
+#### Domain Verification (for sending from @booksharepdx.com):
+1. Go to "Domains" → "Add Domain"
+2. Enter: `booksharepdx.com`
+3. Resend will show you DNS records to add
+
+#### DNS Records to Add at Porkbun:
+Resend will provide these exact values, but they'll look like:
+
+| Type | Host | Value |
+|------|------|-------|
+| TXT | resend._domainkey | `p=MIGfMA0GCSqGSIb3DQEBA...` (from Resend) |
+| TXT | @ | `v=spf1 include:amazonses.com ~all` |
+
+#### After Adding DNS:
+1. Wait 5-10 minutes
+2. Click "Verify" in Resend
+3. Status should change to "Verified"
+
+#### What to report back:
+- [X] API key (keep secret - share privately or use env vars)
+- [X] Domain verification status (verified/pending) PENDING
+
+---
+
+### 3. Google Cloud Setup
+
+**URL:** https://console.cloud.google.com
+
+#### Create Project:
+1. Click project dropdown (top left) → "New Project"
+2. **Project name:** `booksharepdx`
+3. **Project ID:** `booksharepdx` (or auto-generated)
+4. Click "Create"
+
+#### Enable Required APIs:
+1. Go to "APIs & Services" → "Enable APIs and Services"
+2. Search and enable:
+   - **Cloud Run Admin API**
+   - **Container Registry API** (or Artifact Registry API)
+   - **Cloud Build API**
+   - **Secret Manager API**
+
+#### Set Up Service Account (for GitHub Actions):
+1. Go to "IAM & Admin" → "Service Accounts"
+2. Click "Create Service Account"
+   - **Name:** `github-actions`
+   - **ID:** `github-actions`
+3. Grant roles:
+   - `Cloud Run Admin`
+   - `Storage Admin`
+   - `Service Account User`
+   - `Cloud Build Editor`
+4. Click "Done"
+5. Click on the service account → "Keys" → "Add Key" → "Create new key"
+6. Choose JSON → Download
+
+#### Get Project Number:
+1. Go to project "Settings" (or Dashboard)
+2. Find "Project number" (a long number like `31852991012`)
+
+#### What to report back:
+- [X] Project ID
+- [X] Project number
+- [X] Service account JSON key file (keep very secret!)
+
+---
+
+### 4. Porkbun DNS Setup
+
+**URL:** https://porkbun.com → Domain Management → booksharepdx.com → DNS Records
+
+#### Add These Records:
+
+**For Vercel (frontend):**
+| Type | Host | Answer | TTL |
+|------|------|--------|-----|
+| CNAME | staging | cname.vercel-dns.com | 600 |
+
+**For Cloud Run (backend) - add after deploying to Cloud Run:**
+| Type | Host | Answer | TTL |
+|------|------|--------|-----|
+| CNAME | api-staging | ghs.googlehosted.com | 600 |
+
+**For Resend (email) - values from Resend dashboard:**
+| Type | Host | Answer | TTL |
+|------|------|--------|-----|
+| TXT | resend._domainkey | (from Resend) | 600 |
+| TXT | @ or blank | v=spf1 include:amazonses.com ~all | 600 |
+
+#### What to report back:
+- [ ] Confirm DNS records added
+- [ ] Screenshot or list of records (optional)
+
+---
+
+### 5. Vercel Domain Setup
+
+**URL:** https://vercel.com → Your booksharepdx project → Settings → Domains
+
+#### Steps:
+1. Click "Add Domain"
+2. Enter: `staging.booksharepdx.com`
+3. Vercel will check for the CNAME record
+4. Once verified, it will auto-provision SSL
+
+#### What to report back:
+- [ ] Confirm domain is verified and working
+
+---
+
+### 6. Environment Variables Summary
+
+Once all accounts are set up, you'll have these secrets:
+
+#### For Backend (Cloud Run):
+```env
+# Database
+DATABASE_URL=postgresql://user:pass@ep-xxx.us-west-2.aws.neon.tech/neondb?sslmode=require
+
+# Email
+RESEND_API_KEY=re_xxxxxxxxxx
+
+# JWT (generate random strings)
+JWT_SECRET=<generate-64-char-random-string>
+JWT_REFRESH_SECRET=<generate-64-char-random-string>
+
+# Environment
+NODE_ENV=staging
+FRONTEND_URL=https://staging.booksharepdx.com
+```
+
+#### For Frontend (Vercel):
+```env
+VITE_API_URL=https://api-staging.booksharepdx.com
+```
+
+#### For GitHub Actions (Repository Secrets):
+```
+GCP_PROJECT_ID=booksharepdx
+GCP_SA_KEY=<contents of service account JSON>
+NEON_DATABASE_URL=<connection string>
+RESEND_API_KEY=<api key>
+```
+
+---
+
+### Setup Checklist
+
+Copy this checklist and fill it out:
+
+```
+## Neon Database
+- [ ] Account created
+- [ ] Project created: booksharepdx-staging
+- [ ] Region: US West 2 (Oregon)
+- [ ] PostGIS enabled
+- [ ] Connection string saved
+
+## Resend Email
+- [ ] Account created
+- [ ] API key generated
+- [ ] Domain booksharepdx.com added
+- [ ] DNS records added at Porkbun
+- [ ] Domain verified
+
+## Google Cloud
+- [ ] Project created: booksharepdx
+- [ ] Cloud Run API enabled
+- [ ] Container Registry API enabled
+- [ ] Cloud Build API enabled
+- [ ] Secret Manager API enabled
+- [ ] Service account created
+- [ ] JSON key downloaded
+
+## Porkbun DNS
+- [ ] CNAME: staging → cname.vercel-dns.com
+- [ ] CNAME: api-staging → ghs.googlehosted.com
+- [ ] TXT: resend._domainkey → (from Resend)
+- [ ] TXT: @ → SPF record
+
+## Vercel
+- [ ] staging.booksharepdx.com added
+- [ ] Domain verified and SSL active
+
+## Secrets Collected
+- [ ] DATABASE_URL (Neon connection string)
+- [ ] RESEND_API_KEY
+- [ ] GCP_PROJECT_ID
+- [ ] GCP_SA_KEY (service account JSON)
+```
+
+Notes:
+For Vercel I used Github for Oauth
+For Neon I used google.
+For Resend I used google.

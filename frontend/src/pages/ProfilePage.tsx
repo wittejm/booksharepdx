@@ -252,7 +252,6 @@ export default function ProfilePage() {
                 <PostCard
                   key={post.id}
                   post={post}
-                  currentUserId={currentUser?.id}
                 />
               ))
             )}

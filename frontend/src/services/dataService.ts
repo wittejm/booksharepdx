@@ -143,18 +143,18 @@ export const authService = {
     return newUser;
   },
 
-  logout: () => {
+  logout: async (): Promise<void> => {
     localStorage.removeItem(KEYS.CURRENT_USER);
   },
 
-  getCurrentUser: (): User | null => {
+  getCurrentUser: async (): Promise<User | null> => {
     const data = localStorage.getItem(KEYS.CURRENT_USER);
     return data ? JSON.parse(data) : null;
   },
 
-  updateCurrentUser: (updates: Partial<User>) => {
-    const currentUser = authService.getCurrentUser();
-    if (!currentUser) return null;
+  updateCurrentUser: async (updates: Partial<User>): Promise<User> => {
+    const currentUser = await authService.getCurrentUser();
+    if (!currentUser) throw new Error('Not authenticated');
 
     const updatedUser = { ...currentUser, ...updates };
     localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(updatedUser));

@@ -102,7 +102,7 @@ export default function SettingsPage() {
         socialLinks: socialLinks.filter((link) => link.label && link.url),
       };
 
-      const updatedUser = authService.updateCurrentUser(updates);
+      const updatedUser = await authService.updateCurrentUser(updates);
       if (updatedUser) {
         updateCurrentUser(updatedUser);
         showToast('Profile updated successfully!', 'success');
@@ -168,7 +168,7 @@ export default function SettingsPage() {
 
     setLoading(true);
     try {
-      const updatedUser = authService.updateCurrentUser({
+      const updatedUser = await authService.updateCurrentUser({
         location: { type: 'neighborhood', neighborhoodId: selectedNeighborhood },
       });
       if (updatedUser) {
@@ -188,7 +188,7 @@ export default function SettingsPage() {
 
     // In a real app, this would call an API to delete the account
     // For now, we'll just log out
-    authService.logout();
+    await authService.logout();
     updateCurrentUser(null);
     navigate('/');
   };

@@ -3,6 +3,7 @@ import type { Post, User } from '@booksharepdx/shared';
 import Modal from '../Modal';
 import { postService, userService, messageService, commentService } from '../../services';
 import { useToast } from '../useToast';
+import { useUser } from '../../contexts/UserContext';
 import { formatTimestamp } from '../../utils/time';
 
 interface Interaction {
@@ -21,6 +22,7 @@ interface MarkAsGivenModalProps {
 }
 
 export default function MarkAsGivenModal({ open, onClose, post, currentUserId }: MarkAsGivenModalProps) {
+  const { currentUser } = useUser();
   const [step, setStep] = useState<1 | 2>(1);
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [selectedRecipient, setSelectedRecipient] = useState<User | null>(null);

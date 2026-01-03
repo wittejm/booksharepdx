@@ -418,7 +418,6 @@ export default function BrowsePage() {
                   <PostCard
                     key={post.id}
                     post={post}
-                    currentUserId={currentUser?.id}
                     distance={getPostDistance(post)}
                   />
                 ))}

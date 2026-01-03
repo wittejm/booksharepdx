@@ -1,12 +1,9 @@
 /**
  * API Client for making authenticated requests to the backend
+ * Uses cookie-based JWT authentication
  */
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
-interface RequestOptions extends RequestInit {
-  requireAuth?: boolean;
-}
 
 class ApiClient {
   private baseURL: string;
@@ -15,34 +12,21 @@ class ApiClient {
     this.baseURL = baseURL;
   }
 
-  private getAuthToken(): string | null {
-    return localStorage.getItem('auth_token');
-  }
-
   private async request<T>(
     endpoint: string,
-    options: RequestOptions = {}
+    options: RequestInit = {}
   ): Promise<T> {
-    const { requireAuth = true, ...fetchOptions } = options;
-
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
-      ...fetchOptions.headers,
+      ...options.headers,
     };
-
-    if (requireAuth) {
-      const token = this.getAuthToken();
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-    }
 
     const url = `${this.baseURL}${endpoint}`;
 
     const response = await fetch(url, {
-      ...fetchOptions,
+      ...options,
       headers,
-      credentials: 'include', // Include cookies for JWT auth
+      credentials: 'include', // Always send cookies for JWT auth
     });
 
     if (!response.ok) {
@@ -58,47 +42,36 @@ class ApiClient {
 
     // Handle empty responses
     const text = await response.text();
-    return text ? JSON.parse(text) : null;
+    return text ? JSON.parse(text) : (null as unknown as T);
   }
 
-  async get<T>(endpoint: string, requireAuth = true): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET', requireAuth });
+  async get<T>(endpoint: string, _includeCredentials?: boolean): Promise<T> {
+    return this.request<T>(endpoint, { method: 'GET' });
   }
 
-  async post<T>(endpoint: string, data?: any, requireAuth = true): Promise<T> {
+  async post<T>(endpoint: string, data?: any): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
-      requireAuth,
     });
   }
 
-  async put<T>(endpoint: string, data?: any, requireAuth = true): Promise<T> {
+  async put<T>(endpoint: string, data?: any): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: data ? JSON.stringify(data) : undefined,
-      requireAuth,
     });
   }
 
-  async patch<T>(endpoint: string, data?: any, requireAuth = true): Promise<T> {
+  async patch<T>(endpoint: string, data?: any): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PATCH',
       body: data ? JSON.stringify(data) : undefined,
-      requireAuth,
     });
   }
 
-  async delete<T>(endpoint: string, requireAuth = true): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE', requireAuth });
-  }
-
-  setAuthToken(token: string): void {
-    localStorage.setItem('auth_token', token);
-  }
-
-  clearAuthToken(): void {
-    localStorage.removeItem('auth_token');
+  async delete<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'DELETE' });
   }
 }
 

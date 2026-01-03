@@ -17,14 +17,14 @@ import type {
   Notification,
 } from '@booksharepdx/shared';
 import { apiClient } from './apiClient';
+import { neighborhoods } from '../data/neighborhoods';
 
 // Authentication Service
 export const authService = {
   login: async (identifier: string, password: string): Promise<User> => {
     const response = await apiClient.post<{ data: User }>(
       '/auth/login',
-      { identifier, password },
-      false
+      { identifier, password }
     );
     return response.data;
   },
@@ -32,39 +32,27 @@ export const authService = {
   signup: async (data: { email: string; password: string; username: string; bio: string }): Promise<User> => {
     const response = await apiClient.post<{ data: User }>(
       '/auth/signup',
-      data,
-      false
+      data
     );
     return response.data;
   },
 
-  logout: () => {
-    apiClient.post('/auth/logout', {}).catch(() => {});
-    apiClient.clearAuthToken();
-    localStorage.removeItem('currentUser');
+  logout: async (): Promise<void> => {
+    await apiClient.post('/auth/logout', {});
   },
 
-  getCurrentUser: (): User | null => {
-    const data = localStorage.getItem('currentUser');
-    return data ? JSON.parse(data) : null;
-  },
-
-  updateCurrentUser: async (updates: Partial<User>) => {
-    const response = await apiClient.patch<{ data: User }>('/auth/me', updates);
-    const updatedUser = response.data;
-    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-    return updatedUser;
-  },
-
-  fetchCurrentUser: async (): Promise<User | null> => {
+  getCurrentUser: async (): Promise<User | null> => {
     try {
       const response = await apiClient.get<{ data: User }>('/auth/me');
-      const user = response.data;
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      return user;
+      return response.data;
     } catch (error) {
       return null;
     }
+  },
+
+  updateCurrentUser: async (updates: Partial<User>): Promise<User> => {
+    const response = await apiClient.put<{ data: User }>('/auth/me', updates);
+    return response.data;
   },
 };
 
@@ -266,27 +254,28 @@ export const commentService = {
 
 // Block Service
 export const blockService = {
-  block: async (blockerId: string, blockedId: string): Promise<Block> => {
-    const response = await apiClient.post<{ data: Block }>('/blocks', {
+  getBlocked: async (userId: string): Promise<string[]> => {
+    const response = await apiClient.get<{ data: Block[] }>(`/blocks?blockerId=${userId}`);
+    return response.data.map(b => b.blockedId);
+  },
+
+  block: async (blockerId: string, blockedId: string): Promise<void> => {
+    await apiClient.post<{ data: Block }>('/blocks', {
       blockerId,
       blockedId,
     });
-    return response.data;
   },
 
   unblock: async (blockerId: string, blockedId: string): Promise<void> => {
     await apiClient.delete(`/blocks/${blockerId}/${blockedId}`);
   },
 
-  getBlockedUsers: async (userId: string): Promise<Block[]> => {
-    const response = await apiClient.get<{ data: Block[] }>(`/blocks?blockerId=${userId}`);
-    return response.data;
-  },
-
-  isBlocked: async (blockerId: string, blockedId: string): Promise<boolean> => {
+  isBlocked: async (userId1: string, userId2: string): Promise<boolean> => {
     try {
-      const blocks = await blockService.getBlockedUsers(blockerId);
-      return blocks.some(b => b.blockedId === blockedId);
+      const blocked = await blockService.getBlocked(userId1);
+      if (blocked.includes(userId2)) return true;
+      const blocked2 = await blockService.getBlocked(userId2);
+      return blocked2.includes(userId1);
     } catch (error) {
       return false;
     }
@@ -326,6 +315,11 @@ export const reportService = {
 
 // Vouch Service
 export const vouchService = {
+  getForUser: async (userId: string): Promise<Vouch[]> => {
+    const response = await apiClient.get<{ data: Vouch[] }>(`/vouches?userId=${userId}`);
+    return response.data;
+  },
+
   create: async (user1Id: string, user2Id: string): Promise<Vouch> => {
     const response = await apiClient.post<{ data: Vouch }>('/vouches', {
       user1Id,
@@ -334,17 +328,10 @@ export const vouchService = {
     return response.data;
   },
 
-  getByUser: async (userId: string): Promise<Vouch[]> => {
-    const response = await apiClient.get<{ data: Vouch[] }>(`/vouches?userId=${userId}`);
-    return response.data;
-  },
-
-  getBetweenUsers: async (user1Id: string, user2Id: string): Promise<Vouch | null> => {
+  confirmMutual: async (vouchId: string): Promise<Vouch | null> => {
     try {
-      const vouches = await vouchService.getByUser(user1Id);
-      return vouches.find(v =>
-        (v.user1Id === user2Id || v.user2Id === user2Id)
-      ) || null;
+      const response = await apiClient.patch<{ data: Vouch }>(`/vouches/${vouchId}`, { mutuallyConfirmed: true });
+      return response.data;
     } catch (error) {
       return null;
     }
@@ -355,6 +342,11 @@ export const vouchService = {
 export const notificationService = {
   getByUserId: async (userId: string): Promise<Notification[]> => {
     const response = await apiClient.get<{ data: Notification[] }>(`/notifications?userId=${userId}`);
+    return response.data;
+  },
+
+  create: async (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>): Promise<Notification> => {
+    const response = await apiClient.post<{ data: Notification }>('/notifications', notification);
     return response.data;
   },
 
@@ -388,37 +380,46 @@ export const savedPostService = {
   },
 };
 
-// Neighborhood Service
+// Neighborhood Service - uses static data for boundaries, API only for book counts
 export const neighborhoodService = {
-  getAll: async (): Promise<Neighborhood[]> => {
-    const response = await apiClient.get<{ data: Neighborhood[] }>('/neighborhoods', false);
-    return response.data;
+  getAll: (): Neighborhood[] => {
+    return neighborhoods;
   },
 
-  getById: async (id: string): Promise<Neighborhood | null> => {
-    try {
-      const response = await apiClient.get<{ data: Neighborhood }>(`/neighborhoods/${id}`, false);
-      return response.data;
-    } catch (error) {
-      return null;
-    }
+  getById: (id: string): Neighborhood | null => {
+    return neighborhoods.find(n => n.id === id) || null;
   },
 
   getBookCounts: async (): Promise<Record<string, number>> => {
-    const response = await apiClient.get<{ data: Record<string, number> }>('/neighborhoods/book-counts', false);
-    return response.data;
+    try {
+      const response = await apiClient.get<{ data: Record<string, number> }>('/neighborhoods/book-counts');
+      return response.data;
+    } catch (error) {
+      // Return empty counts if API fails
+      return {};
+    }
   },
 };
 
 // Moderation Action Service
 export const moderationActionService = {
+  getAll: async (): Promise<ModerationAction[]> => {
+    const response = await apiClient.get<{ data: ModerationAction[] }>('/moderation/actions');
+    return response.data;
+  },
+
   create: async (action: Omit<ModerationAction, 'id' | 'timestamp'>): Promise<ModerationAction> => {
     const response = await apiClient.post<{ data: ModerationAction }>('/moderation/actions', action);
     return response.data;
   },
 
-  getByTargetUserId: async (targetUserId: string): Promise<ModerationAction[]> => {
-    const response = await apiClient.get<{ data: ModerationAction[] }>(`/moderation/actions?targetUserId=${targetUserId}`);
+  getByUserId: async (userId: string): Promise<ModerationAction[]> => {
+    const response = await apiClient.get<{ data: ModerationAction[] }>(`/moderation/actions?targetUserId=${userId}`);
+    return response.data;
+  },
+
+  getByModeratorId: async (moderatorId: string): Promise<ModerationAction[]> => {
+    const response = await apiClient.get<{ data: ModerationAction[] }>(`/moderation/actions?moderatorId=${moderatorId}`);
     return response.data;
   },
 };

@@ -13,7 +13,7 @@ export default function LoginPage() {
 
   const navigate = useNavigate();
   const { updateCurrentUser } = useUser();
-  const { addToast, toasts } = useToast();
+  const { showToast, toasts, dismiss } = useToast();
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
@@ -40,14 +40,14 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const user = await authService.login(identifier, password);
-      updateCurrentUser(user);
-      addToast('Login successful!', 'success', 2000);
+      updateCurrentUser(user); // Update context with user from API
+      showToast('Login successful!', 'success', 2000);
       setTimeout(() => {
         navigate('/browse');
       }, 500);
     } catch (error) {
       const err = error as Error;
-      addToast(err.message, 'error');
+      showToast(err.message || 'Login failed', 'error');
     } finally {
       setLoading(false);
     }
@@ -133,7 +133,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <ToastContainer toasts={toasts} />
+      <ToastContainer toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

@@ -68,28 +68,32 @@ jobs:
             --cpu=1 \
             --cpu-throttling \
             --no-cpu-boost \
+            --no-liveness-probe \
             --timeout=60s \
             --concurrency=80
 
-      - name: Deploy to Cloud Run (Production)
-        run: |
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/booksharepdx/api:${{ github.sha }} \
-            --region=${{ env.REGION }} \
-            --platform=managed \
-            --allow-unauthenticated \
-            --set-env-vars="NODE_ENV=production,FRONTEND_URL=https://booksharepdx.com" \
-            --set-secrets="DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
-            --min-instances=0 \
-            --max-instances=5 \
-            --memory=256Mi \
-            --cpu=1 \
-            --cpu-throttling \
-            --startup-cpu-boost \
-            --timeout=60s \
-            --concurrency=80
+      # Production deployment disabled - using staging only for now
+      # To re-enable: uncomment the production deploy step below
+      #
+      # - name: Deploy to Cloud Run (Production)
+      #   run: |
+      #     gcloud run deploy ${{ env.SERVICE_NAME }} \
+      #       --image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/booksharepdx/api:${{ github.sha }} \
+      #       --region=${{ env.REGION }} \
+      #       --platform=managed \
+      #       --allow-unauthenticated \
+      #       --set-env-vars="NODE_ENV=production,FRONTEND_URL=https://booksharepdx.com" \
+      #       --set-secrets="DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
+      #       --min-instances=0 \
+      #       --max-instances=5 \
+      #       --memory=256Mi \
+      #       --cpu=1 \
+      #       --cpu-throttling \
+      #       --startup-cpu-boost \
+      #       --no-liveness-probe \
+      #       --timeout=60s \
+      #       --concurrency=80
 
       - name: Output service URLs
         run: |
           echo "Staging: $(gcloud run services describe ${{ env.SERVICE_NAME }}-staging --region=${{ env.REGION }} --format='value(status.url)')"
-          echo "Production: $(gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(status.url)')"

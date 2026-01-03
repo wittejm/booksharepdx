@@ -23,11 +23,11 @@ import AboutPage from './pages/AboutPage';
 import ModerationPage from './pages/ModerationPage';
 
 // Context for current user
-import { UserContext } from './contexts/UserContext';
+import { UserContext, useUser } from './contexts/UserContext';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const currentUser = authService.getCurrentUser();
+  const { currentUser } = useUser();
 
   if (!currentUser) {
     return <Navigate to="/login" replace />;
@@ -38,7 +38,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 // Moderator/Admin only route
 function ModeratorRoute({ children }: { children: React.ReactNode }) {
-  const currentUser = authService.getCurrentUser();
+  const { currentUser } = useUser();
 
   if (!currentUser || (currentUser.role !== 'moderator' && currentUser.role !== 'admin')) {
     return <Navigate to="/browse" replace />;
@@ -49,14 +49,30 @@ function ModeratorRoute({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // Restore session from cookies on mount
   useEffect(() => {
-    setCurrentUser(authService.getCurrentUser());
+    const restoreSession = async () => {
+      const user = await authService.getCurrentUser();
+      setCurrentUser(user);
+      setLoading(false);
+    };
+    restoreSession();
   }, []);
 
   const updateCurrentUser = (user: User | null) => {
     setCurrentUser(user);
   };
+
+  // Show loading while restoring session
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg text-gray-600">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <UserContext.Provider value={{ currentUser, updateCurrentUser }}>

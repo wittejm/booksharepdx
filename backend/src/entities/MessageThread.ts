@@ -8,9 +8,10 @@ import {
   OneToMany,
   JoinColumn,
   Index,
+  Relation,
 } from 'typeorm';
-import { Post } from './Post.js';
-import { Message } from './Message.js';
+import type { Post } from './Post.js';
+import type { Message } from './Message.js';
 
 @Entity('message_threads')
 export class MessageThread {
@@ -21,9 +22,9 @@ export class MessageThread {
   @Index()
   postId: string;
 
-  @ManyToOne(() => Post, (post) => post.messageThreads, { onDelete: 'CASCADE' })
+  @ManyToOne('Post', 'messageThreads', { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'postId' })
-  post: Post;
+  post: Relation<Post>;
 
   // Two participants
   @Column({ type: 'jsonb' })
@@ -42,8 +43,8 @@ export class MessageThread {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @OneToMany(() => Message, (message) => message.thread)
-  messages: Message[];
+  @OneToMany('Message', 'thread')
+  messages: Relation<Message[]>;
 
   toJSON() {
     return {

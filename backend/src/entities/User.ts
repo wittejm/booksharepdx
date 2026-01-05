@@ -6,10 +6,11 @@ import {
   UpdateDateColumn,
   OneToMany,
   Index,
+  Relation,
 } from 'typeorm';
-import { Post } from './Post.js';
-import { Comment } from './Comment.js';
-import { Message } from './Message.js';
+import type { Post } from './Post.js';
+import type { Comment } from './Comment.js';
+import type { Message } from './Message.js';
 
 export type UserRole = 'user' | 'moderator' | 'admin';
 export type LocationType = 'neighborhood' | 'pin';
@@ -93,14 +94,14 @@ export class User {
   updatedAt: Date;
 
   // Relations
-  @OneToMany(() => Post, (post) => post.user)
-  posts: Post[];
+  @OneToMany('Post', 'user')
+  posts: Relation<Post[]>;
 
-  @OneToMany(() => Comment, (comment) => comment.user)
-  comments: Comment[];
+  @OneToMany('Comment', 'user')
+  comments: Relation<Comment[]>;
 
-  @OneToMany(() => Message, (message) => message.sender)
-  messages: Message[];
+  @OneToMany('Message', 'sender')
+  messages: Relation<Message[]>;
 
   // Convert to API response format (matching shared types)
   toJSON() {

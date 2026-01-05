@@ -10,9 +10,9 @@ import {
   Index,
   Relation,
 } from 'typeorm';
-import { User } from './User.js';
+import type { User } from './User.js';
 import type { Comment } from './Comment.js';
-import { MessageThread } from './MessageThread.js';
+import type { MessageThread } from './MessageThread.js';
 
 export type PostType = 'giveaway' | 'exchange';
 export type PostStatus = 'active' | 'pending_exchange' | 'archived';
@@ -26,9 +26,9 @@ export class Post {
   @Index()
   userId: string;
 
-  @ManyToOne(() => User, (user) => user.posts)
+  @ManyToOne('User', 'posts')
   @JoinColumn({ name: 'userId' })
-  user: User;
+  user: Relation<User>;
 
   // Book info stored as JSON
   @Column({ type: 'jsonb' })
@@ -76,8 +76,8 @@ export class Post {
   @OneToMany('Comment', 'post')
   comments: Relation<Comment[]>;
 
-  @OneToMany(() => MessageThread, (thread) => thread.post)
-  messageThreads: MessageThread[];
+  @OneToMany('MessageThread', 'post')
+  messageThreads: Relation<MessageThread[]>;
 
   toJSON() {
     return {

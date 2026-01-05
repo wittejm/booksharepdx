@@ -6,9 +6,10 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  Relation,
 } from 'typeorm';
-import { User } from './User.js';
-import { MessageThread } from './MessageThread.js';
+import type { User } from './User.js';
+import type { MessageThread } from './MessageThread.js';
 
 export type MessageType = 'user' | 'system';
 export type SystemMessageType =
@@ -27,16 +28,16 @@ export class Message {
   @Index()
   threadId: string;
 
-  @ManyToOne(() => MessageThread, (thread) => thread.messages, { onDelete: 'CASCADE' })
+  @ManyToOne('MessageThread', 'messages', { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'threadId' })
-  thread: MessageThread;
+  thread: Relation<MessageThread>;
 
   @Column({ type: "varchar" })
   senderId: string;
 
-  @ManyToOne(() => User, (user) => user.messages)
+  @ManyToOne('User', 'messages')
   @JoinColumn({ name: 'senderId' })
-  sender: User;
+  sender: Relation<User>;
 
   @Column({ type: 'text' })
   content: string;

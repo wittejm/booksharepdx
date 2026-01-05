@@ -94,6 +94,17 @@ jobs:
       #       --timeout=60s \
       #       --concurrency=80
 
+      - name: Clean up old Artifact Registry images
+        run: |
+          # Keep only the 1 most recent image to avoid storage cost creep
+          gcloud artifacts docker images list \
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/booksharepdx/api \
+            --sort-by=~CREATE_TIME \
+            --format="value(DIGEST)" | tail -n +2 | \
+          xargs -I {} gcloud artifacts docker images delete \
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/booksharepdx/api@{} \
+            --quiet --delete-tags || true
+
       - name: Output service URLs
         run: |
           echo "Staging: $(gcloud run services describe ${{ env.SERVICE_NAME }}-staging --region=${{ env.REGION }} --format='value(status.url)')"

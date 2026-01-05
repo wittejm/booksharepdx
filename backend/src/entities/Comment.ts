@@ -6,9 +6,10 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  Relation,
 } from 'typeorm';
 import { User } from './User.js';
-import { Post } from './Post.js';
+import type { Post } from './Post.js';
 
 @Entity('comments')
 export class Comment {
@@ -19,9 +20,9 @@ export class Comment {
   @Index()
   postId: string;
 
-  @ManyToOne(() => Post, (post) => post.comments, { onDelete: 'CASCADE' })
+  @ManyToOne('Post', 'comments', { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'postId' })
-  post: Post;
+  post: Relation<Post>;
 
   @Column({ type: 'uuid' })
   @Index()

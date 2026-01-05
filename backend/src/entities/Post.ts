@@ -8,9 +8,10 @@ import {
   OneToMany,
   JoinColumn,
   Index,
+  Relation,
 } from 'typeorm';
 import { User } from './User.js';
-import { Comment } from './Comment.js';
+import type { Comment } from './Comment.js';
 import { MessageThread } from './MessageThread.js';
 
 export type PostType = 'giveaway' | 'exchange';
@@ -72,8 +73,8 @@ export class Post {
   updatedAt: Date;
 
   // Relations
-  @OneToMany(() => Comment, (comment) => comment.post)
-  comments: Comment[];
+  @OneToMany('Comment', 'post')
+  comments: Relation<Comment[]>;
 
   @OneToMany(() => MessageThread, (thread) => thread.post)
   messageThreads: MessageThread[];

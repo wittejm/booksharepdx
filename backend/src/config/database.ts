@@ -20,7 +20,7 @@ import { Book } from '../entities/Book.js';
 export const AppDataSource = new DataSource({
   type: 'postgres',
   url: env.databaseUrl,
-  synchronize: env.isDev, // Auto-sync in dev, use migrations in prod
+  synchronize: env.isDev || env.isStaging, // Auto-sync in dev/staging, use migrations in prod
   logging: env.isDev ? ['error', 'warn'] : ['error'],
   entities: [
     User,

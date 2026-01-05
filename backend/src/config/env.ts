@@ -26,5 +26,6 @@ export const env = {
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
 
   isDev: process.env.NODE_ENV === 'development',
+  isStaging: process.env.NODE_ENV === 'staging',
   isProd: process.env.NODE_ENV === 'production',
 };

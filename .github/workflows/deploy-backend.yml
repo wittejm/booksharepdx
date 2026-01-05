@@ -68,7 +68,6 @@ jobs:
             --cpu=1 \
             --cpu-throttling \
             --no-cpu-boost \
-            --no-liveness-probe \
             --timeout=60s \
             --concurrency=80
 
@@ -90,7 +89,6 @@ jobs:
       #       --cpu=1 \
       #       --cpu-throttling \
       #       --startup-cpu-boost \
-      #       --no-liveness-probe \
       #       --timeout=60s \
       #       --concurrency=80
 

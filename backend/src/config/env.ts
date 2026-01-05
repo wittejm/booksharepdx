@@ -4,7 +4,7 @@ config();
 
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
-  port: 3001, // Always use port 3001
+  port: parseInt(process.env.PORT || '3001', 10),
 
   // Database
   databaseUrl: process.env.DATABASE_URL || 'postgresql://dev:dev@localhost:5432/booksharepdx',

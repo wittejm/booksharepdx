@@ -1,0 +1,132 @@
+{
+  "quadrants": {
+    "North Portland": [
+      "Arbor Lodge",
+      "Boise",
+      "Bridgeton",
+      "Cathedral Park",
+      "Concordia",
+      "Cully",
+      "Eliot",
+      "Hayden Island",
+      "Humboldt",
+      "Kenton",
+      "King",
+      "Overlook",
+      "Piedmont",
+      "Portsmouth",
+      "Sabin",
+      "St. Johns",
+      "Sunderland",
+      "University Park",
+      "Vernon",
+      "Woodlawn"
+    ],
+    "Northeast Portland": [
+      "Alameda",
+      "Argay Terrace",
+      "Beaumont-Wilshire",
+      "East Columbia",
+      "Grant Park",
+      "Hollywood",
+      "Irvington",
+      "Kerns",
+      "Laurelhurst",
+      "Lloyd",
+      "MC Unclaimed #5",
+      "Madison South",
+      "Montavilla",
+      "North Tabor",
+      "Parkrose",
+      "Parkrose Heights",
+      "Rose City Park",
+      "Roseway",
+      "Russell",
+      "Sullivan's Gulch",
+      "Sumner",
+      "Wilkes",
+      "Woodland Park"
+    ],
+    "Southeast Portland": [
+      "Ardenwald-Johnson Creek",
+      "Brentwood-Darlington",
+      "Brooklyn",
+      "Buckman",
+      "Centennial",
+      "Creston-Kenilworth",
+      "Eastmoreland",
+      "Foster-Powell",
+      "Glenfair",
+      "Hazelwood",
+      "Hosford-Abernethy",
+      "Lents",
+      "Mill Park",
+      "Mt. Scott-Arleta",
+      "Mt. Tabor",
+      "Pleasant Valley",
+      "Powellhurst-Gilbert",
+      "Reed",
+      "Richmond",
+      "Sellwood-Moreland",
+      "South Tabor",
+      "Sunnyside",
+      "Woodstock"
+    ],
+    "Northwest Portland": [
+      "Forest Park",
+      "Hillside",
+      "Linnton",
+      "MC Unclaimed #14",
+      "Northwest District",
+      "Northwest Heights",
+      "Old Town",
+      "Pearl District"
+    ],
+    "Southwest Portland": [
+      "Arlington Heights",
+      "Arnold Creek",
+      "Ashcreek-Crestwood",
+      "Bridlemile",
+      "Collins View",
+      "Far Southwest",
+      "Goose Hollow",
+      "Hayhurst",
+      "Healy Heights",
+      "Hillsdale",
+      "Homestead",
+      "MC Unclaimed #11",
+      "Maplewood",
+      "Markham",
+      "Marshall Park",
+      "Multnomah",
+      "Portland Downtown",
+      "South Burlingame",
+      "South Portland",
+      "Southwest Hills",
+      "Sylvan-Highlands",
+      "West Portland Park"
+    ]
+  },
+  "bounds": {
+    "North Portland": {
+      "viewBox": "105.19267649242843 0 339.73562417738617 457.66178128618236",
+      "neighborhoodCount": 20
+    },
+    "Northeast Portland": {
+      "viewBox": "255.4701819648235 168.4480640362567 336.9405193384662 383.76192356015395",
+      "neighborhoodCount": 23
+    },
+    "Southeast Portland": {
+      "viewBox": "274.90100606564823 409.8288095537553 325.09899393435177 353.39071076399836",
+      "neighborhoodCount": 23
+    },
+    "Northwest Portland": {
+      "viewBox": "0 86.62369186305307 319.410966706919 423.3431439270092",
+      "neighborhoodCount": 8
+    },
+    "Southwest Portland": {
+      "viewBox": "157.00687071471924 443.9040419567958 175.40679823333033 356.0959580432042",
+      "neighborhoodCount": 22
+    }
+  }
+}

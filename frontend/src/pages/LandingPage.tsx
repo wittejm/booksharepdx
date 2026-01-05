@@ -18,9 +18,11 @@ export default function LandingPage() {
         const sorted = posts.sort((a, b) => b.createdAt - a.createdAt).slice(0, 10);
         setRecentPosts(sorted);
 
-        // Load author data
-        const users = await userService.getAll();
-        const userMap = new Map(users.map(u => [u.id, u]));
+        // Build author map from embedded user data
+        const userMap = new Map<string, User>();
+        sorted.forEach(p => {
+          if (p.user) userMap.set(p.userId, p.user);
+        });
         setAuthors(userMap);
       } catch (error) {
         console.error('Error loading posts:', error);

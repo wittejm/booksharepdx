@@ -50,6 +50,7 @@ export interface SocialLink {
 export interface Post {
   id: string;
   userId: string;
+  user?: User; // Included when fetching posts
   book: BookInfo;
   type: 'giveaway' | 'exchange';
   notes?: string;

@@ -47,8 +47,12 @@ export default function BrowsePage() {
     const loadData = async () => {
       try {
         const activePosts = await postService.getActive();
-        const allUsers = await userService.getAll();
-        const userMap = new Map(allUsers.map(u => [u.id, u]));
+
+        // Build user map from embedded user data
+        const userMap = new Map<string, User>();
+        activePosts.forEach(p => {
+          if (p.user) userMap.set(p.userId, p.user);
+        });
 
         setPosts(activePosts);
         setUsers(userMap);

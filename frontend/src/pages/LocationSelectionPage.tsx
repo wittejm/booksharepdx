@@ -146,7 +146,7 @@ export default function LocationSelectionPage() {
             {/* Address Lookup */}
             <div>
               <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
-                Use your address to find your neighborhood
+                Use your address to find your neighborhood (we won't save this)
               </label>
               <div className="flex gap-2">
                 <input

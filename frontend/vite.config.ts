@@ -10,5 +10,16 @@ export default defineConfig({
       '@': '/src',
       '@booksharepdx/shared': '/node_modules/@booksharepdx/shared/src'
     }
+  },
+  server: {
+    // Allow access from local network (mobile testing)
+    host: true,
+    // Proxy API requests to backend - solves CORS and cookie issues for local dev
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      }
+    }
   }
 })

@@ -77,13 +77,13 @@ export default function LandingPage() {
                 Books near you
               </h3>
               {loading ? (
-                <div className="hidden md:flex flex-col gap-3">
+                <div className="flex flex-col gap-3">
                   {[1, 2, 3, 4, 5].map((i) => (
                     <div key={i} className="bg-gray-100 rounded-lg h-24 animate-pulse"></div>
                   ))}
                 </div>
               ) : recentPosts.length === 0 ? (
-                <div className="hidden md:block bg-white rounded-lg p-8 shadow-md text-center">
+                <div className="bg-white rounded-lg p-8 shadow-md text-center">
                   <div className="text-4xl mb-2">📚</div>
                   <p className="text-gray-600 text-sm">No books in this area yet. Be the first to share!</p>
                 </div>
@@ -98,7 +98,7 @@ export default function LandingPage() {
                     return (
                       <Link
                         key={post.id}
-                        to={`/post/${post.id}`}
+                        to={`/share/${post.id}`}
                         className={`${hideOnMobile} ${hideOnTablet} block bg-white rounded-lg shadow-md hover:shadow-lg transition-all overflow-hidden border border-gray-200 hover:border-primary-400 group`}
                       >
                         <div className="flex gap-3 p-3 items-start">
@@ -165,10 +165,6 @@ export default function LandingPage() {
                 </div>
               )}
 
-              {/* Map - Mobile only, after book cards */}
-              <div className="md:hidden mt-8">
-                <PortlandMap />
-              </div>
             </div>
           </div>
         </div>

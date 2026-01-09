@@ -94,11 +94,10 @@ jobs:
 
       - name: Clean up old Artifact Registry images
         run: |
-          # Keep only the 1 most recent image to avoid storage cost creep
+          # Delete all images after deploy (Cloud Run caches the image it needs)
           gcloud artifacts docker images list \
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/booksharepdx/api \
-            --sort-by=~CREATE_TIME \
-            --format="value(DIGEST)" | tail -n +2 | \
+            --format="value(DIGEST)" | \
           xargs -I {} gcloud artifacts docker images delete \
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/booksharepdx/api@{} \
             --quiet --delete-tags || true

@@ -14,8 +14,7 @@ import BrowsePage from './pages/BrowsePage';
 import LoginPage from './pages/LoginPage';
 import SignUpPage from './pages/SignUpPage';
 import LocationSelectionPage from './pages/LocationSelectionPage';
-import PostCreatePage from './pages/PostCreatePage';
-import PostDetailPage from './pages/PostDetailPage';
+import ShareDetailPage from './pages/ShareDetailPage';
 import MessagesPage from './pages/MessagesPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
@@ -95,13 +94,12 @@ function AppRoutes() {
             {/* Browse page - accessible to all */}
             <Route path="/browse" element={<BrowsePage />} />
 
-            {/* Post detail - accessible to all */}
-            <Route path="/post/:postId" element={<PostDetailPage />} />
+            {/* Share detail - accessible to all */}
+            <Route path="/share/:shareId" element={<ShareDetailPage />} />
+            {/* Redirect old /post URLs to /share */}
+            <Route path="/post/:postId" element={<Navigate to={window.location.pathname.replace('/post/', '/share/')} replace />} />
 
             {/* Protected routes */}
-            <Route path="/post/create" element={
-              <ProtectedRoute><PostCreatePage /></ProtectedRoute>
-            } />
             <Route path="/messages" element={
               <ProtectedRoute><MessagesPage /></ProtectedRoute>
             } />
@@ -129,6 +127,14 @@ function AppRoutes() {
 }
 
 export default function App() {
+  // Mobile debug console - remove when done debugging
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/eruda';
+    script.onload = () => (window as any).eruda.init();
+    document.body.appendChild(script);
+  }, []);
+
   return (
     <BrowserRouter>
       <AppRoutes />

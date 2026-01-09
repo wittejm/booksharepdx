@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import type { User, Post } from '@booksharepdx/shared';
 import { userService, postService, savedPostService, neighborhoodService } from '../services';
 import { useUser } from '../contexts/UserContext';
 import PostCard from '../components/PostCard';
+import InlineShareForm from '../components/InlineShareForm';
 
 type TabType = 'active' | 'archive' | 'saved' | 'loves' | 'lookingFor';
 
 export default function ProfilePage() {
   const { username } = useParams<{ username: string }>();
+  const [searchParams] = useSearchParams();
   const { currentUser } = useUser();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,6 +19,22 @@ export default function ProfilePage() {
   const [savedPosts, setSavedPosts] = useState<Post[]>([]);
 
   const isOwnProfile = currentUser?.username === username;
+  const shouldAutoFocusShare = searchParams.get('action') === 'share';
+
+  const handleShareSuccess = () => {
+    // Reload posts in background (no loading spinner)
+    reloadPosts();
+  };
+
+  const reloadPosts = async () => {
+    if (!user) return;
+    try {
+      const userPosts = await postService.getByUserId(user.id);
+      setPosts(userPosts);
+    } catch (error) {
+      console.error('Failed to reload posts:', error);
+    }
+  };
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -171,6 +189,14 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Inline Share Form (only on own profile) */}
+        {isOwnProfile && (
+          <InlineShareForm
+            onSuccess={handleShareSuccess}
+            autoFocus={shouldAutoFocusShare}
+          />
+        )}
+
         {/* Tabs */}
         <div className="card mb-6">
           <div className="border-b border-gray-200">
@@ -183,7 +209,7 @@ export default function ProfilePage() {
                     : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                 }`}
               >
-                Active Posts ({getActivePosts().length})
+                Active Shares ({getActivePosts().length})
               </button>
               <button
                 onClick={() => setActiveTab('archive')}
@@ -237,15 +263,10 @@ export default function ProfilePage() {
             {tabPosts.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-600">
-                  {activeTab === 'active' && 'No active posts yet.'}
-                  {activeTab === 'archive' && 'No archived posts yet.'}
-                  {activeTab === 'saved' && 'No saved posts yet.'}
+                  {activeTab === 'active' && 'No active shares yet. Use the form above to share a book!'}
+                  {activeTab === 'archive' && 'No archived shares yet.'}
+                  {activeTab === 'saved' && 'No saved shares yet.'}
                 </p>
-                {isOwnProfile && activeTab === 'active' && (
-                  <Link to="/create-post" className="link mt-2 inline-block">
-                    Create your first post
-                  </Link>
-                )}
               </div>
             ) : (
               tabPosts.map((post) => (

@@ -9,8 +9,9 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { useConfirm } from '../components/useConfirm';
 import { formatTimestamp } from '../utils/time';
 
-export default function PostDetailPage() {
-  const { postId } = useParams<{ postId: string }>();
+export default function ShareDetailPage() {
+  const { shareId } = useParams<{ shareId: string }>();
+  const postId = shareId; // Alias for compatibility with existing code
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const { confirm, ConfirmDialogComponent } = useConfirm();
@@ -244,8 +245,8 @@ export default function PostDetailPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="card p-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Post Not Found</h2>
-          <p className="text-gray-600 mb-6">{error || 'The post you are looking for does not exist.'}</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Share Not Found</h2>
+          <p className="text-gray-600 mb-6">{error || 'The share you are looking for does not exist.'}</p>
           <button onClick={() => navigate('/browse')} className="btn-primary">
             Browse Books
           </button>
@@ -335,7 +336,7 @@ export default function PostDetailPage() {
 
             {/* Owner info */}
             <div className="border-t pt-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Posted by:</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Shared by:</h3>
               <div className="flex items-center gap-4">
                 <Link to={`/profile/${postOwner.username}`}>
                   {postOwner.profilePicture ? (
@@ -370,7 +371,7 @@ export default function PostDetailPage() {
               {distance && (
                 <p className="text-sm text-gray-600 mt-3">{distance}</p>
               )}
-              <p className="text-sm text-gray-500 mt-2">Posted {formatTimestamp(post.createdAt)}</p>
+              <p className="text-sm text-gray-500 mt-2">Shared {formatTimestamp(post.createdAt)}</p>
             </div>
           </div>
         </div>
@@ -380,7 +381,7 @@ export default function PostDetailPage() {
           {isOwnPost ? (
             <>
               <button className="btn-secondary flex-1 sm:flex-none">
-                Edit Post
+                Edit
               </button>
               {post.status === 'active' && (
                 <button onClick={handleMarkAsGiven} className="btn-primary flex-1 sm:flex-none">

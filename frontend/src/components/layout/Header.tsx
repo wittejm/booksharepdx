@@ -60,10 +60,10 @@ export default function Header() {
               <>
                 {/* Logged-in Navigation */}
                 <Link
-                  to="/post/create"
+                  to={`/profile/${currentUser.username}?action=share`}
                   className="text-gray-700 hover:text-[#164E4A] font-medium transition-colors"
                 >
-                  Post
+                  Share
                 </Link>
                 <Link
                   to="/messages"
@@ -226,11 +226,11 @@ export default function Header() {
             {currentUser ? (
               <>
                 <Link
-                  to="/post/create"
+                  to={`/profile/${currentUser.username}?action=share`}
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg font-medium"
                   onClick={closeMenu}
                 >
-                  Post
+                  Share
                 </Link>
                 <Link
                   to="/messages"

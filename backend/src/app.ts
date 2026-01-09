@@ -19,9 +19,19 @@ export function createApp() {
     crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow images from uploads
   }));
 
-  // CORS - allow frontend origin with credentials
+  // CORS - allow frontend origins with credentials
+  // Support comma-separated origins in FRONTEND_URL for multi-environment support
+  const allowedOrigins = env.frontendUrl.split(',').map(o => o.trim());
   app.use(cors({
-    origin: env.frontendUrl,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        callback(null, origin);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

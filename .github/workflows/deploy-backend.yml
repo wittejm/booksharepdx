@@ -60,7 +60,7 @@ jobs:
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
-            --set-env-vars="NODE_ENV=staging,FRONTEND_URL=https://staging.booksharepdx.com" \
+            --set-env-vars="NODE_ENV=staging,FRONTEND_URL=https://staging.booksharepdx.com,https://booksharepdx.com,https://www.booksharepdx.com" \
             --set-secrets="DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
             --min-instances=0 \
             --max-instances=2 \

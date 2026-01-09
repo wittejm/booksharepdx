@@ -33,7 +33,7 @@ export default function OpenLibraryBookSearch({ onSelect, disabled, autoFocus }:
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Auto-focus on mount if requested
   useEffect(() => {

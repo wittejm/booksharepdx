@@ -20,18 +20,11 @@ export function createApp() {
   }));
 
   // CORS - allow frontend origins with credentials
-  // Support comma-separated origins in FRONTEND_URL for multi-environment support
-  const allowedOrigins = env.frontendUrl.split(',').map(o => o.trim());
+  const corsOrigin = env.isDev
+    ? /^http:\/\/localhost(:\d+)?$/
+    : /^https:\/\/(staging\.|www\.)?booksharepdx\.com$/;
   app.use(cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, curl, etc.)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
-        callback(null, origin);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: corsOrigin,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

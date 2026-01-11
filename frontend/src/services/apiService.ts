@@ -225,7 +225,7 @@ export const messageService = {
 export const commentService = {
   getByPostId: async (postId: string): Promise<Comment[]> => {
     try {
-      const response = await apiClient.get<{ data: Comment[] }>(`/comments?postId=${postId}`);
+      const response = await apiClient.get<{ data: Comment[] }>(`/comments/post/${postId}`);
       return response.data;
     } catch {
       // Return empty array if comments not found or endpoint doesn't exist

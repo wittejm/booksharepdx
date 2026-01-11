@@ -69,7 +69,7 @@ export default function Header() {
                   to="/messages"
                   className="text-gray-700 hover:text-[#164E4A] font-medium transition-colors"
                 >
-                  Messages
+                  My Activity
                 </Link>
               </>
             ) : (
@@ -237,7 +237,7 @@ export default function Header() {
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg font-medium"
                   onClick={closeMenu}
                 >
-                  Messages
+                  My Activity
                 </Link>
                 <div className="border-t border-gray-200 pt-2 mt-2">
                   <Link

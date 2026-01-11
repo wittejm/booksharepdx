@@ -61,13 +61,21 @@ router.post('/signup', validateBody(signupSchema), async (req, res, next) => {
     // Check if email exists
     const existingEmail = await userRepo.findOne({ where: { email: email.toLowerCase() } });
     if (existingEmail) {
-      throw new AppError('Email already in use', 400, 'EMAIL_TAKEN');
+      throw new AppError(
+        'This email address is already registered. Please log in or use a different email.',
+        400,
+        'EMAIL_TAKEN'
+      );
     }
 
     // Check if username exists
     const existingUsername = await userRepo.findOne({ where: { username: username.toLowerCase() } });
     if (existingUsername) {
-      throw new AppError('Username already taken', 400, 'USERNAME_TAKEN');
+      throw new AppError(
+        `The username "${username}" is already taken. Please choose a different username.`,
+        400,
+        'USERNAME_TAKEN'
+      );
     }
 
     // Create user
@@ -114,16 +122,28 @@ router.post('/login', validateBody(loginSchema), async (req, res, next) => {
         : { username: identifier.toLowerCase() },
     });
     if (!user) {
-      throw new AppError('Invalid email/username or password', 401, 'INVALID_CREDENTIALS');
+      throw new AppError(
+        'No account found with that email or username. Please check your credentials or sign up for a new account.',
+        401,
+        'INVALID_CREDENTIALS'
+      );
     }
 
     if (user.banned) {
-      throw new AppError('Account banned', 403, 'ACCOUNT_BANNED');
+      throw new AppError(
+        'Your account has been banned due to a violation of our community guidelines. Please contact support if you believe this is an error.',
+        403,
+        'ACCOUNT_BANNED'
+      );
     }
 
     const valid = await verifyPassword(password, user.passwordHash);
     if (!valid) {
-      throw new AppError('Invalid email or password', 401, 'INVALID_CREDENTIALS');
+      throw new AppError(
+        'Incorrect password. Please try again or use the "Forgot Password" link to reset it.',
+        401,
+        'INVALID_CREDENTIALS'
+      );
     }
 
     // Generate tokens
@@ -163,7 +183,11 @@ router.put('/me', requireAuth, validateBody(updateSchema), async (req, res, next
     if (req.body.username && req.body.username !== user.username) {
       const existing = await userRepo.findOne({ where: { username: req.body.username.toLowerCase() } });
       if (existing) {
-        throw new AppError('Username already taken', 400, 'USERNAME_TAKEN');
+        throw new AppError(
+          `The username "${req.body.username}" is already taken by another user. Please choose a different username.`,
+          400,
+          'USERNAME_TAKEN'
+        );
       }
     }
 
@@ -225,7 +249,11 @@ router.post('/reset-password', async (req, res, next) => {
 
     const user = await userRepo.findOne({ where: { email: email.toLowerCase() } });
     if (!user) {
-      throw new AppError('User not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        'No account found with that email address. Please check the email or sign up for a new account.',
+        404,
+        'USER_NOT_FOUND'
+      );
     }
 
     user.passwordHash = await hashPassword(newPassword);

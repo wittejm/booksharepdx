@@ -47,8 +47,16 @@ export default function LoginPage() {
         navigate('/browse');
       }, 500);
     } catch (error) {
-      const err = error as Error;
-      showToast(err.message || 'Login failed', 'error');
+      const err = error as Error & { code?: string };
+      if (err.code === 'INVALID_CREDENTIALS') {
+        showToast(err.message || 'Invalid email/username or password. Please try again.', 'error');
+      } else if (err.code === 'ACCOUNT_BANNED') {
+        showToast('Your account has been suspended. Please contact support for assistance.', 'error');
+      } else if (err.code === 'NETWORK_ERROR') {
+        showToast('Unable to connect to the server. Please check your connection.', 'error');
+      } else {
+        showToast(err.message || 'Unable to log in. Please try again later.', 'error');
+      }
     } finally {
       setLoading(false);
     }

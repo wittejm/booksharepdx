@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
+import { useUser } from '../contexts/UserContext';
 
 export default function AboutPage() {
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null);
+  const { currentUser } = useUser();
 
   const faqs = [
     {
@@ -281,21 +283,23 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-r from-primary-600 to-primary-700 text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold mb-6">Ready to Start Sharing?</h2>
-          <p className="text-lg text-primary-100 mb-8">
-            Join thousands of Portlanders building community through books.
-          </p>
-          <Link
-            to="/signup"
-            className="inline-block bg-white text-primary-600 font-semibold px-8 py-3 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            Create Your Account
-          </Link>
-        </div>
-      </section>
+      {/* CTA Section - only show for logged out users */}
+      {!currentUser && (
+        <section className="py-16 bg-gradient-to-r from-primary-600 to-primary-700 text-white">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 className="text-4xl font-bold mb-6">Ready to Start Sharing?</h2>
+            <p className="text-lg text-primary-100 mb-8">
+              Join thousands of Portlanders building community through books.
+            </p>
+            <Link
+              to="/signup"
+              className="inline-block bg-white text-primary-600 font-semibold px-8 py-3 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              Create Your Account
+            </Link>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

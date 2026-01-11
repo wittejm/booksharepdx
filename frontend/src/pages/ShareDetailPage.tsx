@@ -45,7 +45,7 @@ export default function ShareDetailPage() {
 
   const loadPostData = async () => {
     if (!postId) {
-      setError('Post not found');
+      setError('No book listing ID was provided. Please check the URL and try again.');
       setLoading(false);
       return;
     }
@@ -57,7 +57,7 @@ export default function ShareDetailPage() {
       // Fetch post
       const fetchedPost = await postService.getById(postId);
       if (!fetchedPost) {
-        setError('Post not found');
+        setError('This book listing could not be found. It may have been removed or archived by the owner.');
         setLoading(false);
         return;
       }
@@ -91,7 +91,14 @@ export default function ShareDetailPage() {
       setCommentUsers(users);
 
     } catch (err) {
-      setError('Failed to load post');
+      const error = err as Error & { code?: string };
+      if (error.code === 'POST_NOT_FOUND') {
+        setError('This book listing could not be found. It may have been removed or archived by the owner.');
+      } else if (error.code === 'NETWORK_ERROR') {
+        setError('Unable to connect to the server. Please check your internet connection and try again.');
+      } else {
+        setError('Something went wrong while loading this book listing. Please try again later.');
+      }
       console.error(err);
     } finally {
       setLoading(false);
@@ -137,7 +144,14 @@ export default function ShareDetailPage() {
       setNewComment('');
       showToast('Comment added!', 'success');
     } catch (err) {
-      showToast('Failed to add comment', 'error');
+      const error = err as Error & { code?: string };
+      if (error.code === 'POST_ARCHIVED') {
+        showToast('Comments are closed on archived listings.', 'error');
+      } else if (error.code === 'POST_NOT_FOUND') {
+        showToast('This listing no longer exists.', 'error');
+      } else {
+        showToast('Unable to post your comment. Please try again.', 'error');
+      }
       console.error(err);
     } finally {
       setSubmittingComment(false);
@@ -178,7 +192,12 @@ export default function ShareDetailPage() {
       setShowInterestedModal(false);
       setInterestedMessage('');
     } catch (err) {
-      showToast('Failed to express interest', 'error');
+      const error = err as Error & { code?: string };
+      if (error.code === 'POST_ARCHIVED') {
+        showToast('This book is no longer available.', 'error');
+      } else {
+        showToast('Unable to send your message. Please try again.', 'error');
+      }
       console.error(err);
     } finally {
       setSubmittingInterest(false);
@@ -204,7 +223,12 @@ export default function ShareDetailPage() {
       showToast('Post marked as given!', 'success');
       setTimeout(() => navigate('/profile/' + currentUser.username), 1000);
     } catch (err) {
-      showToast('Failed to update post', 'error');
+      const error = err as Error & { code?: string };
+      if (error.code === 'NOT_POST_OWNER') {
+        showToast('You can only update your own listings.', 'error');
+      } else {
+        showToast('Unable to update the listing. Please try again.', 'error');
+      }
       console.error(err);
     }
   };
@@ -225,7 +249,14 @@ export default function ShareDetailPage() {
       showToast('Post deleted!', 'success');
       setTimeout(() => navigate('/profile/' + currentUser.username), 1000);
     } catch (err) {
-      showToast('Failed to delete post', 'error');
+      const error = err as Error & { code?: string };
+      if (error.code === 'NOT_POST_OWNER') {
+        showToast('You can only delete your own listings.', 'error');
+      } else if (error.code === 'POST_NOT_FOUND') {
+        showToast('This listing has already been deleted.', 'error');
+      } else {
+        showToast('Unable to delete the listing. Please try again.', 'error');
+      }
       console.error(err);
     }
   };
@@ -244,12 +275,22 @@ export default function ShareDetailPage() {
   if (error || !post || !postOwner) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="card p-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Share Not Found</h2>
-          <p className="text-gray-600 mb-6">{error || 'The share you are looking for does not exist.'}</p>
-          <button onClick={() => navigate('/browse')} className="btn-primary">
-            Browse Books
-          </button>
+        <div className="card p-8 text-center max-w-lg mx-auto">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Book Listing Not Found</h2>
+          <p className="text-gray-600 mb-6">{error || 'This book listing could not be found. It may have been removed or archived.'}</p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button onClick={() => navigate(-1)} className="btn-secondary">
+              Go Back
+            </button>
+            <button onClick={() => navigate('/browse')} className="btn-primary">
+              Browse Available Books
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -357,11 +398,6 @@ export default function ShareDetailPage() {
                   <Link to={`/profile/${postOwner.username}`} className="font-semibold text-gray-900 hover:text-primary-600">
                     {postOwner.username}
                   </Link>
-                  {postOwner.verified && (
-                    <svg className="inline-block w-4 h-4 ml-1 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                  )}
                   <div className="flex gap-4 text-sm text-gray-600 mt-1">
                     <span>{postOwner.stats.booksGiven} given</span>
                     <span>{postOwner.stats.bookshares} bookshares</span>
@@ -499,11 +535,6 @@ export default function ShareDetailPage() {
                         <Link to={`/profile/${user.username}`} className="font-semibold text-gray-900 hover:text-primary-600">
                           {user.username}
                         </Link>
-                        {user.verified && (
-                          <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        )}
                         <span className="text-sm text-gray-500">{formatTimestamp(comment.timestamp)}</span>
                       </div>
                       <p className="text-gray-700">{comment.content}</p>

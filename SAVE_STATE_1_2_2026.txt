@@ -1,0 +1,157 @@
+SAVE STATE - Jan 2, 2026
+========================
+
+WHAT WE DID:
+- Modified .github/workflows/deploy-backend.yml to reduce Cloud Run costs
+- Disabled production deployment (commented out), keeping only staging
+- Added --no-liveness-probe to staging deployment
+
+PENDING MANUAL ACTIONS:
+1. Delete existing prod Cloud Run service:
+   gcloud run services delete booksharepdx-api --region=us-west1
+
+2. Check/delete any uptime checks in GCP Console (Monitoring > Uptime checks)
+   or run: gcloud monitoring uptime-check-configs list
+
+CONTEXT:
+- Two Cloud Run services existed: booksharepdx-api (prod) and booksharepdx-api-staging
+- Goal was cost reduction during development phase
+- Production deployment is commented out in workflow, easy to restore when ready
+
+---
+
+SESSION 2 - Infrastructure Setup (Jan 2-3, 2026)
+================================================
+
+WHAT WE DID:
+- Set up complete infrastructure: Neon (Postgres), Resend (email), GCP Cloud Run
+- Configured DNS at Porkbun for staging.booksharepdx.com and updates.booksharepdx.com (email)
+- Added setup instructions to INFRASTRUCTURE.md with step-by-step checklist
+- Created backend/.env with real Neon + Resend credentials
+- Created GitHub Actions workflow (.github/workflows/deploy-backend.yml)
+- Fixed TypeScript errors aligning dataService and apiService interfaces
+- Added Artifact Registry Administrator role to github-actions service account
+
+STAGED BUT NOT PUSHED:
+- TypeScript fixes in frontend/src/services/*.ts and several pages
+- Run: git commit -m "Fix TypeScript errors" && git push
+
+SERVICES CONFIGURED:
+- Neon DB: ep-tiny-fog-af3i8c9z-pooler (US West 2, PostGIS enabled)
+- Resend: Domain updates.booksharepdx.com verified
+- GCP: Project booksharepdx, secrets in Secret Manager (DATABASE_URL, JWT_SECRET, JWT_REFRESH_SECRET, RESEND_API_KEY)
+- Vercel: staging.booksharepdx.com + booksharepdx.com both point to main branch
+
+PENDING:
+- Push the staged TypeScript fixes to trigger deploy
+- Verify Cloud Run deployment succeeds
+
+---
+
+SESSION 3 - Backend Implementation & Auth Fixes (Jan 2-3, 2026)
+===============================================================
+
+WHAT WE DID:
+- Fixed signup/login flow: signature mismatch, error handling, cookie credentials
+- Login now accepts username OR email (identifier field)
+- Simplified bio validation (just non-empty)
+- Fixed apiClient to parse backend error format { error: { message, code } }
+- Refactored neighborhoods to static data (no DB seeding needed)
+  - Frontend: uses static neighborhoods.ts for boundaries/centroids
+  - Backend: only /api/neighborhoods/book-counts queries DB
+  - Created backend/src/data/neighborhoodCentroids.ts for distance calculations
+  - Removed Neighborhood entity from TypeORM
+
+E2E TESTING:
+- Set up Playwright (frontend/e2e-test.ts)
+- 13/14 tests passing (signup, login, browse, profile all work)
+- Screenshots saved to frontend/test-screenshots/
+- Results in TEST_LOG.md
+
+SERVERS RUNNING:
+- Backend: localhost:3001 (npm run dev:backend)
+- Frontend: localhost:5173 (npm run dev:frontend)
+
+KEY FILES CHANGED:
+- frontend/src/services/apiClient.ts (credentials, error parsing)
+- frontend/src/services/apiService.ts (login identifier, static neighborhoods)
+- frontend/src/pages/LoginPage.tsx (username OR email)
+- frontend/src/pages/SignUpPage.tsx (simplified bio, better errors)
+- backend/src/routes/auth.ts (identifier login, bio validation)
+- backend/src/routes/neighborhoods.ts (book-counts only)
+- backend/src/data/neighborhoodCentroids.ts (new - static centroids)
+
+---
+
+SESSION 4 - Cookie-Based Auth & Frontend-Backend Integration (Jan 3, 2026)
+==========================================================================
+
+WHAT WE DID:
+- Removed GitHub Pages deployment workflow (going live, no longer needed)
+- Switched from HashRouter to BrowserRouter permanently
+- Created full API service layer (apiService.ts) mirroring dataService
+- Created service selector (services/index.ts) - switches between demo/API via env var
+- Refactored to cookie-based JWT authentication (removed localStorage auth)
+- Backend always runs on port 3001 (hardcoded, not fallback)
+
+AUTH REFACTOR:
+- Removed Authorization header logic from apiClient
+- Backend uses HTTP-only cookies for JWT tokens (set by /auth/login, /auth/signup)
+- Frontend sends credentials: 'include' with all requests
+- Session persists across page refreshes via /auth/me endpoint
+- UserContext populated from cookies on app mount
+- ProtectedRoute reads from UserContext (not localStorage)
+
+ENV CONFIGURATION:
+- frontend/.env: VITE_USE_DEMO_DATA=false (default to API mode)
+- frontend/.env.example: Template for local dev
+- frontend/.env.production: Points to GCR backend URL (needs updating when deployed)
+- backend/.env.example: Documents port 3001 is hardcoded
+
+KEY FILES CHANGED:
+- frontend/src/services/apiClient.ts (removed auth headers, added credentials)
+- frontend/src/services/apiService.ts (full API service layer)
+- frontend/src/services/index.ts (service selector)
+- frontend/src/services/dataService.ts (updated to match async signatures)
+- frontend/src/App.tsx (session restore on mount, loading state)
+- frontend/.env, frontend/.env.production (API mode by default)
+- backend/src/config/env.ts (port 3001 hardcoded)
+
+CURRENT STATE:
+- Local frontend-backend integration working
+- Cookie-based auth functional
+- Sessions persist across page refreshes
+- Ready for Vercel/GCR deployment
+
+---
+
+SESSION 5 - Error Handling, Testing & UX Polish (Jan 10, 2026)
+==============================================================
+
+WHAT WE DID:
+- Added Vitest testing framework to backend with coverage support
+- Improved error messages throughout the app (user-friendly, not technical jargon)
+- Fixed JSONB query bug in message threads (was using ANY() instead of @> containment operator)
+- Added comment count display to book cards (💬 x3 format)
+- Removed Neighborhood entity/seeds (fully static now)
+
+ERROR HANDLING IMPROVEMENTS:
+- Auth errors now explain what to do ("Please log in again")
+- Validation errors formatted from Zod into readable messages
+- Database errors (unique constraint, foreign key) give helpful feedback
+- JWT/session errors properly handled
+- Multer file upload errors with size limits
+
+NEW FEATURES:
+- Posts now include commentCount in API responses
+- PostCard shows 💬 xN when a book has comments
+- Better 404 messages include the endpoint that wasn't found
+
+KEY FILES CHANGED:
+- backend/src/middleware/errorHandler.ts (comprehensive error formatting)
+- backend/src/middleware/auth.ts (friendly auth error messages)
+- backend/src/routes/messages.ts (JSONB query fix)
+- backend/src/routes/posts.ts (comment count via loadRelationCountAndMap)
+- frontend/src/components/PostCard.tsx (comment count display)
+- shared/src/index.ts (added commentCount to Post type)
+- Deleted: backend/src/entities/Neighborhood.ts, backend/src/database/seeds/

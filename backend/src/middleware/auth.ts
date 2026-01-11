@@ -24,7 +24,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     const refreshToken = req.cookies?.refreshToken;
 
     if (!accessToken && !refreshToken) {
-      throw new AppError('Authentication required', 401, 'UNAUTHORIZED');
+      throw new AppError(
+        'You must be logged in to access this feature. Please log in and try again.',
+        401,
+        'UNAUTHORIZED'
+      );
     }
 
     let payload: JwtPayload | null = null;
@@ -46,12 +50,20 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
         const newAccessToken = signAccessToken(payload);
         res.cookie('accessToken', newAccessToken, accessTokenCookieOptions);
       } catch {
-        throw new AppError('Session expired, please login again', 401, 'SESSION_EXPIRED');
+        throw new AppError(
+          'Your session has expired. Please log in again to continue.',
+          401,
+          'SESSION_EXPIRED'
+        );
       }
     }
 
     if (!payload) {
-      throw new AppError('Authentication required', 401, 'UNAUTHORIZED');
+      throw new AppError(
+        'You must be logged in to access this feature. Please log in and try again.',
+        401,
+        'UNAUTHORIZED'
+      );
     }
 
     // Get user from database
@@ -59,11 +71,19 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     const user = await userRepo.findOne({ where: { id: payload.userId } });
 
     if (!user) {
-      throw new AppError('User not found', 401, 'USER_NOT_FOUND');
+      throw new AppError(
+        'Your account could not be found. It may have been deleted. Please contact support if you need assistance.',
+        401,
+        'USER_NOT_FOUND'
+      );
     }
 
     if (user.banned) {
-      throw new AppError('Account banned', 403, 'ACCOUNT_BANNED');
+      throw new AppError(
+        'Your account has been banned due to a violation of our community guidelines. Please contact support if you believe this is an error.',
+        403,
+        'ACCOUNT_BANNED'
+      );
     }
 
     req.user = user;

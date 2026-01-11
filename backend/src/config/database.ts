@@ -15,7 +15,6 @@ import { Vouch } from '../entities/Vouch.js';
 import { Notification } from '../entities/Notification.js';
 import { SavedPost } from '../entities/SavedPost.js';
 import { Book } from '../entities/Book.js';
-// Note: Neighborhood data is static (see src/data/neighborhoodCentroids.ts)
 
 export const AppDataSource = new DataSource({
   type: 'postgres',

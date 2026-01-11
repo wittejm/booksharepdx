@@ -29,7 +29,11 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
 
     const user = await userRepo.findOne({ where: { id } });
     if (!user) {
-      throw new AppError('User not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        'This user profile could not be found. The account may have been deleted or the link may be incorrect.',
+        404,
+        'USER_NOT_FOUND'
+      );
     }
 
     res.json({ data: user.toJSON() });
@@ -46,7 +50,11 @@ router.get('/username/:username', optionalAuth, async (req, res, next) => {
 
     const user = await userRepo.findOne({ where: { username } });
     if (!user) {
-      throw new AppError('User not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        `No user found with username "${username}". Please check the spelling or the user may have changed their username.`,
+        404,
+        'USER_NOT_FOUND'
+      );
     }
 
     res.json({ data: user.toJSON() });
@@ -63,14 +71,22 @@ router.put('/:id', requireAuth, async (req, res, next) => {
 
     // Can only update self unless admin
     if (currentUser.id !== id && currentUser.role !== 'admin') {
-      throw new AppError('Cannot update other users', 403, 'FORBIDDEN');
+      throw new AppError(
+        'You can only update your own profile. To make changes, please log in to the correct account.',
+        403,
+        'NOT_PROFILE_OWNER'
+      );
     }
 
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOne({ where: { id } });
 
     if (!user) {
-      throw new AppError('User not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        'This user profile could not be found. The account may have been deleted.',
+        404,
+        'USER_NOT_FOUND'
+      );
     }
 
     // Apply updates

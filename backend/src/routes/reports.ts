@@ -93,7 +93,11 @@ router.get('/:id', requireAuth, requireModerator, async (req, res, next) => {
     });
 
     if (!report) {
-      throw new AppError('Report not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        'This report could not be found. It may have been deleted or resolved.',
+        404,
+        'REPORT_NOT_FOUND'
+      );
     }
 
     res.json({
@@ -116,7 +120,11 @@ router.put('/:id', requireAuth, requireModerator, validateBody(updateReportSchem
 
     const report = await reportRepo.findOne({ where: { id } });
     if (!report) {
-      throw new AppError('Report not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        'This report could not be found. It may have been deleted.',
+        404,
+        'REPORT_NOT_FOUND'
+      );
     }
 
     if (req.body.status) report.status = req.body.status;

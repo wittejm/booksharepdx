@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { postService } from '../services';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from './useToast';
 import ToastContainer from './ToastContainer';
 import LoadingSpinner from './LoadingSpinner';
-import OpenLibraryBookSearch from './OpenLibraryBookSearch';
+import BookSearch from './BookSearch';
 import MultiSelectTagInput from './MultiSelectTagInput';
 
 interface BookSelection {
@@ -146,8 +146,8 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
   const { currentUser } = useUser();
   const { showToast, toasts, dismiss } = useToast();
 
-  // Step tracking: 'collapsed' | 'search' | 'genre' | 'type' | 'submitting'
-  const [step, setStep] = useState<'collapsed' | 'search' | 'genre' | 'type' | 'submitting'>(
+  // Step tracking: 'collapsed' | 'search' | 'details' | 'submitting'
+  const [step, setStep] = useState<'collapsed' | 'search' | 'details' | 'submitting'>(
     autoFocus ? 'search' : 'collapsed'
   );
 
@@ -163,23 +163,12 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
 
   const formRef = useRef<HTMLDivElement>(null);
 
-  // Auto-focus and scroll into view when autoFocus is true
-  useEffect(() => {
-    if (autoFocus && formRef.current) {
-      formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, [autoFocus]);
-
   const handleBookSelect = (book: BookSelection) => {
     setSelectedBook(book);
     // Auto-detect genres from Open Library subjects
     const autoGenres = mapSubjectsToGenres(book.subjects);
     setSelectedGenres(autoGenres);
-    setStep('genre');
-  };
-
-  const handleGenreContinue = () => {
-    setStep('type');
+    setStep('details');
   };
 
   const handleSubmit = async () => {
@@ -215,7 +204,7 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
       console.error('Failed to share book:', err);
       const message = err instanceof Error ? err.message : 'Unknown error occurred';
       showToast(`Failed to share: ${message}`, 'error');
-      setStep('type');
+      setStep('details');
     } finally {
       setLoading(false);
     }
@@ -261,7 +250,7 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
                   </svg>
                 </button>
               </div>
-              <OpenLibraryBookSearch
+              <BookSearch
                 onSelect={handleBookSelect}
                 disabled={loading}
                 autoFocus={autoFocus || step === 'search'}
@@ -269,11 +258,11 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
             </div>
           )}
 
-          {/* Step 2: Genre selection */}
-          {step === 'genre' && selectedBook && (
+          {/* Step 2: Genre and type selection combined */}
+          {step === 'details' && selectedBook && (
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Select Genre</h3>
+                <h3 className="text-lg font-bold text-gray-900">Share Details</h3>
                 <button
                   onClick={handleCancel}
                   className="text-gray-400 hover:text-gray-600"
@@ -300,68 +289,6 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
                 <div className="min-w-0">
                   <p className="font-semibold text-gray-900 truncate">{selectedBook.title}</p>
                   <p className="text-sm text-gray-600 truncate">{selectedBook.author}</p>
-                </div>
-              </div>
-
-              {/* Genre multi-select */}
-              <div className="mb-4">
-                <MultiSelectTagInput
-                  options={GENRES}
-                  selectedTags={selectedGenres}
-                  onChange={setSelectedGenres}
-                  placeholder="Select genres..."
-                />
-              </div>
-
-              {/* Continue button */}
-              <button
-                type="button"
-                onClick={handleGenreContinue}
-                className="w-full btn-primary py-3"
-              >
-                Continue
-              </button>
-            </div>
-          )}
-
-          {/* Step 3: Choose share type and submit */}
-          {step === 'type' && selectedBook && (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Share Type</h3>
-                <button
-                  onClick={handleCancel}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Book preview */}
-              <div className="flex gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
-                {selectedBook.coverImage ? (
-                  <img
-                    src={selectedBook.coverImage}
-                    alt={selectedBook.title}
-                    className="w-16 h-24 object-cover rounded flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-16 h-24 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
-                    <span className="text-gray-400 text-2xl">?</span>
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <p className="font-semibold text-gray-900 truncate">{selectedBook.title}</p>
-                  <p className="text-sm text-gray-600 truncate">{selectedBook.author}</p>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {selectedGenres.map(genre => (
-                      <span key={genre} className="px-2 py-0.5 bg-primary-100 text-primary-700 text-xs rounded-full">
-                        {genre}
-                      </span>
-                    ))}
-                  </div>
                 </div>
               </div>
 
@@ -391,6 +318,17 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
                   <div className="font-medium">Exchange</div>
                   <div className="text-xs text-gray-500">Trade for another book</div>
                 </button>
+              </div>
+
+              {/* Genre multi-select */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Genres (optional)</label>
+                <MultiSelectTagInput
+                  options={GENRES}
+                  selectedTags={selectedGenres}
+                  onChange={setSelectedGenres}
+                  placeholder="Select genres..."
+                />
               </div>
 
               {/* Submit button */}

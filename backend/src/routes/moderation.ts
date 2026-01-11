@@ -56,12 +56,20 @@ router.post('/actions', requireAuth, requireModerator, validateBody(createAction
 
     // Ban requires admin
     if (action === 'banned' && req.user!.role !== 'admin') {
-      throw new AppError('Only admins can ban users', 403, 'FORBIDDEN');
+      throw new AppError(
+        'Only administrators can permanently ban users. Please escalate this action to an admin.',
+        403,
+        'ADMIN_REQUIRED'
+      );
     }
 
     const targetUser = await userRepo.findOne({ where: { id: targetUserId } });
     if (!targetUser) {
-      throw new AppError('Target user not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        'The user you are trying to moderate could not be found. Their account may have been deleted.',
+        404,
+        'TARGET_USER_NOT_FOUND'
+      );
     }
 
     // Create action
@@ -165,7 +173,11 @@ router.put('/users/:userId/unban', requireAuth, requireAdmin, async (req, res, n
 
     const user = await userRepo.findOne({ where: { id: userId } });
     if (!user) {
-      throw new AppError('User not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        'The user you are trying to unban could not be found. Their account may have been deleted.',
+        404,
+        'USER_NOT_FOUND'
+      );
     }
 
     user.banned = false;

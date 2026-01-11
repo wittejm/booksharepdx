@@ -47,10 +47,18 @@ router.post('/', requireAuth, validateBody(createCommentSchema), async (req, res
     // Verify post exists and is active
     const post = await postRepo.findOne({ where: { id: postId } });
     if (!post) {
-      throw new AppError('Post not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        'This book listing could not be found. It may have been removed or deleted.',
+        404,
+        'POST_NOT_FOUND'
+      );
     }
     if (post.status === 'archived') {
-      throw new AppError('Cannot comment on archived posts', 400, 'POST_ARCHIVED');
+      throw new AppError(
+        'This book has already been given away or exchanged, so comments are no longer accepted.',
+        400,
+        'POST_ARCHIVED'
+      );
     }
 
     const comment = commentRepo.create({
@@ -75,12 +83,20 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
 
     const comment = await commentRepo.findOne({ where: { id } });
     if (!comment) {
-      throw new AppError('Comment not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        'This comment could not be found. It may have already been deleted.',
+        404,
+        'COMMENT_NOT_FOUND'
+      );
     }
 
     // Can only delete own comments (or admin/moderator)
     if (comment.userId !== req.user!.id && !['admin', 'moderator'].includes(req.user!.role)) {
-      throw new AppError('Cannot delete other users\' comments', 403, 'FORBIDDEN');
+      throw new AppError(
+        'You can only delete your own comments.',
+        403,
+        'NOT_COMMENT_OWNER'
+      );
     }
 
     await commentRepo.remove(comment);

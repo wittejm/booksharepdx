@@ -10,14 +10,15 @@
     "typeorm": "typeorm-ts-node-esm",
     "migration:generate": "npm run typeorm -- migration:generate -d src/config/database.ts",
     "migration:run": "npm run typeorm -- migration:run -d src/config/database.ts",
-    "seed": "tsx src/database/seeds/index.ts"
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@booksharepdx/shared": "*",
     "bcrypt": "^5.1.1",
-    "dotenv": "^16.4.7",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
@@ -37,7 +38,9 @@
     "@types/multer": "^1.4.12",
     "@types/node": "^22.10.2",
     "@types/uuid": "^10.0.0",
+    "@vitest/coverage-v8": "^4.0.16",
     "tsx": "^4.19.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^4.0.16"
   }
 }

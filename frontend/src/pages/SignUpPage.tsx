@@ -82,7 +82,7 @@ export default function SignUpPage() {
     try {
       const user = await authService.signup(formData);
       updateCurrentUser(user);
-      showToast('A verification email has been sent', 'success', 2000);
+      showToast('Account created successfully!', 'success', 2000);
 
       setTimeout(() => {
         navigate('/location-selection');

@@ -49,7 +49,11 @@ router.post('/', requireAuth, validateBody(createVouchSchema), async (req, res, 
 
     // Can't vouch for yourself
     if (otherUserId === currentUserId) {
-      throw new AppError('Cannot vouch for yourself', 400, 'INVALID_ACTION');
+      throw new AppError(
+        'You cannot vouch for yourself. Vouches must come from other community members.',
+        400,
+        'CANNOT_VOUCH_SELF'
+      );
     }
 
     // Order user IDs consistently
@@ -110,12 +114,20 @@ router.put('/:id/confirm', requireAuth, async (req, res, next) => {
 
     const vouch = await vouchRepo.findOne({ where: { id } });
     if (!vouch) {
-      throw new AppError('Vouch not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        'This vouch could not be found. It may have been removed.',
+        404,
+        'VOUCH_NOT_FOUND'
+      );
     }
 
     // Verify current user is a participant
     if (vouch.user1Id !== req.user!.id && vouch.user2Id !== req.user!.id) {
-      throw new AppError('Not a participant in this vouch', 403, 'FORBIDDEN');
+      throw new AppError(
+        'You can only confirm vouches that involve you.',
+        403,
+        'NOT_VOUCH_PARTICIPANT'
+      );
     }
 
     if (vouch.mutuallyConfirmed) {

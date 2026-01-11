@@ -89,6 +89,11 @@ export default function BrowsePage() {
   useEffect(() => {
     let filtered = [...posts];
 
+    // Exclude current user's own posts
+    if (currentUser) {
+      filtered = filtered.filter(p => p.userId !== currentUser.id);
+    }
+
     // Filter by search term
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();

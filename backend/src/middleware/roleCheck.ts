@@ -8,11 +8,24 @@ import { UserRole } from '../entities/User.js';
 export function requireRole(...allowedRoles: UserRole[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return next(new AppError('Authentication required', 401, 'UNAUTHORIZED'));
+      return next(new AppError(
+        'You must be logged in to access this feature. Please log in and try again.',
+        401,
+        'UNAUTHORIZED'
+      ));
     }
 
     if (!allowedRoles.includes(req.user.role)) {
-      return next(new AppError('Insufficient permissions', 403, 'FORBIDDEN'));
+      const roleDescription = allowedRoles.includes('admin')
+        ? 'administrator'
+        : allowedRoles.includes('moderator')
+        ? 'moderator or administrator'
+        : allowedRoles.join(' or ');
+      return next(new AppError(
+        `This action requires ${roleDescription} privileges. Your current role does not have access.`,
+        403,
+        'INSUFFICIENT_PERMISSIONS'
+      ));
     }
 
     next();

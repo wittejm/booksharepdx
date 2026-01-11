@@ -26,7 +26,11 @@ const upload = multer({
 router.post('/', requireAuth, upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) {
-      throw new AppError('No file provided', 400, 'NO_FILE');
+      throw new AppError(
+        'No file was provided. Please select an image file to upload.',
+        400,
+        'NO_FILE'
+      );
     }
 
     const storage = getStorage();
@@ -54,7 +58,11 @@ router.delete('/', requireAuth, async (req, res, next) => {
   try {
     const { url } = req.body;
     if (!url) {
-      throw new AppError('No URL provided', 400, 'NO_URL');
+      throw new AppError(
+        'No file URL was provided. Please specify which file to delete.',
+        400,
+        'NO_URL'
+      );
     }
 
     const storage = getStorage();

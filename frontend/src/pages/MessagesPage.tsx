@@ -80,7 +80,16 @@ export default function MessagesPage() {
       setThreadPosts(posts);
       setThreadUsers(users);
     } catch (error) {
-      showToast('Failed to load messages', 'error');
+      const err = error as Error & { code?: string };
+      if (err.code === 'SESSION_EXPIRED') {
+        showToast('Your session has expired. Please log in again.', 'error');
+      } else if (err.code === 'UNAUTHORIZED') {
+        showToast('Please log in to view your activity.', 'error');
+      } else if (err.code === 'NETWORK_ERROR') {
+        showToast('Connection interrupted. Please refresh the page.', 'error');
+      } else {
+        showToast('Unable to load your activity. Please try again.', 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -169,7 +178,14 @@ export default function MessagesPage() {
       // Reload threads to get updated unread counts
       await loadThreads();
     } catch (error) {
-      showToast('Failed to send message', 'error');
+      const err = error as Error & { code?: string };
+      if (err.code === 'NOT_THREAD_PARTICIPANT') {
+        showToast('You are no longer a participant in this conversation.', 'error');
+      } else if (err.code === 'THREAD_NOT_FOUND') {
+        showToast('This conversation no longer exists.', 'error');
+      } else {
+        showToast('Unable to send your message. Please try again.', 'error');
+      }
     } finally {
       setSending(false);
     }
@@ -188,7 +204,12 @@ export default function MessagesPage() {
       setCanVouch(false);
       showToast('You vouched for this person!', 'success');
     } catch (error) {
-      showToast('Failed to vouch', 'error');
+      const err = error as Error & { code?: string };
+      if (err.code === 'CANNOT_VOUCH_SELF') {
+        showToast('You cannot vouch for yourself.', 'error');
+      } else {
+        showToast('Unable to submit your vouch. Please try again.', 'error');
+      }
     } finally {
       setVouchLoading(false);
     }
@@ -235,7 +256,7 @@ export default function MessagesPage() {
   return (
     <div className="h-[calc(100vh-128px)] flex flex-col">
       <div className="container mx-auto px-4 py-6 flex-1 flex flex-col overflow-hidden">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Messages</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">My Activity</h1>
 
         {/* Desktop: Split View, Mobile: Conditional View */}
         <div className="flex-1 flex gap-6 overflow-hidden">
@@ -246,7 +267,7 @@ export default function MessagesPage() {
             <div className="card p-0 flex-1 flex flex-col overflow-hidden">
               {threads.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
-                  <p>No messages yet</p>
+                  <p>No activity yet</p>
                   <p className="text-sm mt-2">Start a conversation by commenting on a post</p>
                 </div>
               ) : (

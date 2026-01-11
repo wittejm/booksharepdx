@@ -79,7 +79,11 @@ router.delete('/:postId', requireAuth, async (req, res, next) => {
     });
 
     if (!savedPost) {
-      throw new AppError('Saved post not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        'This book is not in your saved list. It may have already been removed.',
+        404,
+        'SAVED_POST_NOT_FOUND'
+      );
     }
 
     await savedPostRepo.remove(savedPost);

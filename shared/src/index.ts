@@ -59,6 +59,7 @@ export interface Post {
   pendingExchange?: PendingExchange;
   archivedAt?: number;
   givenTo?: string; // userId
+  commentCount?: number; // Number of comments on this post
 }
 
 export interface BookInfo {

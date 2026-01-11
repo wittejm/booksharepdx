@@ -51,7 +51,12 @@ export function createApp() {
 
   // 404 handler
   app.use((req, res) => {
-    res.status(404).json({ error: { message: 'Not found', code: 'NOT_FOUND' } });
+    res.status(404).json({
+      error: {
+        message: `The requested endpoint "${req.method} ${req.path}" does not exist. Please check the API documentation.`,
+        code: 'ENDPOINT_NOT_FOUND',
+      },
+    });
   });
 
   // Error handler

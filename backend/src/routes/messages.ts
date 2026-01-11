@@ -35,7 +35,7 @@ router.get('/threads', requireAuth, async (req, res, next) => {
     const threads = await threadRepo
       .createQueryBuilder('thread')
       .leftJoinAndSelect('thread.post', 'post')
-      .where(':userId = ANY(thread.participants)', { userId: req.user!.id })
+      .where('thread.participants @> :userId::jsonb', { userId: JSON.stringify([req.user!.id]) })
       .orderBy('thread.lastMessageAt', 'DESC')
       .getMany();
 
@@ -60,10 +60,18 @@ router.get('/threads/:threadId', requireAuth, async (req, res, next) => {
     // Verify user is participant
     const thread = await threadRepo.findOne({ where: { id: threadId } });
     if (!thread) {
-      throw new AppError('Thread not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        'This conversation could not be found. It may have been deleted.',
+        404,
+        'THREAD_NOT_FOUND'
+      );
     }
     if (!thread.participants.includes(req.user!.id)) {
-      throw new AppError('Not a participant in this thread', 403, 'FORBIDDEN');
+      throw new AppError(
+        'You do not have access to this conversation. Only participants can view messages.',
+        403,
+        'NOT_THREAD_PARTICIPANT'
+      );
     }
 
     const messages = await messageRepo.find({
@@ -93,7 +101,11 @@ router.post('/threads', requireAuth, validateBody(createThreadSchema), async (re
     // Verify post exists
     const post = await postRepo.findOne({ where: { id: postId } });
     if (!post) {
-      throw new AppError('Post not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        'The book listing for this conversation could not be found. It may have been deleted.',
+        404,
+        'POST_NOT_FOUND'
+      );
     }
 
     const participants = [req.user!.id, recipientId].sort();
@@ -133,10 +145,18 @@ router.post('/threads/:threadId/messages', requireAuth, validateBody(sendMessage
 
     const thread = await threadRepo.findOne({ where: { id: threadId } });
     if (!thread) {
-      throw new AppError('Thread not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        'This conversation could not be found. It may have been deleted.',
+        404,
+        'THREAD_NOT_FOUND'
+      );
     }
     if (!thread.participants.includes(req.user!.id)) {
-      throw new AppError('Not a participant in this thread', 403, 'FORBIDDEN');
+      throw new AppError(
+        'You cannot send messages in this conversation. Only participants can send messages.',
+        403,
+        'NOT_THREAD_PARTICIPANT'
+      );
     }
 
     const message = messageRepo.create({
@@ -171,10 +191,18 @@ router.put('/threads/:threadId/read', requireAuth, async (req, res, next) => {
 
     const thread = await threadRepo.findOne({ where: { id: threadId } });
     if (!thread) {
-      throw new AppError('Thread not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        'This conversation could not be found. It may have been deleted.',
+        404,
+        'THREAD_NOT_FOUND'
+      );
     }
     if (!thread.participants.includes(req.user!.id)) {
-      throw new AppError('Not a participant in this thread', 403, 'FORBIDDEN');
+      throw new AppError(
+        'You do not have access to this conversation.',
+        403,
+        'NOT_THREAD_PARTICIPANT'
+      );
     }
 
     thread.unreadCount[req.user!.id] = 0;

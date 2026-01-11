@@ -38,7 +38,11 @@ router.post('/', requireAuth, validateBody(blockSchema), async (req, res, next) 
 
     // Can't block yourself
     if (blockedId === req.user!.id) {
-      throw new AppError('Cannot block yourself', 400, 'INVALID_ACTION');
+      throw new AppError(
+        'You cannot block yourself.',
+        400,
+        'CANNOT_BLOCK_SELF'
+      );
     }
 
     // Check if already blocked
@@ -73,7 +77,11 @@ router.delete('/:blockedId', requireAuth, async (req, res, next) => {
     });
 
     if (!block) {
-      throw new AppError('Block not found', 404, 'NOT_FOUND');
+      throw new AppError(
+        'This user is not currently blocked. They may have already been unblocked.',
+        404,
+        'BLOCK_NOT_FOUND'
+      );
     }
 
     await blockRepo.remove(block);

@@ -138,7 +138,7 @@ Automatically integrated with BlockReportMenu. For standalone use:
 
 ```tsx
 import { ReportModal } from './components';
-import { reportService } from './services/dataService';
+import { reportService } from './services';
 import { useState } from 'react';
 
 function MyComponent() {

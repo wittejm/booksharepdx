@@ -305,7 +305,6 @@ Keep it simple and community-focused.
 - Data source: City of Portland Open Data Portal (gis-pdx.opendata.arcgis.com)
 - Dataset: "Neighborhoods (Regions)" - 90+ official Portland neighborhoods
 - Format: GeoJSON exported and imported into PostgreSQL/PostGIS
-- One-time seed of Neighborhood table during initial deployment
 
 **Interactive Mapping**:
 - Frontend library: Leaflet.js or Mapbox GL JS
@@ -679,7 +678,6 @@ services:
       POSTGRES_PASSWORD: dev
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/src/database/seeds:/docker-entrypoint-initdb.d
 
 volumes:
   postgres_data:

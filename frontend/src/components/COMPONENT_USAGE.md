@@ -224,7 +224,7 @@ A comprehensive form for reporting users with multiple reason options and detail
 
 ```tsx
 import { ReportModal } from '@/components';
-import { reportService } from '@/services/dataService';
+import { reportService } from '@/services';
 import { useState } from 'react';
 
 function MyComponent() {

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { env } from '../config/env.js';
+import logger from '../utils/logger.js';
 
 export class AppError extends Error {
   constructor(
@@ -104,12 +105,10 @@ export function errorHandler(
   res: Response,
   next: NextFunction
 ) {
-  console.error('Error:', {
+  logger.error(`${req.method} ${req.path}`, {
     name: err.name,
     message: err.message,
     stack: env.isDev ? err.stack : undefined,
-    path: req.path,
-    method: req.method,
   });
 
   if (err instanceof AppError) {

@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build --workspace=shared && npm run build --workspace=frontend",
+  "buildCommand": "cd shared && npm run build && cd ../frontend && npm run build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {

@@ -109,7 +109,7 @@ BLOCK/REPORT MENU:
   • Menu close on click outside
   • Real-time block status detection
   • Success/error toast notifications
-  • Integrated with dataService
+  • Integrated with API services
 
 REPORT MODAL:
   • Comprehensive report form

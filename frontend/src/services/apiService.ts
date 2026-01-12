@@ -1,5 +1,5 @@
 /**
- * API Service - Replaces dataService with real backend API calls
+ * API Service - Backend API calls for all data operations
  */
 
 import type {

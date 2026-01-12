@@ -179,7 +179,6 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
       setLoading(true);
 
       await postService.create({
-        userId: currentUser.id,
         book: {
           title: selectedBook.title,
           author: selectedBook.author,

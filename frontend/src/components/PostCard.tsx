@@ -22,6 +22,7 @@ export default function PostCard({ post, distance }: PostCardProps) {
   const [contactMessage, setContactMessage] = useState('');
   const [sendType, setSendType] = useState<'public' | 'private'>('public');
   const [isSending, setIsSending] = useState(false);
+  const [genresExpanded, setGenresExpanded] = useState(false);
 
   // Load post user on mount
   useEffect(() => {
@@ -144,7 +145,82 @@ export default function PostCard({ post, distance }: PostCardProps) {
   return (
     <>
       {ConfirmDialogComponent}
-      <div className="card hover:shadow-lg transition-shadow cursor-pointer" onClick={handleCardClick}>
+      <div className="card hover:shadow-lg transition-shadow cursor-pointer relative" onClick={handleCardClick}>
+      {/* Three-dot Menu - positioned absolutely */}
+      <div className="absolute top-3 right-3">
+        <div className="relative">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu(!showMenu);
+            }}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+            </svg>
+          </button>
+
+          {showMenu && (
+            <>
+              <div
+                className="fixed inset-0 z-10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMenu(false);
+                }}
+              />
+              <div className="absolute right-0 top-10 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 w-48">
+                {isOwnPost ? (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMarkAsGiven();
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Mark as Given
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete();
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      Delete
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowReportModal(true);
+                        setShowMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Report Post
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleBlock();
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      Block User
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       <div className="flex gap-4 p-4">
         {/* Book Cover */}
         <div className="flex-shrink-0">
@@ -163,47 +239,42 @@ export default function PostCard({ post, distance }: PostCardProps) {
 
         {/* Book Info */}
         <div className="flex-grow min-w-0">
-          <h3 className="font-bold text-lg text-gray-900 truncate">{post.book.title}</h3>
-          <p className="text-gray-600 text-sm truncate">{post.book.author}</p>
+          <h3 className="font-bold text-lg text-gray-900 pr-8">{post.book.title}</h3>
+          <p className="text-gray-600 text-sm pr-8">{post.book.author}</p>
 
           {/* Genre */}
-          <p className="text-sm text-gray-500 mt-1 mb-2">{post.book.genre}</p>
+          <p className="text-sm text-gray-500 mt-1">
+            {(() => {
+              const genres = post.book.genre.split(/[,\/]/).map(g => g.trim()).filter(Boolean);
+              if (genres.length <= 1) {
+                return post.book.genre;
+              }
+              if (genresExpanded) {
+                return (
+                  <span
+                    onClick={(e) => { e.stopPropagation(); setGenresExpanded(false); }}
+                    className="cursor-pointer hover:text-gray-700"
+                  >
+                    {genres.join(', ')}
+                  </span>
+                );
+              }
+              return (
+                <>
+                  {genres[0]}
+                  <span
+                    onClick={(e) => { e.stopPropagation(); setGenresExpanded(true); }}
+                    className="ml-1 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  >
+                    ...
+                  </span>
+                </>
+              );
+            })()}
+          </p>
 
-          {/* User Info */}
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            {postUser && (
-              <>
-                {postUser.profilePicture && (
-                  <img
-                    src={postUser.profilePicture}
-                    alt={postUser.username}
-                    className="w-6 h-6 rounded-full"
-                  />
-                )}
-                <Link
-                  to={`/profile/${postUser.username}`}
-                  className="font-medium hover:text-primary-600 transition-colors"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {postUser.username}
-                </Link>
-              </>
-            )}
-            {distance !== undefined && (
-              <span className="text-gray-400">• {distance.toFixed(1)} mi away</span>
-            )}
-          </div>
-        </div>
-
-        {/* Right Side: Badge, Menu, and Button */}
-        <div className="flex-shrink-0 flex flex-col items-end gap-2">
-          {/* Type Badge and Comment Count */}
-          <div className="flex items-center gap-2">
-            {post.commentCount && post.commentCount > 0 && (
-              <span className="inline-flex items-center text-sm text-gray-600" title={`${post.commentCount} comment${post.commentCount === 1 ? '' : 's'}`}>
-                💬 x{post.commentCount}
-              </span>
-            )}
+          {/* Type Badge and Request Button */}
+          <div className="flex items-center justify-between mt-1 mb-2 pr-3">
             {post.type === 'giveaway' ? (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                 Give Away
@@ -213,90 +284,53 @@ export default function PostCard({ post, distance }: PostCardProps) {
                 Exchange
               </span>
             )}
-          </div>
-
-          {/* Three-dot Menu */}
-          <div className="relative">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowMenu(!showMenu);
-              }}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-              </svg>
-            </button>
-
-            {showMenu && (
-              <>
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowMenu(false);
-                  }}
-                />
-                <div className="absolute right-0 top-10 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 w-48">
-                  {isOwnPost ? (
-                    <>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMarkAsGiven();
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        Mark as Given
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete();
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                      >
-                        Delete
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowReportModal(true);
-                          setShowMenu(false);
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        Report Post
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleBlock();
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                      >
-                        Block User
-                      </button>
-                    </>
-                  )}
-                </div>
-              </>
+            {!isOwnPost && post.status === 'active' && !showContactForm && (
+              <button
+                onClick={handleWantThis}
+                className="btn-primary text-sm py-1.5 px-4"
+              >
+                Request
+              </button>
             )}
           </div>
 
-          {/* I Want This Button - only show for others' active posts */}
-          {!isOwnPost && post.status === 'active' && !showContactForm && (
-            <button
-              onClick={handleWantThis}
-              className="btn-primary text-sm py-1.5 px-4 whitespace-nowrap"
-            >
-              I want this
-            </button>
-          )}
+          {/* User Info */}
+          <div className="text-sm text-gray-600">
+            <div className="flex items-center gap-2">
+              {postUser && (
+                <>
+                  {postUser.profilePicture ? (
+                    <img
+                      src={postUser.profilePicture}
+                      alt={postUser.username}
+                      className="w-6 h-6 rounded-full"
+                    />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-medium">
+                      {postUser.username.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <Link
+                    to={`/profile/${postUser.username}`}
+                    className="font-medium hover:text-primary-600 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {postUser.username}
+                  </Link>
+                </>
+              )}
+              {distance !== undefined && (
+                <span className="text-gray-400">• {distance.toFixed(1)} mi away</span>
+              )}
+            </div>
+            {(post.commentCount ?? 0) > 0 && (
+              <div className="mt-1 text-gray-500">
+                <span title={`${post.commentCount} comment${post.commentCount === 1 ? '' : 's'}`}>
+                  💬 {post.commentCount} {post.commentCount === 1 ? 'reply' : 'replies'}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

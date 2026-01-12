@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { AppDataSource } from '../config/database.js';
+import { EMAIL_VERIFICATION_ENABLED } from '../config/features.js';
 import { User } from '../entities/User.js';
 import { hashPassword, verifyPassword } from '../utils/password.js';
 import {
@@ -85,7 +86,7 @@ router.post('/signup', validateBody(signupSchema), async (req, res, next) => {
       username,
       passwordHash,
       bio,
-      verified: true, // Auto-verify for now (email verification spoofed)
+      verified: !EMAIL_VERIFICATION_ENABLED, // Auto-verify when email verification is disabled
       role: 'user',
       locationType: 'neighborhood',
       neighborhoodId: 'pearl-district', // Default

@@ -148,7 +148,7 @@ Comprehensive report submission form with validation and block confirmation.
 **Quick Example:**
 ```tsx
 import { ReportModal } from './components';
-import { reportService } from './services/dataService';
+import { reportService } from './services';
 
 function MyComponent() {
   const [open, setOpen] = useState(false);

@@ -15,7 +15,6 @@
     "build:backend": "npm run build --workspace=backend",
     "preview": "npm run preview --workspace=frontend",
     "deploy": "npm run deploy --workspace=frontend",
-    "seed": "npm run seed --workspace=backend",
     "db:start": "docker-compose up -d",
     "db:stop": "docker-compose down"
   },

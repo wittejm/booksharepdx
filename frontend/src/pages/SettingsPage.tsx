@@ -463,7 +463,7 @@ export default function SettingsPage() {
           <div className="card p-6 max-w-md w-full">
             <h3 className="text-xl font-bold text-gray-900 mb-4">Change Password</h3>
             <p className="text-gray-600 mb-4">
-              Password changes are not implemented in this demo version.
+              Password changes are not yet implemented.
             </p>
             <div className="flex gap-3">
               <button onClick={() => setShowChangePassword(false)} className="btn-secondary flex-1">

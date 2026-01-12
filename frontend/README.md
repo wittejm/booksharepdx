@@ -37,7 +37,6 @@ Builds and deploys to GitHub Pages at [https://wittejm.github.io/booksharepdx](h
 ## Environment Variables
 
 - `VITE_USE_HASH_ROUTER`: Set to `"true"` for GitHub Pages (HashRouter), `"false"` for local/production (BrowserRouter)
-- `VITE_USE_DEMO_DATA`: Set to `"true"` to use localStorage demo data, `"false"` to use real API
 
 ## Project Structure
 
@@ -49,8 +48,7 @@ frontend/
 │   │   ├── exchange/    # Exchange flow modals
 │   │   └── ...
 │   ├── pages/           # Page components
-│   ├── services/        # Data service layer (localStorage)
-│   ├── data/            # Demo data
+│   ├── services/        # API service layer
 │   ├── contexts/        # React contexts
 │   ├── utils/           # Utility functions
 │   ├── App.tsx          # Main app component with routing
@@ -61,7 +59,6 @@ frontend/
 
 ## Features
 
-- **Demo Mode**: Full featured demo with localStorage persistence
 - **Responsive Design**: Mobile-first Tailwind CSS
 - **Complete Book Sharing**: Post books, browse, message, exchange
 - **User Profiles**: Stats, saved posts, exchange history

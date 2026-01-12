@@ -190,7 +190,7 @@ reportService.create({
 **Usage Example:**
 ```tsx
 import { ReportModal } from '@/components';
-import { reportService } from '@/services/dataService';
+import { reportService } from '@/services';
 
 const [open, setOpen] = useState(false);
 

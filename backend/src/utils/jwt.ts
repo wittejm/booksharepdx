@@ -28,18 +28,22 @@ export function verifyRefreshToken(token: string): JwtPayload {
 }
 
 // Cookie options
+// For cross-origin setups (frontend/backend on different domains),
+// we need SameSite=None + Secure=true for cookies to work
+const isDeployed = env.isProd || env.isStaging;
+
 export const accessTokenCookieOptions = {
   httpOnly: true,
-  secure: env.isProd,
-  sameSite: env.isProd ? ('strict' as const) : ('lax' as const),
+  secure: isDeployed,
+  sameSite: isDeployed ? ('none' as const) : ('lax' as const),
   maxAge: 15 * 60 * 1000, // 15 minutes
   path: '/',
 };
 
 export const refreshTokenCookieOptions = {
   httpOnly: true,
-  secure: env.isProd,
-  sameSite: env.isProd ? ('strict' as const) : ('lax' as const),
+  secure: isDeployed,
+  sameSite: isDeployed ? ('none' as const) : ('lax' as const),
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   path: '/',
 };

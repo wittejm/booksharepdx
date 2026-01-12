@@ -1,7 +1,7 @@
 name: Deploy Backend to Cloud Run
 
-# Currently: Push to main deploys to BOTH staging and prod
-# TODO: Change to version tags (v*) for prod deploys only
+# Staging: Push to main branch
+# Production: Push version tags (v*)
 
 on:
   push:
@@ -11,6 +11,8 @@ on:
       - 'backend/**'
       - 'shared/**'
       - '.github/workflows/deploy-backend.yml'
+    tags:
+      - 'v*'
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
@@ -18,7 +20,12 @@ env:
   SERVICE_NAME: booksharepdx-api
 
 jobs:
-  deploy:
+  # ====================
+  # STAGING DEPLOYMENT
+  # Triggered on push to main
+  # ====================
+  deploy-staging:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
@@ -60,8 +67,8 @@ jobs:
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
-            --set-env-vars=NODE_ENV=staging \
-            --set-secrets="DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
+            --set-env-vars="NODE_ENV=staging,FRONTEND_URL=https://staging.booksharepdx.com" \
+            --set-secrets="DATABASE_URL=DATABASE_URL_STAGING:latest,JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
             --min-instances=0 \
             --max-instances=2 \
             --memory=256Mi \
@@ -71,37 +78,102 @@ jobs:
             --timeout=60s \
             --concurrency=80
 
-      # Production deployment disabled - using staging only for now
-      # To re-enable: uncomment the production deploy step below
-      #
-      # - name: Deploy to Cloud Run (Production)
-      #   run: |
-      #     gcloud run deploy ${{ env.SERVICE_NAME }} \
-      #       --image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/booksharepdx/api:${{ github.sha }} \
-      #       --region=${{ env.REGION }} \
-      #       --platform=managed \
-      #       --allow-unauthenticated \
-      #       --set-env-vars="NODE_ENV=production,FRONTEND_URL=https://booksharepdx.com" \
-      #       --set-secrets="DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
-      #       --min-instances=0 \
-      #       --max-instances=5 \
-      #       --memory=256Mi \
-      #       --cpu=1 \
-      #       --cpu-throttling \
-      #       --startup-cpu-boost \
-      #       --timeout=60s \
-      #       --concurrency=80
+      - name: Output staging URL
+        run: |
+          echo "🚀 Staging deployed!"
+          echo "URL: $(gcloud run services describe ${{ env.SERVICE_NAME }}-staging --region=${{ env.REGION }} --format='value(status.url)')"
+
+  # ====================
+  # PRODUCTION DEPLOYMENT
+  # Triggered on version tags (v*)
+  # ====================
+  deploy-production:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Configure Docker for GCP
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Create Artifact Registry repository (if not exists)
+        run: |
+          gcloud artifacts repositories describe booksharepdx \
+            --location=${{ env.REGION }} 2>/dev/null || \
+          gcloud artifacts repositories create booksharepdx \
+            --repository-format=docker \
+            --location=${{ env.REGION }} \
+            --description="BookSharePDX container images"
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/booksharepdx/api:${{ github.ref_name }}
+          docker build -f backend/Dockerfile -t $IMAGE .
+          docker push $IMAGE
+
+      - name: Deploy to Cloud Run (Production)
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/booksharepdx/api:${{ github.ref_name }} \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --set-env-vars="NODE_ENV=production,FRONTEND_URL=https://booksharepdx.com" \
+            --set-secrets="DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
+            --min-instances=0 \
+            --max-instances=5 \
+            --memory=256Mi \
+            --cpu=1 \
+            --cpu-throttling \
+            --startup-cpu-boost \
+            --timeout=60s \
+            --concurrency=80
+
+      - name: Output production URL
+        run: |
+          echo "🚀 Production deployed! Version: ${{ github.ref_name }}"
+          echo "URL: $(gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(status.url)')"
+
+  # ====================
+  # CLEANUP OLD IMAGES
+  # Runs after either deployment
+  # ====================
+  cleanup:
+    needs: [deploy-staging, deploy-production]
+    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
 
       - name: Clean up old Artifact Registry images
         run: |
-          # Delete all images after deploy (Cloud Run caches the image it needs)
+          # Keep images from the last 5 deployments, delete older ones
           gcloud artifacts docker images list \
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/booksharepdx/api \
+            --sort-by=~CREATE_TIME \
             --format="value(DIGEST)" | \
+          tail -n +6 | \
           xargs -I {} gcloud artifacts docker images delete \
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/booksharepdx/api@{} \
             --quiet --delete-tags || true
-
-      - name: Output service URLs
-        run: |
-          echo "Staging: $(gcloud run services describe ${{ env.SERVICE_NAME }}-staging --region=${{ env.REGION }} --format='value(status.url)')"

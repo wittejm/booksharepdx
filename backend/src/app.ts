@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { env } from './config/env.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import routes from './routes/index.js';
+import logger from './utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,6 +37,19 @@ export function createApp() {
 
   // Cookie parsing
   app.use(cookieParser());
+
+  // Request logging
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      // Skip health checks and static files from logs
+      if (req.path !== '/health' && !req.path.startsWith('/uploads')) {
+        logger.request(req.method, req.path, res.statusCode, duration);
+      }
+    });
+    next();
+  });
 
   // Serve uploaded files statically
   const uploadsPath = path.resolve(__dirname, '..', env.uploadDir);

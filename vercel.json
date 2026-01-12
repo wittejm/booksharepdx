@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "pwd && ls -la && echo '--- checking shared ---' && ls -la shared/ && cd shared && npm run build && cd ../frontend && npm run build",
+  "buildCommand": "cd shared && npm run build && cd ../frontend && npm run build",
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install",
   "rewrites": [

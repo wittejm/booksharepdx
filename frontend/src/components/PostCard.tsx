@@ -23,6 +23,7 @@ export default function PostCard({ post, distance }: PostCardProps) {
   const [sendType, setSendType] = useState<'public' | 'private'>('public');
   const [isSending, setIsSending] = useState(false);
   const [genresExpanded, setGenresExpanded] = useState(false);
+  const [localCommentCount, setLocalCommentCount] = useState(0);
 
   // Load post user on mount
   useEffect(() => {
@@ -116,6 +117,7 @@ export default function PostCard({ post, distance }: PostCardProps) {
           userId: currentUser.id,
           content: contactMessage.trim(),
         });
+        setLocalCommentCount(prev => prev + 1);
       } else {
         const thread = await messageService.getOrCreateThread(currentUser.id, post.userId, post.id);
         await messageService.sendMessage({
@@ -323,13 +325,16 @@ export default function PostCard({ post, distance }: PostCardProps) {
                 <span className="text-gray-400">• {distance.toFixed(1)} mi away</span>
               )}
             </div>
-            {(post.commentCount ?? 0) > 0 && (
-              <div className="mt-1 text-gray-500">
-                <span title={`${post.commentCount} comment${post.commentCount === 1 ? '' : 's'}`}>
-                  💬 {post.commentCount} {post.commentCount === 1 ? 'reply' : 'replies'}
-                </span>
-              </div>
-            )}
+            {(() => {
+              const totalComments = (post.commentCount ?? 0) + localCommentCount;
+              return totalComments > 0 && (
+                <div className="mt-1 text-gray-500">
+                  <span title={`${totalComments} comment${totalComments === 1 ? '' : 's'}`}>
+                    💬 {totalComments} {totalComments === 1 ? 'reply' : 'replies'}
+                  </span>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>

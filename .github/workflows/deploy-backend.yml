@@ -137,7 +137,7 @@ jobs:
             --memory=256Mi \
             --cpu=1 \
             --cpu-throttling \
-            --startup-cpu-boost \
+            --no-cpu-boost \
             --timeout=60s \
             --concurrency=80
 

@@ -1,6 +1,8 @@
 {
-  "buildCommand": "cd shared && npm run build && cd ../frontend && npm run build",
+  "version": 2,
+  "buildCommand": "pwd && ls -la && echo '---' && cat package.json | head -20",
   "outputDirectory": "frontend/dist",
+  "installCommand": "npm install",
   "rewrites": [
     {
       "source": "/(.*)",

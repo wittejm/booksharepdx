@@ -8,7 +8,6 @@ describe('User entity', () => {
       user.id = 'test-uuid';
       user.email = 'test@example.com';
       user.username = 'testuser';
-      user.passwordHash = 'hashed-password';
       user.bio = 'Test bio';
       user.verified = true;
       user.role = 'user';
@@ -45,12 +44,11 @@ describe('User entity', () => {
       expect(json.socialLinks).toHaveLength(1);
     });
 
-    it('should not include passwordHash in JSON output', () => {
+    it('should handle pin location type with coordinates', () => {
       const user = new User();
       user.id = 'test-uuid';
       user.email = 'test@example.com';
       user.username = 'testuser';
-      user.passwordHash = 'secret-hash';
       user.bio = '';
       user.verified = false;
       user.role = 'user';
@@ -70,40 +68,9 @@ describe('User entity', () => {
 
       const json = user.toJSON();
 
-      expect(json).not.toHaveProperty('passwordHash');
-      expect(JSON.stringify(json)).not.toContain('secret-hash');
-    });
-
-    it('should handle pin location type', () => {
-      const user = new User();
-      user.id = 'test-uuid';
-      user.email = 'test@example.com';
-      user.username = 'testuser';
-      user.passwordHash = 'hash';
-      user.bio = '';
-      user.verified = false;
-      user.role = 'user';
-      user.locationType = 'pin';
-      user.neighborhoodId = null;
-      user.locationLat = 45.5152;
-      user.locationLng = -122.6784;
-      user.booksGiven = 0;
-      user.booksReceived = 0;
-      user.bookshares = 0;
-      user.profilePicture = null;
-      user.readingPreferences = null;
-      user.socialLinks = null;
-      user.suspended = null;
-      user.banned = false;
-      user.createdAt = new Date();
-      user.updatedAt = new Date();
-
-      const json = user.toJSON();
-
       expect(json.location.type).toBe('pin');
-      expect(json.location.lat).toBe(45.5152);
-      expect(json.location.lng).toBe(-122.6784);
-      expect(json.location.neighborhoodId).toBeUndefined();
+      expect(json.location.lat).toBe(45.5);
+      expect(json.location.lng).toBe(-122.6);
     });
 
     it('should handle suspended user', () => {
@@ -111,7 +78,6 @@ describe('User entity', () => {
       user.id = 'test-uuid';
       user.email = 'test@example.com';
       user.username = 'testuser';
-      user.passwordHash = 'hash';
       user.bio = '';
       user.verified = false;
       user.role = 'user';
@@ -141,7 +107,6 @@ describe('User entity', () => {
       user.id = 'test-uuid';
       user.email = 'test@example.com';
       user.username = 'testuser';
-      user.passwordHash = 'hash';
       user.bio = '';
       user.verified = false;
       user.role = 'user';

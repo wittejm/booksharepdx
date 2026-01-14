@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isValidEmail, isValidPassword, isValidUsername, isValidBio } from './validation';
+import { isValidEmail, isValidUsername, isValidBio } from './validation';
 
 describe('validation utilities', () => {
   describe('isValidEmail', () => {
@@ -28,32 +28,6 @@ describe('validation utilities', () => {
     it('should return false for whitespace-only strings', () => {
       expect(isValidEmail('   ')).toBe(false);
       expect(isValidEmail('\t\n')).toBe(false);
-    });
-  });
-
-  describe('isValidPassword', () => {
-    it('should return true for passwords with 8+ characters', () => {
-      expect(isValidPassword('12345678')).toBe(true);
-      expect(isValidPassword('password123')).toBe(true);
-      expect(isValidPassword('a very long and secure password')).toBe(true);
-    });
-
-    it('should return false for passwords under 8 characters', () => {
-      expect(isValidPassword('')).toBe(false);
-      expect(isValidPassword('1234567')).toBe(false);
-      expect(isValidPassword('short')).toBe(false);
-    });
-
-    it('should return false for non-string types', () => {
-      expect(isValidPassword(null as unknown as string)).toBe(false);
-      expect(isValidPassword(undefined as unknown as string)).toBe(false);
-      expect(isValidPassword(12345678 as unknown as string)).toBe(false);
-    });
-
-    it('should allow special characters and spaces', () => {
-      expect(isValidPassword('pass word')).toBe(true);
-      expect(isValidPassword('p@$$w0rd!')).toBe(true);
-      expect(isValidPassword('        ')).toBe(true); // 8 spaces is technically valid
     });
   });
 

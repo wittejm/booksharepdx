@@ -28,8 +28,8 @@ export class User {
   @Index()
   username: string;
 
-  @Column({ type: "varchar" })
-  passwordHash: string;
+  @Column({ type: 'varchar', nullable: true })
+  preferredName: string | null;
 
   @Column({ type: 'text', default: '' })
   bio: string;
@@ -109,6 +109,7 @@ export class User {
       id: this.id,
       email: this.email,
       username: this.username,
+      preferredName: this.preferredName || undefined,
       bio: this.bio,
       verified: this.verified,
       createdAt: this.createdAt.getTime(),

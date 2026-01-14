@@ -7,6 +7,7 @@ import { authService } from './services';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import ScrollToTop from './components/ScrollToTop';
+import VerificationBanner from './components/VerificationBanner';
 
 // Page components
 import LandingPage from './pages/LandingPage';
@@ -78,6 +79,7 @@ function AppRoutes() {
       <ScrollToTop />
       <div className="flex flex-col min-h-screen">
         <Header />
+        <VerificationBanner />
         <main className="flex-grow">
           <Routes>
             {/* Public routes */}
@@ -127,12 +129,15 @@ function AppRoutes() {
 }
 
 export default function App() {
-  // Mobile debug console - remove when done debugging
+  // Mobile debug console - dev only, mobile only
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/eruda';
-    script.onload = () => (window as any).eruda.init();
-    document.body.appendChild(script);
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (import.meta.env.DEV && isMobile) {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/eruda';
+      script.onload = () => (window as any).eruda.init();
+      document.body.appendChild(script);
+    }
   }, []);
 
   return (

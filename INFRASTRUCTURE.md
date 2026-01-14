@@ -328,3 +328,5 @@ Notes:
 For Vercel I used Github for Oauth
 For Neon I used google.
 For Resend I used google.
+
+Warm pings: Uptimerobot.com, Google oauth.

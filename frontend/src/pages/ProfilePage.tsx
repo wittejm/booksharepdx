@@ -150,8 +150,11 @@ export default function ProfilePage() {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-                    {user.username}
+                    {user.preferredName || user.username}
                   </h1>
+                  {user.preferredName && (
+                    <div className="text-gray-500 text-sm">@{user.username}</div>
+                  )}
                   <div className="text-gray-600 flex flex-wrap items-center gap-3 mt-1">
                     <span>{getLocationDisplay(user)}</span>
                     <span>•</span>

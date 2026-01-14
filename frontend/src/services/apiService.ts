@@ -21,15 +21,16 @@ import { neighborhoods } from '../data/neighborhoods';
 
 // Authentication Service
 export const authService = {
-  login: async (identifier: string, password: string): Promise<User> => {
-    const response = await apiClient.post<{ data: User }>(
-      '/auth/login',
-      { identifier, password }
+  // Returns User if direct login (dev mode), or success message if email sent
+  sendMagicLink: async (identifier: string): Promise<User | { success: boolean; message: string }> => {
+    const response = await apiClient.post<{ data: User | { success: boolean; message: string } }>(
+      '/auth/send-magic-link',
+      { identifier }
     );
     return response.data;
   },
 
-  signup: async (data: { email: string; password: string; username: string; bio: string }): Promise<User> => {
+  signup: async (data: { email: string; username: string; preferredName?: string; bio: string }): Promise<User> => {
     const response = await apiClient.post<{ data: User }>(
       '/auth/signup',
       data

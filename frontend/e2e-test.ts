@@ -30,7 +30,6 @@ const timestamp = Date.now();
 const testUser = {
   email: `test${timestamp}@example.com`,
   username: `testuser${timestamp}`,
-  password: 'TestPass123!',
   bio: 'I love reading books and sharing them with my Portland neighbors.',
 };
 
@@ -95,12 +94,11 @@ async function testSignupPage() {
   await page.goto(`${BASE_URL}/signup`);
   await waitForNavigation();
 
-  // Check form exists
+  // Check form exists (no password field - passwordless auth)
   const emailInput = await page.$('input[name="email"], input[id="email"], input[type="email"]');
-  const passwordInput = await page.$('input[name="password"], input[id="password"], input[type="password"]');
   const usernameInput = await page.$('input[name="username"], input[id="username"]');
 
-  if (!emailInput || !passwordInput || !usernameInput) {
+  if (!emailInput || !usernameInput) {
     throw new Error('Signup form fields missing');
   }
 
@@ -111,10 +109,9 @@ async function testSignupFlow() {
   await page.goto(`${BASE_URL}/signup`);
   await waitForNavigation();
 
-  // Fill out the form
+  // Fill out the form (no password - passwordless auth)
   await page.fill('input[name="email"], input[id="email"]', testUser.email);
   await page.fill('input[name="username"], input[id="username"]', testUser.username);
-  await page.fill('input[name="password"], input[id="password"]', testUser.password);
   await page.fill('textarea[name="bio"], textarea[id="bio"]', testUser.bio);
 
   // Check the guidelines checkbox
@@ -144,12 +141,18 @@ async function testLoginPage() {
   await page.goto(`${BASE_URL}/login`);
   await waitForNavigation();
 
-  // Check form exists
+  // Check form exists (magic link flow - no password field)
   const identifierInput = await page.$('input[id="identifier"], input[name="identifier"], input[type="text"]:first-of-type');
-  const passwordInput = await page.$('input[name="password"], input[id="password"], input[type="password"]');
 
-  if (!identifierInput || !passwordInput) {
-    throw new Error('Login form fields missing');
+  if (!identifierInput) {
+    throw new Error('Login form identifier field missing');
+  }
+
+  // Check for "Send Sign-in Link" button
+  const submitBtn = await page.$('button[type="submit"]');
+  const btnText = await submitBtn?.textContent();
+  if (!btnText?.toLowerCase().includes('sign-in link') && !btnText?.toLowerCase().includes('send')) {
+    log(`Warning: Submit button text is "${btnText}", expected "Send Sign-in Link"`);
   }
 
   await screenshot('05-login-page');
@@ -159,27 +162,30 @@ async function testLoginFlow() {
   await page.goto(`${BASE_URL}/login`);
   await waitForNavigation();
 
-  // Try logging in with the test user we created
+  // Magic link flow - just enter identifier and request link
   await page.fill('input[id="identifier"], input[name="identifier"], input[type="text"]:first-of-type', testUser.username);
-  await page.fill('input[name="password"], input[id="password"], input[type="password"]', testUser.password);
 
   await screenshot('06-login-filled');
 
-  // Submit
+  // Submit - this sends a magic link
   await page.click('button[type="submit"]');
 
   // Wait for response
   await page.waitForTimeout(3000);
 
-  const currentUrl = page.url();
   await screenshot('07-login-result');
 
-  // Should have navigated to browse or home
-  if (currentUrl.includes('/login')) {
+  // Should show "Check your email" message or success toast
+  const pageContent = await page.content();
+  const hasSuccessMessage = pageContent.includes('Check your email') ||
+                            pageContent.includes('sign-in link sent') ||
+                            pageContent.includes('Sign-in link sent');
+
+  if (!hasSuccessMessage) {
     const errorToast = await page.$('.toast-error, [class*="error"], [role="alert"]');
     if (errorToast) {
       const toastText = await errorToast.textContent();
-      throw new Error(`Login failed: ${toastText}`);
+      throw new Error(`Magic link request failed: ${toastText}`);
     }
   }
 }
@@ -240,21 +246,25 @@ async function testLoginWithEmail() {
   await page.goto(`${BASE_URL}/login`);
   await waitForNavigation();
 
-  // Try logging in with email instead of username
+  // Try requesting magic link with email instead of username
   await page.fill('input[id="identifier"], input[name="identifier"], input[type="text"]:first-of-type', testUser.email);
-  await page.fill('input[name="password"], input[id="password"], input[type="password"]', testUser.password);
 
   await page.click('button[type="submit"]');
   await page.waitForTimeout(3000);
 
-  const currentUrl = page.url();
   await screenshot('11-login-with-email');
 
-  if (currentUrl.includes('/login')) {
+  // Should show success message for magic link sent
+  const pageContent = await page.content();
+  const hasSuccessMessage = pageContent.includes('Check your email') ||
+                            pageContent.includes('sign-in link sent') ||
+                            pageContent.includes('Sign-in link sent');
+
+  if (!hasSuccessMessage) {
     const errorToast = await page.$('[class*="toast"], [role="alert"]');
     if (errorToast) {
       const toastText = await errorToast.textContent();
-      throw new Error(`Login with email failed: ${toastText}`);
+      throw new Error(`Magic link with email failed: ${toastText}`);
     }
   }
 }
@@ -332,11 +342,10 @@ async function testErrorHandling() {
   await waitForNavigation();
   await screenshot('17-404-page');
 
-  // Test invalid login
+  // Test magic link request for non-existent user
   await page.goto(`${BASE_URL}/login`);
   await waitForNavigation();
   await page.fill('input[id="identifier"], input[type="text"]:first-of-type', 'nonexistent@example.com');
-  await page.fill('input[type="password"]', 'wrongpassword');
   await page.click('button[type="submit"]');
   await page.waitForTimeout(2000);
   await screenshot('18-invalid-login');

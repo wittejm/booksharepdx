@@ -6,6 +6,13 @@ import { useUser } from '../contexts/UserContext';
 import { useConfirm } from './useConfirm';
 import ReportModal from './ReportModal';
 
+interface PostComment {
+  id: string;
+  content: string;
+  timestamp: number;
+  user?: User;
+}
+
 interface PostCardProps {
   post: Post;
   distance?: number;
@@ -23,12 +30,22 @@ export default function PostCard({ post, distance }: PostCardProps) {
   const [sendType, setSendType] = useState<'public' | 'private'>('public');
   const [isSending, setIsSending] = useState(false);
   const [genresExpanded, setGenresExpanded] = useState(false);
-  const [localCommentCount, setLocalCommentCount] = useState(0);
+  const [comments, setComments] = useState<PostComment[]>([]);
+  const [showComments, setShowComments] = useState(false);
 
-  // Load post user on mount
+  // Fetch comments for this post
+  const fetchComments = async () => {
+    const fetchedComments = await commentService.getByPostId(post.id) as PostComment[];
+    setComments(fetchedComments);
+  };
+
+  // Load post user and comments on mount
   useEffect(() => {
     userService.getById(post.userId).then(setPostUser);
-  }, [post.userId]);
+    if ((post.commentCount ?? 0) > 0) {
+      fetchComments();
+    }
+  }, [post.userId, post.id, post.commentCount]);
 
   const handleCardClick = () => {
     navigate(`/share/${post.id}`);
@@ -117,7 +134,8 @@ export default function PostCard({ post, distance }: PostCardProps) {
           userId: currentUser.id,
           content: contactMessage.trim(),
         });
-        setLocalCommentCount(prev => prev + 1);
+        // Refetch comments to show the new one
+        await fetchComments();
       } else {
         const thread = await messageService.getOrCreateThread(currentUser.id, post.userId, post.id);
         await messageService.sendMessage({
@@ -325,19 +343,61 @@ export default function PostCard({ post, distance }: PostCardProps) {
                 <span className="text-gray-400">• {distance.toFixed(1)} mi away</span>
               )}
             </div>
-            {(() => {
-              const totalComments = (post.commentCount ?? 0) + localCommentCount;
-              return totalComments > 0 && (
-                <div className="mt-1 text-gray-500">
-                  <span title={`${totalComments} comment${totalComments === 1 ? '' : 's'}`}>
-                    💬 {totalComments} {totalComments === 1 ? 'reply' : 'replies'}
-                  </span>
-                </div>
-              );
-            })()}
+            {comments.length > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowComments(!showComments);
+                }}
+                className="mt-1 text-gray-500 text-sm flex items-center gap-1 hover:text-gray-700"
+              >
+                <span>💬 {comments.length} {comments.length === 1 ? 'reply' : 'replies'}</span>
+                <svg
+                  className={`w-4 h-4 transition-transform ${showComments ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Comments */}
+      {comments.length > 0 && showComments && (
+        <div className="border-t border-gray-100 py-3 pr-4 pl-32 md:pl-40 space-y-2" onClick={(e) => e.stopPropagation()}>
+          {comments.map((comment) => (
+            <div key={comment.id}>
+              <div className="flex items-center gap-2">
+                {comment.user?.profilePicture ? (
+                  <img
+                    src={comment.user.profilePicture}
+                    alt={comment.user.username}
+                    className="w-5 h-5 rounded-full flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-5 h-5 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-medium flex-shrink-0">
+                    {comment.user?.username?.charAt(0).toUpperCase() ?? '?'}
+                  </div>
+                )}
+                <Link
+                  to={`/profile/${comment.user?.username}`}
+                  className="text-sm font-medium text-gray-900 hover:text-primary-600"
+                >
+                  {comment.user?.username}
+                </Link>
+                <span className="text-sm text-gray-700 flex-1 min-w-0 truncate">{comment.content}</span>
+              </div>
+              <div className="text-xs text-gray-400 ml-7">
+                {new Date(comment.timestamp).toLocaleDateString()}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Contact Form */}
       {showContactForm && (

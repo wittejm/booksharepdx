@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { AppDataSource } from '../config/database.js';
 import { EMAIL_VERIFICATION_ENABLED } from '../config/features.js';
 import { User } from '../entities/User.js';
-import { hashPassword, verifyPassword } from '../utils/password.js';
 import {
   signAccessToken,
   signRefreshToken,
@@ -19,18 +18,18 @@ const router = Router();
 // Validation schemas
 const signupSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
   username: z.string().min(2).max(30).regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens'),
+  preferredName: z.string().max(50).optional(),
   bio: z.string().min(1, 'Bio is required'),
 });
 
-const loginSchema = z.object({
+const sendMagicLinkSchema = z.object({
   identifier: z.string().min(1, 'Email or username is required'), // email or username
-  password: z.string(),
 });
 
 const updateSchema = z.object({
   username: z.string().min(2).max(30).regex(/^[a-zA-Z0-9_-]+$/).optional(),
+  preferredName: z.string().max(50).optional(),
   bio: z.string().optional(),
   profilePicture: z.string().optional(),
   readingPreferences: z.object({
@@ -56,7 +55,7 @@ const updateSchema = z.object({
 // POST /api/auth/signup
 router.post('/signup', validateBody(signupSchema), async (req, res, next) => {
   try {
-    const { email, password, username, bio } = req.body;
+    const { email, username, preferredName, bio } = req.body;
     const userRepo = AppDataSource.getRepository(User);
 
     // Check if email exists
@@ -80,21 +79,24 @@ router.post('/signup', validateBody(signupSchema), async (req, res, next) => {
     }
 
     // Create user
-    const passwordHash = await hashPassword(password);
     const user = userRepo.create({
       email: email.toLowerCase(),
       username,
-      passwordHash,
+      preferredName: preferredName || null,
       bio,
       verified: !EMAIL_VERIFICATION_ENABLED, // Auto-verify when email verification is disabled
       role: 'user',
       locationType: 'neighborhood',
-      neighborhoodId: 'pearl-district', // Default
+      neighborhoodId: null, // Not selected - user chooses on LocationSelectionPage
     });
 
     await userRepo.save(user);
 
-    // Generate tokens
+    // TODO: Generate magic link token and send verification email
+    // For now, just log that we would send it
+    console.log(`[EMAIL] Verification magic link would be sent to: ${user.email}`);
+
+    // Generate tokens - user is logged in immediately
     const payload = { userId: user.id, email: user.email, role: user.role };
     const accessToken = signAccessToken(payload);
     const refreshToken = signRefreshToken(payload);
@@ -109,10 +111,10 @@ router.post('/signup', validateBody(signupSchema), async (req, res, next) => {
   }
 });
 
-// POST /api/auth/login
-router.post('/login', validateBody(loginSchema), async (req, res, next) => {
+// POST /api/auth/send-magic-link
+router.post('/send-magic-link', validateBody(sendMagicLinkSchema), async (req, res, next) => {
   try {
-    const { identifier, password } = req.body;
+    const { identifier } = req.body;
     const userRepo = AppDataSource.getRepository(User);
 
     // Check if identifier is email or username
@@ -122,11 +124,12 @@ router.post('/login', validateBody(loginSchema), async (req, res, next) => {
         ? { email: identifier.toLowerCase() }
         : { username: identifier.toLowerCase() },
     });
+
     if (!user) {
       throw new AppError(
         'No account found with that email or username. Please check your credentials or sign up for a new account.',
-        401,
-        'INVALID_CREDENTIALS'
+        404,
+        'USER_NOT_FOUND'
       );
     }
 
@@ -138,25 +141,27 @@ router.post('/login', validateBody(loginSchema), async (req, res, next) => {
       );
     }
 
-    const valid = await verifyPassword(password, user.passwordHash);
-    if (!valid) {
-      throw new AppError(
-        'Incorrect password. Please try again or use the "Forgot Password" link to reset it.',
-        401,
-        'INVALID_CREDENTIALS'
-      );
+    // When email verification is disabled, log in directly (dev mode)
+    if (!EMAIL_VERIFICATION_ENABLED) {
+      const payload = { userId: user.id, email: user.email, role: user.role };
+      const accessToken = signAccessToken(payload);
+      const refreshToken = signRefreshToken(payload);
+
+      res.cookie('accessToken', accessToken, accessTokenCookieOptions);
+      res.cookie('refreshToken', refreshToken, refreshTokenCookieOptions);
+
+      return res.json({ data: user.toJSON() });
     }
 
-    // Generate tokens
-    const payload = { userId: user.id, email: user.email, role: user.role };
-    const accessToken = signAccessToken(payload);
-    const refreshToken = signRefreshToken(payload);
+    // TODO: Generate magic link token, store in DB, send email
+    console.log(`[EMAIL] Magic sign-in link would be sent to: ${user.email}`);
 
-    // Set cookies
-    res.cookie('accessToken', accessToken, accessTokenCookieOptions);
-    res.cookie('refreshToken', refreshToken, refreshTokenCookieOptions);
-
-    res.json({ data: user.toJSON() });
+    res.json({
+      data: {
+        success: true,
+        message: 'If an account exists with that email or username, a sign-in link has been sent.',
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -194,6 +199,7 @@ router.put('/me', requireAuth, validateBody(updateSchema), async (req, res, next
 
     // Update fields
     if (req.body.username) user.username = req.body.username;
+    if (req.body.preferredName !== undefined) user.preferredName = req.body.preferredName || null;
     if (req.body.bio !== undefined) user.bio = req.body.bio;
     if (req.body.profilePicture !== undefined) user.profilePicture = req.body.profilePicture;
     if (req.body.readingPreferences !== undefined) user.readingPreferences = req.body.readingPreferences;
@@ -225,44 +231,6 @@ router.post('/verify-email', requireAuth, async (req, res, next) => {
     console.log(`[EMAIL] Verification email would be sent to: ${user.email}`);
 
     res.json({ data: { success: true, message: 'Email verified (demo mode)' } });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// POST /api/auth/forgot-password (spoofed)
-router.post('/forgot-password', async (req, res, next) => {
-  try {
-    const { email } = req.body;
-    console.log(`[EMAIL] Password reset email would be sent to: ${email}`);
-
-    res.json({ data: { success: true, message: 'Reset email sent (demo mode)' } });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// POST /api/auth/reset-password (spoofed)
-router.post('/reset-password', async (req, res, next) => {
-  try {
-    const { email, newPassword } = req.body;
-    const userRepo = AppDataSource.getRepository(User);
-
-    const user = await userRepo.findOne({ where: { email: email.toLowerCase() } });
-    if (!user) {
-      throw new AppError(
-        'No account found with that email address. Please check the email or sign up for a new account.',
-        404,
-        'USER_NOT_FOUND'
-      );
-    }
-
-    user.passwordHash = await hashPassword(newPassword);
-    await userRepo.save(user);
-
-    console.log(`[EMAIL] Password reset for: ${email}`);
-
-    res.json({ data: { success: true } });
   } catch (error) {
     next(error);
   }

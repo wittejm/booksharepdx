@@ -14,20 +14,6 @@ export function isValidEmail(email: string): boolean {
 }
 
 /**
- * Validates a password.
- * Requirements: minimum 8 characters
- * @param password - Password string to validate
- * @returns true if password meets requirements, false otherwise
- */
-export function isValidPassword(password: string): boolean {
-  if (typeof password !== 'string') {
-    return false;
-  }
-
-  return password.length >= 8;
-}
-
-/**
  * Validates a username.
  * Requirements: alphanumeric characters and underscores only
  * @param username - Username string to validate

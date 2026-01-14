@@ -33,6 +33,7 @@ export default function SettingsPage() {
 
   // Form states
   const [username, setUsername] = useState('');
+  const [preferredName, setPreferredName] = useState('');
   const [bio, setBio] = useState('');
   const [profilePicture, setProfilePicture] = useState('');
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
@@ -55,6 +56,7 @@ export default function SettingsPage() {
 
     // Load current user data
     setUsername(currentUser.username);
+    setPreferredName(currentUser.preferredName || '');
     setBio(currentUser.bio || '');
     setProfilePicture(currentUser.profilePicture || '');
     setSelectedGenres(currentUser.readingPreferences?.favoriteGenres || []);
@@ -93,6 +95,7 @@ export default function SettingsPage() {
     try {
       const updates = {
         username: username.trim(),
+        preferredName: preferredName.trim() || undefined,
         bio: bio.trim(),
         profilePicture: profilePicture || undefined,
         readingPreferences: {
@@ -271,6 +274,21 @@ export default function SettingsPage() {
                 id="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                className="input"
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="preferredName" className="block text-sm font-medium text-gray-700 mb-2">
+                Preferred Name <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                id="preferredName"
+                value={preferredName}
+                onChange={(e) => setPreferredName(e.target.value)}
+                placeholder="What should people call you?"
                 className="input"
                 disabled={loading}
               />

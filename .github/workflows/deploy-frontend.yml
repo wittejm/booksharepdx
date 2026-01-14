@@ -1,0 +1,105 @@
+name: Deploy Frontend to Cloudflare Pages
+
+# Staging: Push to main branch
+# Production: Push version tags (v*)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - 'shared/**'
+      - '.github/workflows/deploy-frontend.yml'
+    tags:
+      - 'v*'
+
+env:
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  PROJECT_NAME: booksharepdx
+
+jobs:
+  # ====================
+  # STAGING DEPLOYMENT
+  # Triggered on push to main
+  # ====================
+  deploy-staging:
+    name: Deploy to Staging
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared package
+        run: cd shared && npm run build
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+        env:
+          VITE_API_URL: https://api-staging.booksharepdx.com
+
+      - name: Deploy to Cloudflare Pages (Staging)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy frontend/dist --project-name=${{ env.PROJECT_NAME }} --branch=staging
+
+      - name: Output staging URL
+        run: |
+          echo "🚀 Staging deployed!"
+          echo "URL: https://staging.booksharepdx.com"
+
+  # ====================
+  # PRODUCTION DEPLOYMENT
+  # Triggered on version tags (v*)
+  # ====================
+  deploy-production:
+    name: Deploy to Production
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared package
+        run: cd shared && npm run build
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+        env:
+          VITE_API_URL: https://api.booksharepdx.com
+
+      - name: Deploy to Cloudflare Pages (Production)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy frontend/dist --project-name=${{ env.PROJECT_NAME }} --branch=main
+
+      - name: Output production URL
+        run: |
+          echo "🚀 Production deployed! Version: ${{ github.ref_name }}"
+          echo "URL: https://booksharepdx.com"

@@ -91,9 +91,9 @@ class ApiClient {
         credentials: 'include', // Always send cookies for JWT auth
       });
     } catch (networkError) {
-      // Handle network errors (no internet, server unreachable, etc.)
+      // Handle network errors (CORS issues, server unreachable, etc.)
       throw new ApiError(
-        'Unable to connect to the server. Please check your internet connection and try again.',
+        'Unable to connect to the server. This is likely a server configuration error.',
         'NETWORK_ERROR',
         0
       );

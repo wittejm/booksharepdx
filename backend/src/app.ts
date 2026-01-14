@@ -67,7 +67,7 @@ export function createApp() {
   app.use((req, res) => {
     res.status(404).json({
       error: {
-        message: `The requested endpoint "${req.method} ${req.path}" does not exist. Please check the API documentation.`,
+        message: `The requested endpoint "${req.method} ${req.path}" does not exist. This is an engineering error.`,
         code: 'ENDPOINT_NOT_FOUND',
       },
     });

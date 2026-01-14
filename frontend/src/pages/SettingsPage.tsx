@@ -5,6 +5,7 @@ import { authService, blockService, userService, neighborhoodService } from '../
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../components/useToast';
 import ToastContainer from '../components/ToastContainer';
+import LocationPicker from '../components/LocationPicker';
 
 const GENRE_OPTIONS = [
   'Literary Fiction',
@@ -40,13 +41,11 @@ export default function SettingsPage() {
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [blockedUsers, setBlockedUsers] = useState<User[]>([]);
 
-  // Modal states
+  // Modal/expand states
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showChangeLocation, setShowChangeLocation] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
-
-  // Location change
-  const [selectedNeighborhood, setSelectedNeighborhood] = useState('');
+  const [locationLoading, setLocationLoading] = useState(false);
 
   useEffect(() => {
     if (!currentUser) {
@@ -61,10 +60,6 @@ export default function SettingsPage() {
     setProfilePicture(currentUser.profilePicture || '');
     setSelectedGenres(currentUser.readingPreferences?.favoriteGenres || []);
     setSocialLinks(currentUser.socialLinks || []);
-
-    if (currentUser.location.type === 'neighborhood') {
-      setSelectedNeighborhood(currentUser.location.neighborhoodId || '');
-    }
 
     // Load blocked users
     loadBlockedUsers();
@@ -166,14 +161,17 @@ export default function SettingsPage() {
     }
   };
 
-  const handleChangeLocation = async () => {
-    if (!currentUser || !selectedNeighborhood) return;
+  const handleChangeLocation = async (location: {
+    type: 'neighborhood' | 'pin';
+    neighborhoodId: string;
+    lat?: number;
+    lng?: number;
+  }) => {
+    if (!currentUser) return;
 
-    setLoading(true);
+    setLocationLoading(true);
     try {
-      const updatedUser = await authService.updateCurrentUser({
-        location: { type: 'neighborhood', neighborhoodId: selectedNeighborhood },
-      });
+      const updatedUser = await authService.updateCurrentUser({ location });
       if (updatedUser) {
         updateCurrentUser(updatedUser);
         showToast('Location updated successfully!', 'success');
@@ -182,7 +180,7 @@ export default function SettingsPage() {
     } catch (error) {
       showToast('Failed to update location', 'error');
     } finally {
-      setLoading(false);
+      setLocationLoading(false);
     }
   };
 
@@ -200,7 +198,6 @@ export default function SettingsPage() {
     return null;
   }
 
-  const neighborhoods = neighborhoodService.getAll();
   const currentNeighborhood =
     currentUser.location.type === 'neighborhood' && currentUser.location.neighborhoodId
       ? neighborhoodService.getById(currentUser.location.neighborhoodId)
@@ -240,24 +237,39 @@ export default function SettingsPage() {
         <div className="card p-6 mb-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Location</h2>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Current Location
-              </label>
-              <div className="text-gray-900">{currentNeighborhood?.name || 'Portland'}</div>
-            </div>
+          {!showChangeLocation ? (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Current Location
+                </label>
+                <div className="text-gray-900">{currentNeighborhood?.name || 'Not set'}</div>
+              </div>
 
-            <div>
-              <button
-                onClick={() => setShowChangeLocation(true)}
-                className="btn-secondary"
-                disabled={loading}
-              >
-                Change Location
-              </button>
+              <div>
+                <button
+                  onClick={() => setShowChangeLocation(true)}
+                  className="btn-secondary"
+                  disabled={loading}
+                >
+                  Change Location
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <LocationPicker
+              initialNeighborhoodId={currentUser.location.neighborhoodId || ''}
+              initialPreciseLocation={
+                currentUser.location.type === 'pin' && currentUser.location.lat && currentUser.location.lng
+                  ? { lat: currentUser.location.lat, lng: currentUser.location.lng }
+                  : null
+              }
+              onSave={handleChangeLocation}
+              onCancel={() => setShowChangeLocation(false)}
+              loading={locationLoading}
+              showToast={showToast}
+            />
+          )}
         </div>
 
         {/* Profile Section */}
@@ -486,46 +498,6 @@ export default function SettingsPage() {
             <div className="flex gap-3">
               <button onClick={() => setShowChangePassword(false)} className="btn-secondary flex-1">
                 Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Change Location Modal */}
-      {showChangeLocation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="card p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Change Location</h3>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Neighborhood
-              </label>
-              <select
-                value={selectedNeighborhood}
-                onChange={(e) => setSelectedNeighborhood(e.target.value)}
-                className="input"
-              >
-                <option value="">Select a neighborhood</option>
-                {neighborhoods.map((n) => (
-                  <option key={n.id} value={n.id}>
-                    {n.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex gap-3">
-              <button onClick={() => setShowChangeLocation(false)} className="btn-secondary flex-1">
-                Cancel
-              </button>
-              <button
-                onClick={handleChangeLocation}
-                className="btn-primary flex-1"
-                disabled={!selectedNeighborhood || loading}
-              >
-                {loading ? 'Saving...' : 'Save Location'}
               </button>
             </div>
           </div>

@@ -1,120 +1,29 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
-import { authService, neighborhoodService } from '../services';
-import { geocodeAddress, findNeighborhoodByPoint } from '../utils/geocoding';
-import quadrantData from '../data/quadrant-data.json';
+import { authService } from '../services';
 import { useToast } from '../components/useToast';
 import ToastContainer from '../components/ToastContainer';
-import MapPicker from '../components/MapPicker';
+import LocationPicker from '../components/LocationPicker';
 import { EMAIL_VERIFICATION_ENABLED } from '../config/features';
-
-type QuadrantName = 'North Portland' | 'Northeast Portland' | 'Southeast Portland' | 'Northwest Portland' | 'Southwest Portland';
-
-const QUADRANT_ORDER: QuadrantName[] = [
-  'North Portland',
-  'Northeast Portland',
-  'Southeast Portland',
-  'Northwest Portland',
-  'Southwest Portland',
-];
 
 export default function LocationSelectionPage() {
   const { currentUser, updateCurrentUser } = useUser();
   const navigate = useNavigate();
-  const [address, setAddress] = useState('');
-  const [selectedNeighborhood, setSelectedNeighborhood] = useState('');
-  const [showPreciseLocation, setShowPreciseLocation] = useState(false);
-  const [preciseLocation, setPreciseLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [loading, setLoading] = useState(false);
-  const [addressLoading, setAddressLoading] = useState(false);
   const { showToast, toasts, dismiss } = useToast();
 
-  const neighborhoods = neighborhoodService.getAll();
-
-  // Organize neighborhoods by quadrant
-  const neighborhoodsByQuadrant: Record<QuadrantName, typeof neighborhoods> = {
-    'North Portland': [],
-    'Northeast Portland': [],
-    'Southeast Portland': [],
-    'Northwest Portland': [],
-    'Southwest Portland': [],
-  };
-
-  neighborhoods.forEach(n => {
-    for (const quadrantName of QUADRANT_ORDER) {
-      if (quadrantData.quadrants[quadrantName].includes(n.name)) {
-        neighborhoodsByQuadrant[quadrantName].push(n);
-        break;
-      }
-    }
-  });
-
-  // Sort neighborhoods within each quadrant
-  Object.values(neighborhoodsByQuadrant).forEach(arr => arr.sort((a, b) => a.name.localeCompare(b.name)));
-
-  const handleAddressLookup = async () => {
-    if (!address.trim()) return;
-
-    setAddressLoading(true);
-
-    try {
-      // Geocode the address
-      const result = await geocodeAddress(address);
-
-      if (!result) {
-        showToast('Address not found. Please try a different address or select from the dropdown.', 'error');
-        setAddressLoading(false);
-        return;
-      }
-
-      // Find which neighborhood contains this point
-      const neighborhoodId = findNeighborhoodByPoint(result, neighborhoods);
-
-      if (!neighborhoodId) {
-        showToast('Address is outside Portland neighborhoods. Please select from the dropdown.', 'error');
-        setAddressLoading(false);
-        return;
-      }
-
-      // Success! Select the neighborhood
-      const neighborhood = neighborhoods.find(n => n.id === neighborhoodId);
-      setSelectedNeighborhood(neighborhoodId);
-      showToast(`Found: ${neighborhood?.name}`, 'success');
-
-    } catch (error) {
-      console.error('Address lookup error:', error);
-      showToast('Address lookup failed. Please try again or select from the dropdown.', 'error');
-    } finally {
-      setAddressLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!selectedNeighborhood) {
-      alert('Please select a neighborhood');
-      return;
-    }
-
+  const handleSaveLocation = async (location: {
+    type: 'neighborhood' | 'pin';
+    neighborhoodId: string;
+    lat?: number;
+    lng?: number;
+  }) => {
     if (!currentUser) return;
 
     setLoading(true);
 
     try {
-      const location = preciseLocation
-        ? {
-            type: 'pin' as const,
-            lat: preciseLocation.lat,
-            lng: preciseLocation.lng,
-            neighborhoodId: selectedNeighborhood,
-          }
-        : {
-            type: 'neighborhood' as const,
-            neighborhoodId: selectedNeighborhood,
-          };
-
       const updatedUser = await authService.updateCurrentUser({ location });
       if (updatedUser) {
         updateCurrentUser(updatedUser);
@@ -123,7 +32,7 @@ export default function LocationSelectionPage() {
       navigate('/browse');
     } catch (error) {
       console.error('Error updating location:', error);
-      alert('Failed to save location. Please try again.');
+      showToast('Failed to save location. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -158,149 +67,14 @@ export default function LocationSelectionPage() {
             )}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Address Lookup */}
-            <div>
-              <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
-                Use your address to find your neighborhood (we won't save the address)
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  id="address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Enter your Portland address"
-                  className="input flex-1"
-                  disabled={addressLoading}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddressLookup();
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={handleAddressLookup}
-                  disabled={!address.trim() || addressLoading}
-                  className="btn-secondary whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {addressLoading ? 'Looking up...' : 'Find'}
-                </button>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">or select from list</span>
-              </div>
-            </div>
-
-            {/* Neighborhood Dropdown with Districts */}
-            <div>
-              <label htmlFor="neighborhood" className="block text-sm font-medium text-gray-700 mb-2">
-                Your Neighborhood
-              </label>
-              <select
-                id="neighborhood"
-                value={selectedNeighborhood}
-                onChange={(e) => setSelectedNeighborhood(e.target.value)}
-                className="input"
-                required
-              >
-                <option value="">Select your neighborhood</option>
-                {QUADRANT_ORDER.map((quadrantName) => (
-                  <optgroup key={quadrantName} label={quadrantName}>
-                    {neighborhoodsByQuadrant[quadrantName].map((n) => (
-                      <option key={n.id} value={n.id}>
-                        {n.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-            </div>
-
-            {/* Optional Precise Location Toggle */}
-            <div>
-              <button
-                type="button"
-                onClick={() => setShowPreciseLocation(!showPreciseLocation)}
-                className="flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium transition-colors"
-              >
-                <span className="text-lg">📍</span>
-                <span>{showPreciseLocation ? 'Hide' : 'Share a more specific location (optional)'}</span>
-              </button>
-            </div>
-
-            {/* Precise Location Section (when expanded) */}
-            {showPreciseLocation && selectedNeighborhood && (
-              <div className="bg-gray-50 rounded-lg p-6 space-y-4 border border-gray-200">
-                <p className="text-sm text-gray-600 italic">
-                  This could be an intersection, or a nearby landmark if you prefer
-                </p>
-
-                {(() => {
-                  const neighborhood = neighborhoods.find((n) => n.id === selectedNeighborhood);
-                  if (!neighborhood) {
-                    return (
-                      <div className="text-center text-gray-500 py-8">
-                        Please select a neighborhood first
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <>
-                      <MapPicker
-                        center={neighborhood.centroid}
-                        selectedPosition={preciseLocation}
-                        onPositionSelect={setPreciseLocation}
-                      />
-
-                      {preciseLocation && (
-                        <div className="flex items-center justify-between p-3 bg-white rounded border border-gray-200">
-                          <span className="text-sm text-gray-700">
-                            Pin dropped at {preciseLocation.lat.toFixed(4)}, {preciseLocation.lng.toFixed(4)}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setPreciseLocation(null)}
-                            className="text-sm text-red-600 hover:text-red-700"
-                          >
-                            Remove Pin
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-            )}
-
-            <div className="flex gap-4">
-              <button
-                type="button"
-                onClick={() => navigate('/browse')}
-                className="btn-secondary flex-1"
-                disabled={loading}
-              >
-                Skip for Now
-              </button>
-              <button
-                type="submit"
-                disabled={loading || !selectedNeighborhood}
-                className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Saving...' : 'Continue'}
-              </button>
-            </div>
-          </form>
+          <LocationPicker
+            onSave={handleSaveLocation}
+            onCancel={() => navigate('/browse')}
+            loading={loading}
+            showToast={showToast}
+            cancelLabel="Skip for Now"
+            saveLabel="Continue"
+          />
         </div>
       </div>
 

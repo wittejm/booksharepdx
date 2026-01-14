@@ -48,7 +48,7 @@ jobs:
       - name: Build frontend
         run: cd frontend && npm run build
         env:
-          VITE_API_URL: https://api-staging.booksharepdx.com
+          VITE_API_URL: https://api-staging.booksharepdx.com/api
 
       - name: Deploy to Cloudflare Pages (Staging)
         uses: cloudflare/wrangler-action@v3
@@ -90,7 +90,7 @@ jobs:
       - name: Build frontend
         run: cd frontend && npm run build
         env:
-          VITE_API_URL: https://api.booksharepdx.com
+          VITE_API_URL: https://api.booksharepdx.com/api
 
       - name: Deploy to Cloudflare Pages (Production)
         uses: cloudflare/wrangler-action@v3

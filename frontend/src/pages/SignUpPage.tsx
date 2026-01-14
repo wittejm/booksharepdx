@@ -192,8 +192,11 @@ export default function SignUpPage() {
                 className="mt-1 w-4 h-4 cursor-pointer"
               />
               <label htmlFor="guidelines" className="text-sm text-gray-700 cursor-pointer">
-                I agree to the Community Guidelines and understand that BookSharePDX is a community built on trust
-                and respect.
+                I agree to the{' '}
+                <Link to="/about#community-guidelines" className="text-primary-600 hover:text-primary-700 underline">
+                  Community Guidelines
+                </Link>{' '}
+                and understand that BookSharePDX is a community built on trust and respect.
               </label>
             </div>
             {errors.guidelines && <p className="text-red-500 text-sm">{errors.guidelines}</p>}

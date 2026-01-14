@@ -220,8 +220,27 @@ export default function AboutPage() {
         </div>
       </section>
 
+      {/* Community Guidelines Section */}
+      <section id="community-guidelines" className="py-20 bg-gray-50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-4xl font-bold text-gray-900 mb-8 text-center">Community Guidelines</h2>
+
+          <div className="bg-white rounded-lg p-8 shadow-md">
+            <p className="text-lg text-gray-700 mb-6 leading-relaxed">
+              Be kind and respectful. We're all here to share books and build community together, and that only works when everyone feels welcome.
+            </p>
+            <p className="text-lg text-gray-700 mb-6 leading-relaxed">
+              Harassment, discrimination, scams, and dishonest behavior will not be tolerated and may result in account suspension or permanent bans.
+            </p>
+            <p className="text-lg text-gray-700 leading-relaxed">
+              If you experience or witness behavior that violates these guidelines, please report it. We review all reports and take action to keep our community safe.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* FAQ Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-4xl font-bold text-gray-900 mb-12 text-center">Frequently Asked Questions</h2>
 

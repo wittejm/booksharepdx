@@ -117,16 +117,17 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
     return isbn10?.identifier;
   };
 
-  // Get cover image URL (use https and larger size)
+  // Get cover image URL (use https)
   const getCoverImage = (book: GoogleBook): string | undefined => {
     const imageLinks = book.volumeInfo.imageLinks;
     if (!imageLinks) return undefined;
 
-    // Get thumbnail and convert to https, request larger size
+    // Prefer thumbnail over smallThumbnail, convert to https
+    // Note: Don't change zoom level - not all books have higher res available
     const url = imageLinks.thumbnail || imageLinks.smallThumbnail;
     if (!url) return undefined;
 
-    return url.replace('http://', 'https://').replace('zoom=1', 'zoom=2');
+    return url.replace('http://', 'https://');
   };
 
   // Handle book selection

@@ -33,18 +33,13 @@ function MapClickHandler({ onPositionSelect }: { onPositionSelect: (position: { 
 }
 
 export default function MapPicker({ center, selectedPosition, onPositionSelect }: MapPickerProps) {
-  const [key, setKey] = useState(0);
-
-  // Force re-render when center changes to re-center the map
-  useEffect(() => {
-    setKey((prev) => prev + 1);
-  }, [center.lat, center.lng]);
+  // Store initial center to avoid recentering on every update
+  const [initialCenter] = useState(center);
 
   return (
     <div className="h-96 rounded-lg overflow-hidden border-2 border-gray-200">
       <MapContainer
-        key={key}
-        center={[center.lat, center.lng]}
+        center={[initialCenter.lat, initialCenter.lng]}
         zoom={15}
         style={{ height: '100%', width: '100%' }}
         scrollWheelZoom={true}

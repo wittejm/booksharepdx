@@ -6,6 +6,7 @@ import ToastContainer from './ToastContainer';
 import LoadingSpinner from './LoadingSpinner';
 import BookSearch from './BookSearch';
 import MultiSelectTagInput from './MultiSelectTagInput';
+import { GENRES, mapSubjectsToGenres } from '../utils/genres';
 
 interface BookSelection {
   title: string;
@@ -14,128 +15,6 @@ interface BookSelection {
   isbn?: string;
   subjects?: string[];
 }
-
-// Map Open Library subjects to our genres
-const SUBJECT_TO_GENRE: Record<string, string> = {
-  'fiction': 'Literary Fiction',
-  'literary fiction': 'Literary Fiction',
-  'science fiction': 'Science Fiction',
-  'sci-fi': 'Science Fiction',
-  'fantasy': 'Fantasy',
-  'fantasy fiction': 'Fantasy',
-  'mystery': 'Mystery',
-  'mystery fiction': 'Mystery',
-  'detective': 'Mystery',
-  'thriller': 'Thriller',
-  'thrillers': 'Thriller',
-  'suspense': 'Thriller',
-  'romance': 'Romance',
-  'love stories': 'Romance',
-  'historical fiction': 'Historical Fiction',
-  'historical': 'Historical Fiction',
-  'horror': 'Horror',
-  'horror fiction': 'Horror',
-  'young adult': 'Young Adult',
-  'ya': 'Young Adult',
-  'juvenile fiction': 'Middle Grade',
-  'children': 'Middle Grade',
-  "children's fiction": 'Middle Grade',
-  'memoir': 'Memoir',
-  'memoirs': 'Memoir',
-  'autobiography': 'Memoir',
-  'biography': 'Biography',
-  'biographies': 'Biography',
-  'history': 'History',
-  'philosophy': 'Philosophy',
-  'psychology': 'Psychology',
-  'science': 'Science',
-  'popular science': 'Science',
-  'self-help': 'Self-Help',
-  'self help': 'Self-Help',
-  'personal development': 'Self-Help',
-  'poetry': 'Poetry',
-  'poems': 'Poetry',
-  'graphic novels': 'Graphic Novel',
-  'graphic novel': 'Graphic Novel',
-  'comics': 'Comics',
-  'comic books': 'Comics',
-  'classics': 'Classics',
-  'classic literature': 'Classics',
-  'adventure': 'Adventure',
-  'adventure fiction': 'Adventure',
-  'travel': 'Travel',
-  'cooking': 'Food & Cooking',
-  'cookbooks': 'Food & Cooking',
-  'food': 'Food & Cooking',
-  'true crime': 'True Crime',
-  'nonfiction': 'Non-Fiction',
-  'non-fiction': 'Non-Fiction',
-  'environment': 'Environmental',
-  'environmental': 'Environmental',
-  'nature': 'Nature',
-  'social issues': 'Social Justice',
-  'spirituality': 'Spirituality',
-  'religion': 'Spirituality',
-  'short stories': 'Short Stories',
-};
-
-function mapSubjectsToGenres(subjects: string[] | undefined): string[] {
-  if (!subjects) return [];
-
-  const matchedGenres = new Set<string>();
-
-  for (const subject of subjects) {
-    const lower = subject.toLowerCase();
-    // Direct match
-    if (SUBJECT_TO_GENRE[lower]) {
-      matchedGenres.add(SUBJECT_TO_GENRE[lower]);
-    }
-    // Partial match - check if any key is contained in the subject
-    for (const [key, genre] of Object.entries(SUBJECT_TO_GENRE)) {
-      if (lower.includes(key)) {
-        matchedGenres.add(genre);
-      }
-    }
-  }
-
-  return Array.from(matchedGenres).slice(0, 5); // Limit to 5 genres
-}
-
-const GENRES = [
-  'Literary Fiction',
-  'Science Fiction',
-  'Fantasy',
-  'Mystery',
-  'Thriller',
-  'Romance',
-  'Historical Fiction',
-  'Horror',
-  'Young Adult',
-  'Middle Grade',
-  'Memoir',
-  'Biography',
-  'History',
-  'Philosophy',
-  'Psychology',
-  'Science',
-  'Self-Help',
-  'Poetry',
-  'Graphic Novel',
-  'Comics',
-  'Classics',
-  'Contemporary Fiction',
-  'Adventure',
-  'Travel',
-  'Food & Cooking',
-  'True Crime',
-  'Non-Fiction',
-  'Environmental',
-  'Social Justice',
-  'Spirituality',
-  'Nature',
-  'Short Stories',
-  'Other',
-].sort();
 
 interface InlineShareFormProps {
   onSuccess?: () => void;
@@ -165,7 +44,7 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
 
   const handleBookSelect = (book: BookSelection) => {
     setSelectedBook(book);
-    // Auto-detect genres from Open Library subjects
+    // Auto-detect genres from Google Books categories
     const autoGenres = mapSubjectsToGenres(book.subjects);
     setSelectedGenres(autoGenres);
     setStep('details');
@@ -221,15 +100,28 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
     <div ref={formRef} className="mb-6">
       {/* Collapsed state - just show the button */}
       {step === 'collapsed' && (
-        <button
-          onClick={() => setStep('search')}
-          className="w-full py-4 px-6 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-lg"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Share a Book
-        </button>
+        <>
+          {/* Mobile: full-width prominent button */}
+          <button
+            onClick={() => setStep('search')}
+            className="md:hidden w-full py-4 px-6 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-lg"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Share a Book
+          </button>
+          {/* Desktop: compact button aligned left */}
+          <button
+            onClick={() => setStep('search')}
+            className="hidden md:inline-flex btn-primary text-sm py-1.5 px-4 items-center gap-1.5"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Share a Book
+          </button>
+        </>
       )}
 
       {/* Expanded form */}

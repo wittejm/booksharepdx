@@ -4,12 +4,12 @@ import { AppDataSource } from '../config/database.js';
 import { Post } from '../entities/Post.js';
 import { User } from '../entities/User.js';
 import { Block } from '../entities/Block.js';
-import { Comment } from '../entities/Comment.js';
 import { getNeighborhoodCentroid } from '../data/neighborhoodCentroids.js';
 import { haversineDistance } from '../utils/geo.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validation.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { findByIdOrThrow, requireOwnership } from '../utils/db.js';
 
 const router = Router();
 
@@ -57,12 +57,10 @@ router.get('/', optionalAuth, async (req, res, next) => {
     const postRepo = AppDataSource.getRepository(Post);
     const userRepo = AppDataSource.getRepository(User);
     const blockRepo = AppDataSource.getRepository(Block);
-    const commentRepo = AppDataSource.getRepository(Comment);
 
     // Build query
     let query = postRepo.createQueryBuilder('post')
       .leftJoinAndSelect('post.user', 'user')
-      .loadRelationCountAndMap('post.commentCount', 'post.comments')
       .orderBy('post.createdAt', 'DESC');
 
     // Filter by status (default to active)
@@ -119,7 +117,6 @@ router.get('/', optionalAuth, async (req, res, next) => {
     let postsWithDistance = posts.map(post => ({
       ...post.toJSON(),
       user: post.user?.toJSON(),
-      commentCount: (post as any).commentCount || 0,
       distance: undefined as number | undefined,
     }));
 
@@ -180,7 +177,6 @@ router.get('/active', optionalAuth, async (req, res, next) => {
 
     const posts = await postRepo.createQueryBuilder('post')
       .leftJoinAndSelect('post.user', 'user')
-      .loadRelationCountAndMap('post.commentCount', 'post.comments')
       .where('post.status = :status', { status: 'active' })
       .orderBy('post.createdAt', 'DESC')
       .getMany();
@@ -189,7 +185,6 @@ router.get('/active', optionalAuth, async (req, res, next) => {
       data: posts.map(p => ({
         ...p.toJSON(),
         user: p.user?.toJSON(),
-        commentCount: (p as any).commentCount || 0,
       })),
     });
   } catch (error) {
@@ -205,7 +200,6 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
 
     const post = await postRepo.createQueryBuilder('post')
       .leftJoinAndSelect('post.user', 'user')
-      .loadRelationCountAndMap('post.commentCount', 'post.comments')
       .where('post.id = :id', { id })
       .getOne();
 
@@ -221,7 +215,6 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
       data: {
         ...post.toJSON(),
         user: post.user?.toJSON(),
-        commentCount: (post as any).commentCount || 0,
       },
     });
   } catch (error) {
@@ -237,7 +230,6 @@ router.get('/user/:userId', optionalAuth, async (req, res, next) => {
 
     const posts = await postRepo.createQueryBuilder('post')
       .leftJoinAndSelect('post.user', 'user')
-      .loadRelationCountAndMap('post.commentCount', 'post.comments')
       .where('post.userId = :userId', { userId })
       .orderBy('post.createdAt', 'DESC')
       .getMany();
@@ -246,7 +238,6 @@ router.get('/user/:userId', optionalAuth, async (req, res, next) => {
       data: posts.map(p => ({
         ...p.toJSON(),
         user: p.user?.toJSON(),
-        commentCount: (p as any).commentCount || 0,
       })),
     });
   } catch (error) {
@@ -282,23 +273,18 @@ router.put('/:id', requireAuth, validateBody(updatePostSchema), async (req, res,
     const postRepo = AppDataSource.getRepository(Post);
     const userRepo = AppDataSource.getRepository(User);
 
-    const post = await postRepo.findOne({ where: { id } });
-    if (!post) {
-      throw new AppError(
-        'This book listing could not be found. It may have been removed or archived.',
-        404,
-        'POST_NOT_FOUND'
-      );
-    }
+    const post = await findByIdOrThrow(
+      postRepo,
+      id,
+      'This book listing could not be found. It may have been removed or archived.',
+      'POST_NOT_FOUND'
+    );
 
-    // Can only update own posts (or admin)
-    if (post.userId !== req.user!.id && req.user!.role !== 'admin') {
-      throw new AppError(
-        'You can only edit your own book listings. This listing belongs to another user.',
-        403,
-        'NOT_POST_OWNER'
-      );
-    }
+    requireOwnership(post.userId, req.user!.id, req.user!.role, {
+      allowAdmin: true,
+      errorMessage: 'You can only edit your own book listings. This listing belongs to another user.',
+      errorCode: 'NOT_POST_OWNER',
+    });
 
     // Handle status change to archived (given/exchanged)
     const wasActive = post.status === 'active' || post.status === 'pending_exchange';
@@ -343,23 +329,18 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
     const { id } = req.params;
     const postRepo = AppDataSource.getRepository(Post);
 
-    const post = await postRepo.findOne({ where: { id } });
-    if (!post) {
-      throw new AppError(
-        'This book listing could not be found. It may have already been deleted.',
-        404,
-        'POST_NOT_FOUND'
-      );
-    }
+    const post = await findByIdOrThrow(
+      postRepo,
+      id,
+      'This book listing could not be found. It may have already been deleted.',
+      'POST_NOT_FOUND'
+    );
 
-    // Can only delete own posts (or admin)
-    if (post.userId !== req.user!.id && req.user!.role !== 'admin') {
-      throw new AppError(
-        'You can only delete your own book listings. This listing belongs to another user.',
-        403,
-        'NOT_POST_OWNER'
-      );
-    }
+    requireOwnership(post.userId, req.user!.id, req.user!.role, {
+      allowAdmin: true,
+      errorMessage: 'You can only delete your own book listings. This listing belongs to another user.',
+      errorCode: 'NOT_POST_OWNER',
+    });
 
     await postRepo.remove(post);
     res.json({ data: { success: true } });

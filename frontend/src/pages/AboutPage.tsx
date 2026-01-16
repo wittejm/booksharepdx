@@ -1,10 +1,21 @@
-import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
 
 export default function AboutPage() {
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null);
   const { currentUser } = useUser();
+  const location = useLocation();
+
+  // Scroll to anchor on page load
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.slice(1);
+      requestAnimationFrame(() => {
+        document.getElementById(id)?.scrollIntoView();
+      });
+    }
+  }, [location.hash]);
 
   const faqs = [
     {
@@ -295,10 +306,6 @@ export default function AboutPage() {
               hello@booksharepdx.com
             </a>
           </div>
-
-          <p className="text-gray-600 mb-6">
-            Or use the links in the footer to follow us on social media and stay updated on community events.
-          </p>
         </div>
       </section>
 

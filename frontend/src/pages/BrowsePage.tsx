@@ -7,6 +7,7 @@ import PostCard from '../components/PostCard';
 import MultiSelectTagInput from '../components/MultiSelectTagInput';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { calculateDistance, getLocationCoords } from '../utils/distance';
+import { GENRES, mapToCanonicalGenres } from '../utils/genres';
 
 const POSTS_PER_PAGE = 10;
 
@@ -30,7 +31,10 @@ export default function BrowsePage() {
   const [maxDistance, setMaxDistance] = useState(10);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Handle neighborhood filter from URL parameter
+  // Handle URL parameters
+  const targetPostId = searchParams.get('postId');
+  const openRequest = searchParams.get('openRequest') === 'true';
+
   useEffect(() => {
     const neighborhoodParam = searchParams.get('neighborhood');
     if (neighborhoodParam) {
@@ -66,8 +70,8 @@ export default function BrowsePage() {
     loadData();
   }, []);
 
-  // Get all unique genres
-  const genres = Array.from(new Set(posts.map(p => p.book.genre))).sort();
+  // Use canonical genre list for filtering
+  const genres = GENRES;
 
   // Calculate distance for a post
   const getPostDistance = useCallback((post: Post): number | undefined => {
@@ -108,7 +112,10 @@ export default function BrowsePage() {
 
     // Filter by genres (if any selected)
     if (selectedGenres.length > 0) {
-      filtered = filtered.filter(p => selectedGenres.includes(p.book.genre));
+      filtered = filtered.filter(p => {
+        const postGenres = mapToCanonicalGenres(p.book.genre);
+        return postGenres.some(g => selectedGenres.includes(g));
+      });
     }
 
     // Filter by neighborhood
@@ -428,6 +435,7 @@ export default function BrowsePage() {
                     key={post.id}
                     post={post}
                     distance={getPostDistance(post)}
+                    autoOpenRequest={post.id === targetPostId && openRequest}
                   />
                 ))}
 

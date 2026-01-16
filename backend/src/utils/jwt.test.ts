@@ -128,7 +128,7 @@ describe('JWT utilities', () => {
     it('should have correct refresh token cookie options', () => {
       expect(refreshTokenCookieOptions.httpOnly).toBe(true);
       expect(refreshTokenCookieOptions.path).toBe('/');
-      expect(refreshTokenCookieOptions.maxAge).toBe(7 * 24 * 60 * 60 * 1000); // 7 days
+      expect(refreshTokenCookieOptions.maxAge).toBe(365 * 24 * 60 * 60 * 1000); // 1 year
     });
 
     it('should have secure=false in non-prod (test) environment', () => {

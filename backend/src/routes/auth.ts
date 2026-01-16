@@ -6,12 +6,15 @@ import { User } from '../entities/User.js';
 import {
   signAccessToken,
   signRefreshToken,
+  signMagicLinkToken,
+  verifyMagicLinkToken,
   accessTokenCookieOptions,
   refreshTokenCookieOptions,
 } from '../utils/jwt.js';
 import { validateBody } from '../middleware/validation.js';
 import { requireAuth } from '../middleware/auth.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { env } from '../config/env.js';
 
 const router = Router();
 
@@ -153,8 +156,13 @@ router.post('/send-magic-link', validateBody(sendMagicLinkSchema), async (req, r
       return res.json({ data: user.toJSON() });
     }
 
-    // TODO: Generate magic link token, store in DB, send email
+    // Generate magic link token
+    const magicToken = signMagicLinkToken({ userId: user.id, email: user.email });
+    const magicLinkUrl = `${env.frontendUrl}/verify-magic-link?token=${magicToken}`;
+
+    // TODO: Send actual email with magic link
     console.log(`[EMAIL] Magic sign-in link would be sent to: ${user.email}`);
+    console.log(`[EMAIL] Magic link URL: ${magicLinkUrl}`);
 
     res.json({
       data: {
@@ -172,6 +180,58 @@ router.post('/logout', (req, res) => {
   res.clearCookie('accessToken', { path: '/' });
   res.clearCookie('refreshToken', { path: '/' });
   res.json({ data: { success: true } });
+});
+
+// GET /api/auth/verify-magic-link - Verify magic link token and log user in
+router.get('/verify-magic-link', async (req, res, next) => {
+  try {
+    const { token } = req.query;
+
+    if (!token || typeof token !== 'string') {
+      throw new AppError('Invalid or missing token', 400, 'INVALID_TOKEN');
+    }
+
+    // Verify the magic link token
+    let payload;
+    try {
+      payload = verifyMagicLinkToken(token);
+    } catch {
+      throw new AppError(
+        'This sign-in link has expired or is invalid. Please request a new one.',
+        400,
+        'INVALID_TOKEN'
+      );
+    }
+
+    // Find the user
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOne({ where: { id: payload.userId } });
+
+    if (!user) {
+      throw new AppError('User not found', 404, 'USER_NOT_FOUND');
+    }
+
+    if (user.banned) {
+      throw new AppError(
+        'Your account has been banned due to a violation of our community guidelines.',
+        403,
+        'ACCOUNT_BANNED'
+      );
+    }
+
+    // Generate access and refresh tokens
+    const tokenPayload = { userId: user.id, email: user.email, role: user.role };
+    const accessToken = signAccessToken(tokenPayload);
+    const refreshToken = signRefreshToken(tokenPayload);
+
+    // Set cookies
+    res.cookie('accessToken', accessToken, accessTokenCookieOptions);
+    res.cookie('refreshToken', refreshToken, refreshTokenCookieOptions);
+
+    res.json({ data: user.toJSON() });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // GET /api/auth/me

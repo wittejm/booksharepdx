@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import type { Post, User } from '@booksharepdx/shared';
 import Modal from '../Modal';
-import { postService, userService, messageService, commentService } from '../../services';
+import Avatar from '../Avatar';
+import { postService, userService, messageService } from '../../services';
 import { useToast } from '../useToast';
 import { useUser } from '../../contexts/UserContext';
 import { formatTimestamp } from '../../utils/time';
@@ -9,7 +10,6 @@ import { formatTimestamp } from '../../utils/time';
 interface Interaction {
   userId: string;
   user: User;
-  type: 'message' | 'comment';
   timestamp: number;
   distance: number; // in miles
 }
@@ -32,7 +32,7 @@ export default function MarkAsGivenModal({ open, onClose, post, currentUserId }:
   const [loading, setLoading] = useState(false);
   const { showToast } = useToast();
 
-  // Step 1: Load interactions (users who messaged or commented)
+  // Step 1: Load interactions (users who messaged about this post)
   useEffect(() => {
     if (!open || step !== 1) return;
 
@@ -42,12 +42,8 @@ export default function MarkAsGivenModal({ open, onClose, post, currentUserId }:
         const threads = await messageService.getThreads(currentUserId);
         const postThreads = threads.filter(t => t.postId === post.id);
 
-        // Get comments for this post
-        const comments = await commentService.getByPostId(post.id);
+        const interactions: Interaction[] = [];
 
-        const interactionMap = new Map<string, Interaction>();
-
-        // Add message interactions
         for (const thread of postThreads) {
           const otherUserId = thread.participants.find(id => id !== currentUserId);
           if (!otherUserId) continue;
@@ -58,43 +54,17 @@ export default function MarkAsGivenModal({ open, onClose, post, currentUserId }:
           const messages = await messageService.getMessages(thread.id);
           const lastMessage = messages[messages.length - 1];
 
-          interactionMap.set(otherUserId, {
+          interactions.push({
             userId: otherUserId,
             user,
-            type: 'message',
             timestamp: lastMessage?.timestamp || thread.lastMessageAt,
-            distance: calculateDistance(user), // Mock distance for now
-          });
-        }
-
-        // Add comment interactions
-        for (const comment of comments) {
-          if (comment.userId === currentUserId) continue;
-          if (interactionMap.has(comment.userId)) {
-            // Update if comment is more recent
-            const existing = interactionMap.get(comment.userId)!;
-            if (comment.timestamp > existing.timestamp) {
-              existing.timestamp = comment.timestamp;
-              existing.type = 'comment';
-            }
-            continue;
-          }
-
-          const user = await userService.getById(comment.userId);
-          if (!user) continue;
-
-          interactionMap.set(comment.userId, {
-            userId: comment.userId,
-            user,
-            type: 'comment',
-            timestamp: comment.timestamp,
             distance: calculateDistance(user),
           });
         }
 
         // Sort by most recent interaction
-        const sorted = Array.from(interactionMap.values()).sort((a, b) => b.timestamp - a.timestamp);
-        setInteractions(sorted);
+        interactions.sort((a, b) => b.timestamp - a.timestamp);
+        setInteractions(interactions);
       } catch (error) {
         console.error('Failed to load interactions:', error);
         showToast('Failed to load recipients', 'error');
@@ -248,7 +218,7 @@ export default function MarkAsGivenModal({ open, onClose, post, currentUserId }:
 
           {interactions.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <p>No one has messaged or commented on this post yet.</p>
+              <p>No one has messaged about this post yet.</p>
               <p className="text-sm mt-2">You can still mark it as given to someone outside the app.</p>
             </div>
           ) : (
@@ -260,24 +230,14 @@ export default function MarkAsGivenModal({ open, onClose, post, currentUserId }:
                   className="w-full flex items-center gap-3 p-3 border border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors text-left"
                 >
                   <div className="flex-shrink-0">
-                    {interaction.user.profilePicture ? (
-                      <img
-                        src={interaction.user.profilePicture}
-                        alt={interaction.user.username}
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-semibold">
-                        {interaction.user.username[0].toUpperCase()}
-                      </div>
-                    )}
+                    <Avatar src={interaction.user.profilePicture} username={interaction.user.username} size="lg" />
                   </div>
                   <div className="flex-grow">
                     <div className="font-medium text-gray-900">
                       {interaction.user.username} - {interaction.distance.toFixed(1)} mi
                     </div>
                     <div className="text-sm text-gray-500">
-                      {interaction.type === 'message' ? 'Messaged' : 'Commented'} {formatTimestamp(interaction.timestamp)}
+                      Messaged {formatTimestamp(interaction.timestamp)}
                     </div>
                   </div>
                 </button>

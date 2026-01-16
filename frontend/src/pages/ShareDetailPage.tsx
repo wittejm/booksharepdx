@@ -1,42 +1,36 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import type { Post, User, Comment } from '@booksharepdx/shared';
-import { postService, userService, commentService, messageService, neighborhoodService } from '../services';
+import type { Post, User } from '@booksharepdx/shared';
+import { postService, userService, messageService, neighborhoodService } from '../services';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../components/useToast';
 import ToastContainer from '../components/ToastContainer';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useConfirm } from '../components/useConfirm';
 import { formatTimestamp } from '../utils/time';
+import { ERROR_MESSAGES } from '../utils/errorMessages';
 
 export default function ShareDetailPage() {
   const { shareId } = useParams<{ shareId: string }>();
-  const postId = shareId; // Alias for compatibility with existing code
+  const postId = shareId;
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const { confirm, ConfirmDialogComponent } = useConfirm();
 
   const [post, setPost] = useState<Post | null>(null);
   const [postOwner, setPostOwner] = useState<User | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [commentUsers, setCommentUsers] = useState<{ [userId: string]: User }>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Comment form state
-  const [newComment, setNewComment] = useState('');
-  const [submittingComment, setSubmittingComment] = useState(false);
 
   // "I'm Interested" modal state
   const [showInterestedModal, setShowInterestedModal] = useState(false);
   const [interestedMessage, setInterestedMessage] = useState('');
-  const [interestedType, setInterestedType] = useState<'public' | 'private'>('public');
   const [submittingInterest, setSubmittingInterest] = useState(false);
 
   // Toast state
   const { showToast, toasts, dismiss } = useToast();
 
-  // Distance calculation (placeholder)
+  // Distance calculation
   const [distance, setDistance] = useState<string>('');
 
   useEffect(() => {
@@ -54,7 +48,6 @@ export default function ShareDetailPage() {
       setLoading(true);
       setError(null);
 
-      // Fetch post
       const fetchedPost = await postService.getById(postId);
       if (!fetchedPost) {
         setError('This book listing could not be found. It may have been removed or archived by the owner.');
@@ -63,41 +56,21 @@ export default function ShareDetailPage() {
       }
       setPost(fetchedPost);
 
-      // Fetch post owner
       const owner = await userService.getById(fetchedPost.userId);
       setPostOwner(owner);
 
-      // Calculate distance
       if (owner && currentUser) {
         const dist = calculateDistance(owner, currentUser);
         setDistance(dist);
       }
-
-      // Fetch comments
-      const fetchedComments = await commentService.getByPostId(postId);
-      // Sort by timestamp (oldest first)
-      fetchedComments.sort((a, b) => a.timestamp - b.timestamp);
-      setComments(fetchedComments);
-
-      // Fetch comment users
-      const userIds = [...new Set(fetchedComments.map(c => c.userId))];
-      const users: { [userId: string]: User } = {};
-      for (const userId of userIds) {
-        const user = await userService.getById(userId);
-        if (user) {
-          users[userId] = user;
-        }
-      }
-      setCommentUsers(users);
-
     } catch (err) {
       const error = err as Error & { code?: string };
       if (error.code === 'POST_NOT_FOUND') {
-        setError('This book listing could not be found. It may have been removed or archived by the owner.');
+        setError(ERROR_MESSAGES.POST_NOT_FOUND);
       } else if (error.code === 'NETWORK_ERROR') {
-        setError('Unable to connect to the server. Please check your internet connection and try again.');
+        setError(ERROR_MESSAGES.NETWORK_ERROR);
       } else {
-        setError('Something went wrong while loading this book listing. Please try again later.');
+        setError(ERROR_MESSAGES.GENERIC_LOAD_ERROR);
       }
       console.error(err);
     } finally {
@@ -106,7 +79,6 @@ export default function ShareDetailPage() {
   };
 
   const calculateDistance = (owner: User, viewer: User): string => {
-    // Placeholder distance calculation
     if (owner.location.type === 'neighborhood' && viewer.location.type === 'neighborhood') {
       if (owner.location.neighborhoodId === viewer.location.neighborhoodId) {
         return 'Same neighborhood';
@@ -118,44 +90,10 @@ export default function ShareDetailPage() {
           Math.pow(ownerHood.centroid.lat - viewerHood.centroid.lat, 2) +
           Math.pow(ownerHood.centroid.lng - viewerHood.centroid.lng, 2)
         );
-        return `~${Math.round(dist * 69)} miles away`; // Rough conversion
+        return `~${Math.round(dist * 69)} miles away`;
       }
     }
     return 'Distance unknown';
-  };
-
-  const handleAddComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentUser || !post || !newComment.trim()) return;
-
-    try {
-      setSubmittingComment(true);
-      const comment = await commentService.create({
-        postId: post.id,
-        userId: currentUser.id,
-        content: newComment.trim(),
-      });
-
-      setComments([...comments, comment]);
-      setCommentUsers({
-        ...commentUsers,
-        [currentUser.id]: currentUser,
-      });
-      setNewComment('');
-      showToast('Comment added!', 'success');
-    } catch (err) {
-      const error = err as Error & { code?: string };
-      if (error.code === 'POST_ARCHIVED') {
-        showToast('Comments are closed on archived listings.', 'error');
-      } else if (error.code === 'POST_NOT_FOUND') {
-        showToast('This listing no longer exists.', 'error');
-      } else {
-        showToast('Unable to post your comment. Please try again.', 'error');
-      }
-      console.error(err);
-    } finally {
-      setSubmittingComment(false);
-    }
   };
 
   const handleInterestedSubmit = async () => {
@@ -164,30 +102,18 @@ export default function ShareDetailPage() {
     try {
       setSubmittingInterest(true);
 
-      if (interestedType === 'public') {
-        // Add as public comment
-        await commentService.create({
-          postId: post.id,
-          userId: currentUser.id,
-          content: interestedMessage.trim() || "I'm interested in this book!",
-        });
-        showToast('Comment posted!', 'success');
-        await loadPostData();
-      } else {
-        // Send private message
-        const thread = await messageService.getOrCreateThread(
-          currentUser.id,
-          post.userId,
-          post.id
-        );
-        await messageService.sendMessage({
-          threadId: thread.id,
-          senderId: currentUser.id,
-          content: interestedMessage.trim() || "Hi! I'm interested in this book.",
-          type: 'user',
-        });
-        showToast('Message sent!', 'success');
-      }
+      const thread = await messageService.getOrCreateThread(
+        currentUser.id,
+        post.userId,
+        post.id
+      );
+      await messageService.sendMessage({
+        threadId: thread.id,
+        senderId: currentUser.id,
+        content: interestedMessage.trim() || "Hi! I'm interested in this book.",
+        type: 'user',
+      });
+      showToast('Message sent!', 'success');
 
       setShowInterestedModal(false);
       setInterestedMessage('');
@@ -302,328 +228,202 @@ export default function ShareDetailPage() {
     <>
       {ConfirmDialogComponent}
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-      {/* Back button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="mb-6 text-primary-600 hover:text-primary-700 flex items-center gap-2"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Back
-      </button>
+        {/* Back button */}
+        <button
+          onClick={() => navigate(-1)}
+          className="mb-6 text-primary-600 hover:text-primary-700 flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </button>
 
-      {/* Main post card */}
-      <div className="card p-6 md:p-8 mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Book cover */}
-          <div className="md:col-span-1">
-            {post.book.coverImage ? (
-              <img
-                src={post.book.coverImage}
-                alt={post.book.title}
-                className="w-full rounded-lg shadow-md"
-              />
-            ) : (
-              <div className="w-full aspect-[2/3] bg-gray-200 rounded-lg flex items-center justify-center">
-                <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-              </div>
-            )}
-          </div>
-
-          {/* Post details */}
-          <div className="md:col-span-2">
-            <div className="mb-4">
-              <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                post.type === 'giveaway' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-              }`}>
-                {post.type === 'giveaway' ? 'Give Away' : 'Exchange'}
-              </span>
-              {post.status === 'archived' && (
-                <span className="ml-2 inline-block px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-                  Archived
-                </span>
-              )}
-            </div>
-
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{post.book.title}</h1>
-            <p className="text-xl text-gray-700 mb-4">by {post.book.author}</p>
-
-            <div className="flex flex-wrap gap-4 mb-6 text-sm text-gray-600">
-              <span className="flex items-center gap-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-                {post.book.genre}
-              </span>
-              {post.book.isbn && (
-                <span className="flex items-center gap-1">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  ISBN: {post.book.isbn}
-                </span>
-              )}
-            </div>
-
-            {post.notes && (
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">Notes from owner:</h3>
-                <p className="text-gray-700 bg-gray-50 p-4 rounded-lg">{post.notes}</p>
-              </div>
-            )}
-
-            {/* Owner info */}
-            <div className="border-t pt-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Shared by:</h3>
-              <div className="flex items-center gap-4">
-                <Link to={`/profile/${postOwner.username}`}>
-                  {postOwner.profilePicture ? (
-                    <img
-                      src={postOwner.profilePicture}
-                      alt={postOwner.username}
-                      className="w-12 h-12 rounded-full"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center">
-                      <span className="text-primary-600 font-semibold text-lg">
-                        {postOwner.username.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                </Link>
-                <div className="flex-1">
-                  <Link to={`/profile/${postOwner.username}`} className="font-semibold text-gray-900 hover:text-primary-600">
-                    {postOwner.username}
-                  </Link>
-                  <div className="flex gap-4 text-sm text-gray-600 mt-1">
-                    <span>{postOwner.stats.booksGiven} given</span>
-                    <span>{postOwner.stats.bookshares} bookshares</span>
-                  </div>
-                </div>
-              </div>
-              {distance && (
-                <p className="text-sm text-gray-600 mt-3">{distance}</p>
-              )}
-              <p className="text-sm text-gray-500 mt-2">Shared {formatTimestamp(post.createdAt)}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Action buttons */}
-        <div className="mt-8 flex flex-wrap gap-3">
-          {isOwnPost ? (
-            <>
-              <button className="btn-secondary flex-1 sm:flex-none">
-                Edit
-              </button>
-              {post.status === 'active' && (
-                <button onClick={handleMarkAsGiven} className="btn-primary flex-1 sm:flex-none">
-                  Mark as Given
-                </button>
-              )}
-              <button onClick={handleDelete} className="btn-secondary text-red-600 border-red-600 hover:bg-red-50 flex-1 sm:flex-none">
-                Delete
-              </button>
-              <button className="btn-secondary flex-1 sm:flex-none">
-                Share
-              </button>
-            </>
-          ) : (
-            <>
-              {post.status === 'active' && currentUser && (
-                <button
-                  onClick={() => setShowInterestedModal(true)}
-                  className="btn-primary flex-1 sm:flex-none"
-                >
-                  I'm Interested
-                </button>
-              )}
-              {!currentUser && (
-                <button
-                  onClick={() => navigate('/login')}
-                  className="btn-primary flex-1 sm:flex-none"
-                >
-                  Login to Express Interest
-                </button>
-              )}
-              <button className="btn-secondary flex-1 sm:flex-none">
-                Share
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Comments Section */}
-      <div className="card p-6 md:p-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">
-          Comments ({comments.length})
-        </h2>
-
-        {/* Add comment form (if logged in) */}
-        {currentUser && post.status === 'active' && (
-          <form onSubmit={handleAddComment} className="mb-8">
-            <div className="flex gap-3">
-              {currentUser.profilePicture ? (
+        {/* Main post card */}
+        <div className="card p-6 md:p-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Book cover */}
+            <div className="md:col-span-1">
+              {post.book.coverImage ? (
                 <img
-                  src={currentUser.profilePicture}
-                  alt={currentUser.username}
-                  className="w-10 h-10 rounded-full"
+                  src={post.book.coverImage}
+                  alt={post.book.title}
+                  className="w-full rounded-lg shadow-md"
                 />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-primary-600 font-semibold">
-                    {currentUser.username.charAt(0).toUpperCase()}
-                  </span>
+                <div className="w-full aspect-[2/3] bg-gray-200 rounded-lg flex items-center justify-center">
+                  <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
                 </div>
               )}
-              <div className="flex-1">
-                <textarea
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Add a comment..."
-                  className="input resize-none"
-                  rows={3}
-                  disabled={submittingComment}
-                />
-                <div className="mt-2 flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={!newComment.trim() || submittingComment}
-                    className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {submittingComment ? 'Posting...' : 'Post Comment'}
-                  </button>
-                </div>
-              </div>
             </div>
-          </form>
-        )}
 
-        {/* Comments list */}
-        <div className="space-y-6">
-          {comments.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No comments yet. Be the first to comment!</p>
-          ) : (
-            comments.map((comment) => {
-              const user = commentUsers[comment.userId];
-              if (!user) return null;
+            {/* Post details */}
+            <div className="md:col-span-2">
+              <div className="mb-4">
+                <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                  post.type === 'giveaway' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                }`}>
+                  {post.type === 'giveaway' ? 'Give Away' : 'Exchange'}
+                </span>
+                {post.status === 'archived' && (
+                  <span className="ml-2 inline-block px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                    Archived
+                  </span>
+                )}
+              </div>
 
-              return (
-                <div key={comment.id} className="flex gap-3">
-                  <Link to={`/profile/${user.username}`}>
-                    {user.profilePicture ? (
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">{post.book.title}</h1>
+              <p className="text-xl text-gray-700 mb-4">by {post.book.author}</p>
+
+              <div className="flex flex-wrap gap-4 mb-6 text-sm text-gray-600">
+                <span className="flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                  </svg>
+                  {post.book.genre}
+                </span>
+                {post.book.isbn && (
+                  <span className="flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    ISBN: {post.book.isbn}
+                  </span>
+                )}
+              </div>
+
+              {post.notes && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Notes from owner:</h3>
+                  <p className="text-gray-700 bg-gray-50 p-4 rounded-lg">{post.notes}</p>
+                </div>
+              )}
+
+              {/* Owner info */}
+              <div className="border-t pt-6">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Shared by:</h3>
+                <div className="flex items-center gap-4">
+                  <Link to={`/profile/${postOwner.username}`}>
+                    {postOwner.profilePicture ? (
                       <img
-                        src={user.profilePicture}
-                        alt={user.username}
-                        className="w-10 h-10 rounded-full"
+                        src={postOwner.profilePicture}
+                        alt={postOwner.username}
+                        className="w-12 h-12 rounded-full"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-                        <span className="text-primary-600 font-semibold">
-                          {user.username.charAt(0).toUpperCase()}
+                      <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center">
+                        <span className="text-primary-600 font-semibold text-lg">
+                          {postOwner.username.charAt(0).toUpperCase()}
                         </span>
                       </div>
                     )}
                   </Link>
                   <div className="flex-1">
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Link to={`/profile/${user.username}`} className="font-semibold text-gray-900 hover:text-primary-600">
-                          {user.username}
-                        </Link>
-                        <span className="text-sm text-gray-500">{formatTimestamp(comment.timestamp)}</span>
-                      </div>
-                      <p className="text-gray-700">{comment.content}</p>
+                    <Link to={`/profile/${postOwner.username}`} className="font-semibold text-gray-900 hover:text-primary-600">
+                      {postOwner.username}
+                    </Link>
+                    <div className="flex gap-4 text-sm text-gray-600 mt-1">
+                      <span>{postOwner.stats.booksGiven} given</span>
+                      <span>{postOwner.stats.booksReceived} received</span>
                     </div>
                   </div>
                 </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      {/* I'm Interested Modal */}
-      {showInterestedModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Express Interest</h3>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-3">How would you like to reach out?</label>
-              <div className="space-y-2">
-                <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                  <input
-                    type="radio"
-                    name="interest-type"
-                    value="public"
-                    checked={interestedType === 'public'}
-                    onChange={(e) => setInterestedType(e.target.value as 'public')}
-                    className="w-4 h-4 text-primary-600"
-                  />
-                  <div>
-                    <div className="font-medium">Public Comment</div>
-                    <div className="text-sm text-gray-600">Post a comment visible to everyone</div>
-                  </div>
-                </label>
-                <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                  <input
-                    type="radio"
-                    name="interest-type"
-                    value="private"
-                    checked={interestedType === 'private'}
-                    onChange={(e) => setInterestedType(e.target.value as 'private')}
-                    className="w-4 h-4 text-primary-600"
-                  />
-                  <div>
-                    <div className="font-medium">Private Message</div>
-                    <div className="text-sm text-gray-600">Send a direct message to the owner</div>
-                  </div>
-                </label>
+                {distance && (
+                  <p className="text-sm text-gray-600 mt-3">{distance}</p>
+                )}
+                <p className="text-sm text-gray-500 mt-2">Shared {formatTimestamp(post.createdAt)}</p>
               </div>
             </div>
+          </div>
 
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Message (optional)
-              </label>
-              <textarea
-                value={interestedMessage}
-                onChange={(e) => setInterestedMessage(e.target.value)}
-                placeholder={interestedType === 'public' ? "I'm interested in this book!" : "Hi! I'm interested in this book."}
-                className="input resize-none"
-                rows={4}
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowInterestedModal(false);
-                  setInterestedMessage('');
-                }}
-                className="btn-secondary flex-1"
-                disabled={submittingInterest}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleInterestedSubmit}
-                className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={submittingInterest}
-              >
-                {submittingInterest ? 'Sending...' : 'Send'}
-              </button>
-            </div>
+          {/* Action buttons */}
+          <div className="mt-8 flex flex-wrap gap-3">
+            {isOwnPost ? (
+              <>
+                <button className="btn-secondary flex-1 sm:flex-none">
+                  Edit
+                </button>
+                {post.status === 'active' && (
+                  <button onClick={handleMarkAsGiven} className="btn-primary flex-1 sm:flex-none">
+                    Mark as Given
+                  </button>
+                )}
+                <button onClick={handleDelete} className="btn-secondary text-red-600 border-red-600 hover:bg-red-50 flex-1 sm:flex-none">
+                  Delete
+                </button>
+              </>
+            ) : (
+              <>
+                {post.status === 'active' && currentUser && (
+                  <button
+                    onClick={() => setShowInterestedModal(true)}
+                    className="btn-primary flex-1 sm:flex-none"
+                  >
+                    I'm Interested
+                  </button>
+                )}
+                {!currentUser && (
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="btn-primary flex-1 sm:flex-none"
+                  >
+                    Login to Express Interest
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </div>
-      )}
 
-      <ToastContainer toasts={toasts} onDismiss={dismiss} />
+        {/* I'm Interested Modal - private message only */}
+        {showInterestedModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Send a Message</h3>
+
+              <p className="text-gray-600 mb-4">
+                Send a message to {postOwner.username} about this book.
+              </p>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your message
+                </label>
+                <textarea
+                  value={interestedMessage}
+                  onChange={(e) => setInterestedMessage(e.target.value)}
+                  placeholder="Hi! I'm interested in this book."
+                  className="input resize-none"
+                  rows={4}
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowInterestedModal(false);
+                    setInterestedMessage('');
+                  }}
+                  className="btn-secondary flex-1"
+                  disabled={submittingInterest}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleInterestedSubmit}
+                  className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={submittingInterest}
+                >
+                  {submittingInterest ? 'Sending...' : 'Send Message'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <ToastContainer toasts={toasts} onDismiss={dismiss} />
       </div>
     </>
   );

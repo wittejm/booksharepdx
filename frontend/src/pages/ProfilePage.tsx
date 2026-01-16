@@ -1,40 +1,25 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { useParams, Link, Navigate } from 'react-router-dom';
 import type { User, Post } from '@booksharepdx/shared';
-import { userService, postService, savedPostService, neighborhoodService } from '../services';
+import { userService, postService, neighborhoodService } from '../services';
 import { useUser } from '../contexts/UserContext';
 import PostCard from '../components/PostCard';
-import InlineShareForm from '../components/InlineShareForm';
 
-type TabType = 'active' | 'archive' | 'saved' | 'loves' | 'lookingFor';
+type TabType = 'shares' | 'loves' | 'lookingFor';
 
 export default function ProfilePage() {
   const { username } = useParams<{ username: string }>();
-  const [searchParams] = useSearchParams();
   const { currentUser } = useUser();
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>('active');
   const [posts, setPosts] = useState<Post[]>([]);
-  const [savedPosts, setSavedPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>('shares');
+  const [statsExpanded, setStatsExpanded] = useState(false);
 
-  const isOwnProfile = currentUser?.username === username;
-  const shouldAutoFocusShare = searchParams.get('action') === 'share';
-
-  const handleShareSuccess = () => {
-    // Reload posts in background (no loading spinner)
-    reloadPosts();
-  };
-
-  const reloadPosts = async () => {
-    if (!user) return;
-    try {
-      const userPosts = await postService.getByUserId(user.id);
-      setPosts(userPosts);
-    } catch (error) {
-      console.error('Failed to reload posts:', error);
-    }
-  };
+  // Redirect to my-profile if viewing your own profile
+  if (currentUser?.username === username) {
+    return <Navigate to="/my-profile" replace />;
+  }
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -47,18 +32,7 @@ export default function ProfilePage() {
 
         if (userData) {
           const userPosts = await postService.getByUserId(userData.id);
-          setPosts(userPosts);
-
-          if (isOwnProfile && currentUser) {
-            const saved = await savedPostService.getByUserId(currentUser.id);
-            const savedPostsData = await Promise.all(
-              saved.map(async (s) => {
-                const post = await postService.getById(s.postId);
-                return post;
-              })
-            );
-            setSavedPosts(savedPostsData.filter((p): p is Post => p !== null));
-          }
+          setPosts(userPosts.filter((p) => p.status === 'active'));
         }
       } catch (error) {
         console.error('Failed to load profile:', error);
@@ -68,14 +42,11 @@ export default function ProfilePage() {
     };
 
     loadProfile();
-  }, [username, isOwnProfile, currentUser]);
+  }, [username]);
 
-  const getActivePosts = () => posts.filter((p) => p.status === 'active');
-  const getArchivedPosts = () => posts.filter((p) => p.status === 'archived');
-
-  const getLocationDisplay = (user: User) => {
-    if (user.location.type === 'neighborhood' && user.location.neighborhoodId) {
-      const neighborhood = neighborhoodService.getById(user.location.neighborhoodId);
+  const getLocationDisplay = (u: User) => {
+    if (u.location.neighborhoodId) {
+      const neighborhood = neighborhoodService.getById(u.location.neighborhoodId);
       return neighborhood?.name || 'Portland';
     }
     return 'Portland';
@@ -105,7 +76,7 @@ export default function ProfilePage() {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile Not Found</h2>
           <p className="text-gray-600 mb-6">
-            The user "{username}" could not be found. They may have changed their username or deleted their account.
+            The user "{username}" could not be found.
           </p>
           <Link to="/browse" className="btn-primary">
             Browse Available Books
@@ -114,13 +85,6 @@ export default function ProfilePage() {
       </div>
     );
   }
-
-  const tabPosts =
-    activeTab === 'active'
-      ? getActivePosts()
-      : activeTab === 'archive'
-      ? getArchivedPosts()
-      : savedPosts;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -147,102 +111,87 @@ export default function ProfilePage() {
 
             {/* Profile Info */}
             <div className="flex-1 w-full md:w-auto">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
-                <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-                    {user.preferredName || user.username}
-                  </h1>
-                  {user.preferredName && (
-                    <div className="text-gray-500 text-sm">@{user.username}</div>
-                  )}
-                  <div className="text-gray-600 flex flex-wrap items-center gap-3 mt-1">
-                    <span>{getLocationDisplay(user)}</span>
-                    <span>•</span>
-                    <span>Member since {formatDate(user.createdAt)}</span>
-                  </div>
-                </div>
-                {isOwnProfile && (
-                  <Link
-                    to="/settings"
-                    className="btn-secondary whitespace-nowrap self-start md:self-auto"
-                  >
-                    Edit Profile
-                  </Link>
+              <div className="mb-2">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                  {user.preferredName || user.username}
+                </h1>
+                {user.preferredName && (
+                  <div className="text-gray-500 text-sm">@{user.username}</div>
                 )}
+                <div className="text-gray-600 flex flex-wrap items-center gap-3 mt-1">
+                  <span>{getLocationDisplay(user)}</span>
+                  <span>•</span>
+                  <span>Member since {formatDate(user.createdAt)}</span>
+                </div>
               </div>
 
               {/* Bio */}
               {user.bio && <p className="text-gray-700 mb-4">{user.bio}</p>}
 
               {/* Stats */}
-              <div className="flex flex-wrap gap-4 md:gap-6">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary-600">
-                    {user.stats.booksGiven}
-                  </div>
-                  <div className="text-sm text-gray-600">Given</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary-600">
-                    {user.stats.booksReceived}
-                  </div>
-                  <div className="text-sm text-gray-600">Received</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary-600">
+              <div>
+                <button
+                  onClick={() => setStatsExpanded(!statsExpanded)}
+                  className="flex items-center gap-2 text-left hover:text-primary-600 transition-colors"
+                >
+                  <span className="text-2xl font-bold text-primary-600">
                     {user.stats.bookshares}
+                  </span>
+                  <span className="text-gray-700">Bookshares</span>
+                  <svg
+                    className={`w-4 h-4 text-gray-400 transition-transform ${statsExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {statsExpanded && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <div className="flex flex-col gap-2 md:flex-row md:gap-6">
+                      <div className="flex justify-between md:block md:text-center">
+                        <span className="text-gray-600 md:block md:text-sm">Gave</span>
+                        <span className="font-semibold text-primary-600 md:text-lg">{user.stats.booksGiven}</span>
+                      </div>
+                      <div className="flex justify-between md:block md:text-center">
+                        <span className="text-gray-600 md:block md:text-sm">Received</span>
+                        <span className="font-semibold text-primary-600 md:text-lg">{user.stats.booksReceived}</span>
+                      </div>
+                      <div className="flex justify-between md:block md:text-center">
+                        <span className="text-gray-600 md:block md:text-sm">Loaned</span>
+                        <span className="font-semibold text-primary-600 md:text-lg">{user.stats.booksLoaned}</span>
+                      </div>
+                      <div className="flex justify-between md:block md:text-center">
+                        <span className="text-gray-600 md:block md:text-sm">Borrowed</span>
+                        <span className="font-semibold text-primary-600 md:text-lg">{user.stats.booksBorrowed}</span>
+                      </div>
+                      <div className="flex justify-between md:block md:text-center">
+                        <span className="text-gray-600 md:block md:text-sm">Traded</span>
+                        <span className="font-semibold text-primary-600 md:text-lg">{user.stats.booksTraded}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">Bookshares</div>
-                </div>
+                )}
               </div>
             </div>
           </div>
         </div>
-
-        {/* Inline Share Form (only on own profile) */}
-        {isOwnProfile && (
-          <InlineShareForm
-            onSuccess={handleShareSuccess}
-            autoFocus={shouldAutoFocusShare}
-          />
-        )}
 
         {/* Tabs */}
         <div className="card mb-6">
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px overflow-x-auto">
               <button
-                onClick={() => setActiveTab('active')}
+                onClick={() => setActiveTab('shares')}
                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'active'
+                  activeTab === 'shares'
                     ? 'border-primary-600 text-primary-600'
                     : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                 }`}
               >
-                Active Shares ({getActivePosts().length})
+                Shares ({posts.length})
               </button>
-              <button
-                onClick={() => setActiveTab('archive')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'archive'
-                    ? 'border-primary-600 text-primary-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                }`}
-              >
-                Archive ({getArchivedPosts().length})
-              </button>
-              {isOwnProfile && (
-                <button
-                  onClick={() => setActiveTab('saved')}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    activeTab === 'saved'
-                      ? 'border-primary-600 text-primary-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                  }`}
-                >
-                  Saved ({savedPosts.length})
-                </button>
-              )}
               <button
                 onClick={() => setActiveTab('loves')}
                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
@@ -267,32 +216,24 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Content based on active tab */}
-        {(activeTab === 'active' || activeTab === 'archive' || activeTab === 'saved') && (
+        {/* Shares Tab */}
+        {activeTab === 'shares' && (
           <div className="space-y-4">
-            {tabPosts.length === 0 ? (
+            {posts.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-gray-600">
-                  {activeTab === 'active' && 'No active shares yet. Use the form above to share a book!'}
-                  {activeTab === 'archive' && 'No archived shares yet.'}
-                  {activeTab === 'saved' && 'No saved shares yet.'}
-                </p>
+                <p className="text-gray-600">No active shares yet.</p>
               </div>
             ) : (
-              tabPosts.map((post) => (
-                <PostCard
-                  key={post.id}
-                  post={post}
-                />
+              posts.map((post) => (
+                <PostCard key={post.id} post={post} />
               ))
             )}
           </div>
         )}
 
-        {/* Loves Tab Content */}
+        {/* Loves Tab */}
         {activeTab === 'loves' && (
           <div className="space-y-8">
-            {/* Genres Section */}
             {user.readingPreferences?.favoriteGenres && user.readingPreferences.favoriteGenres.length > 0 && (
               <div className="card p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Genres</h3>
@@ -309,175 +250,109 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {/* Books Section */}
-            {user.readingPreferences?.favoriteBooks && user.readingPreferences.favoriteBooks.length > 0 ? (
+            {user.readingPreferences?.favoriteBooks && user.readingPreferences.favoriteBooks.length > 0 && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900 px-6">Books</h3>
                 {user.readingPreferences.favoriteBooks.map((book, index) => (
-                  <div key={index} className="card p-4 flex gap-4 hover:shadow-md transition-shadow">
-                    {/* Book Cover */}
+                  <div key={index} className="card p-4 flex gap-4">
                     <div className="flex-shrink-0">
                       {book.coverImage ? (
-                        <img
-                          src={book.coverImage}
-                          alt={book.title}
-                          className="w-24 h-36 md:w-32 md:h-48 object-cover rounded shadow-sm"
-                        />
+                        <img src={book.coverImage} alt={book.title} className="w-24 h-36 object-cover rounded shadow-sm" />
                       ) : (
-                        <div className="w-24 h-36 md:w-32 md:h-48 bg-gray-200 rounded flex items-center justify-center">
-                          <span className="text-gray-400 text-xs text-center px-2">No Cover</span>
+                        <div className="w-24 h-36 bg-gray-200 rounded flex items-center justify-center">
+                          <span className="text-gray-400 text-xs">No Cover</span>
                         </div>
                       )}
                     </div>
-                    {/* Book Info */}
-                    <div className="flex-grow min-w-0">
+                    <div>
                       <h4 className="font-bold text-lg text-gray-900">{book.title}</h4>
                       <p className="text-gray-600 text-sm">{book.author}</p>
-                      <p className="text-sm text-gray-500 mt-2">{book.genre}</p>
                     </div>
                   </div>
                 ))}
               </div>
-            ) : (
+            )}
+
+            {user.readingPreferences?.favoriteAuthors && user.readingPreferences.favoriteAuthors.length > 0 && (
               <div className="card p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Books</h3>
-                <div className="text-center py-8 text-gray-500 text-sm">
-                  {isOwnProfile ? "You haven't added any favorite books yet." : "No favorite books added yet."}
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Authors</h3>
+                <div className="flex flex-wrap gap-2">
+                  {user.readingPreferences.favoriteAuthors.map((author) => (
+                    <span key={author} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
+                      {author}
+                    </span>
+                  ))}
                 </div>
               </div>
             )}
 
-            {/* Authors Section */}
-            {user.readingPreferences?.favoriteAuthors && user.readingPreferences.favoriteAuthors.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 px-6">Authors</h3>
-                {user.readingPreferences.favoriteAuthors.map((author) => (
-                  <div
-                    key={author}
-                    className="card p-4 flex gap-4 items-center hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex-shrink-0 w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg flex items-center justify-center">
-                      <span className="text-3xl md:text-4xl font-bold text-primary-600">
-                        {author.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="flex-grow min-w-0">
-                      <p className="text-lg font-semibold text-gray-900">{author}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Empty State */}
-            {(!user.readingPreferences?.favoriteGenres || user.readingPreferences.favoriteGenres.length === 0) &&
-             (!user.readingPreferences?.favoriteAuthors || user.readingPreferences.favoriteAuthors.length === 0) &&
-             (!user.readingPreferences?.favoriteBooks || user.readingPreferences.favoriteBooks.length === 0) && (
+            {(!user.readingPreferences?.favoriteGenres?.length &&
+              !user.readingPreferences?.favoriteAuthors?.length &&
+              !user.readingPreferences?.favoriteBooks?.length) && (
               <div className="card p-12 text-center">
-                <p className="text-gray-600 mb-4">
-                  {isOwnProfile ? "You haven't added any reading preferences yet." : "This user hasn't added any reading preferences yet."}
-                </p>
-                {isOwnProfile && (
-                  <Link to="/settings" className="link">
-                    Add Reading Preferences
-                  </Link>
-                )}
+                <p className="text-gray-600">No reading preferences added yet.</p>
               </div>
             )}
           </div>
         )}
 
-        {/* Looking For Tab Content */}
+        {/* Looking For Tab */}
         {activeTab === 'lookingFor' && (
           <div className="space-y-8">
-            {/* Genres Section */}
-            {user.readingPreferences?.lookingForGenres && user.readingPreferences.lookingForGenres.length > 0 ? (
+            {user.readingPreferences?.lookingForGenres && user.readingPreferences.lookingForGenres.length > 0 && (
               <div className="card p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Genres</h3>
                 <div className="flex flex-wrap gap-2">
                   {user.readingPreferences.lookingForGenres.map((genre) => (
-                    <span
-                      key={genre}
-                      className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium"
-                    >
+                    <span key={genre} className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                       {genre}
                     </span>
                   ))}
                 </div>
               </div>
-            ) : (
-              <div className="card p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Genres</h3>
-                <div className="text-center py-4 text-gray-500 text-sm">
-                  {isOwnProfile ? "You haven't specified genres you're looking for yet." : "No genres specified yet."}
-                </div>
-              </div>
             )}
 
-            {/* Books Section */}
-            {user.readingPreferences?.lookingForBooks && user.readingPreferences.lookingForBooks.length > 0 ? (
+            {user.readingPreferences?.lookingForBooks && user.readingPreferences.lookingForBooks.length > 0 && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900 px-6">Books</h3>
                 {user.readingPreferences.lookingForBooks.map((book, index) => (
-                  <div key={index} className="card p-4 flex gap-4 hover:shadow-md transition-shadow">
-                    {/* Book Cover */}
+                  <div key={index} className="card p-4 flex gap-4">
                     <div className="flex-shrink-0">
                       {book.coverImage ? (
-                        <img
-                          src={book.coverImage}
-                          alt={book.title}
-                          className="w-24 h-36 md:w-32 md:h-48 object-cover rounded shadow-sm"
-                        />
+                        <img src={book.coverImage} alt={book.title} className="w-24 h-36 object-cover rounded shadow-sm" />
                       ) : (
-                        <div className="w-24 h-36 md:w-32 md:h-48 bg-gray-200 rounded flex items-center justify-center">
-                          <span className="text-gray-400 text-xs text-center px-2">No Cover</span>
+                        <div className="w-24 h-36 bg-gray-200 rounded flex items-center justify-center">
+                          <span className="text-gray-400 text-xs">No Cover</span>
                         </div>
                       )}
                     </div>
-                    {/* Book Info */}
-                    <div className="flex-grow min-w-0">
+                    <div>
                       <h4 className="font-bold text-lg text-gray-900">{book.title}</h4>
                       <p className="text-gray-600 text-sm">{book.author}</p>
-                      <p className="text-sm text-gray-500 mt-2">{book.genre}</p>
                     </div>
                   </div>
                 ))}
               </div>
-            ) : (
+            )}
+
+            {user.readingPreferences?.lookingForAuthors && user.readingPreferences.lookingForAuthors.length > 0 && (
               <div className="card p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Books</h3>
-                <div className="text-center py-8 text-gray-500 text-sm">
-                  {isOwnProfile ? "You haven't added books you're looking for yet." : "No books specified yet."}
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Authors</h3>
+                <div className="flex flex-wrap gap-2">
+                  {user.readingPreferences.lookingForAuthors.map((author) => (
+                    <span key={author} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
+                      {author}
+                    </span>
+                  ))}
                 </div>
               </div>
             )}
 
-            {/* Authors Section */}
-            {user.readingPreferences?.lookingForAuthors && user.readingPreferences.lookingForAuthors.length > 0 ? (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 px-6">Authors</h3>
-                {user.readingPreferences.lookingForAuthors.map((author) => (
-                  <div
-                    key={author}
-                    className="card p-4 flex gap-4 items-center hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex-shrink-0 w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">
-                      <span className="text-3xl md:text-4xl font-bold text-blue-600">
-                        {author.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="flex-grow min-w-0">
-                      <p className="text-lg font-semibold text-gray-900">{author}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="card p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Authors</h3>
-                <div className="text-center py-8 text-gray-500 text-sm">
-                  {isOwnProfile ? "You haven't added authors you're interested in yet." : "No authors specified yet."}
-                </div>
+            {(!user.readingPreferences?.lookingForGenres?.length &&
+              !user.readingPreferences?.lookingForAuthors?.length &&
+              !user.readingPreferences?.lookingForBooks?.length) && (
+              <div className="card p-12 text-center">
+                <p className="text-gray-600">No preferences added yet.</p>
               </div>
             )}
           </div>

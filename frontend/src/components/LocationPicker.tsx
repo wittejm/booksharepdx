@@ -42,11 +42,12 @@ export default function LocationPicker({
 }: LocationPickerProps) {
   const [address, setAddress] = useState('');
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(initialNeighborhoodId);
-  const [showPreciseLocation, setShowPreciseLocation] = useState(!!initialPreciseLocation);
   const [preciseLocation, setPreciseLocation] = useState<{ lat: number; lng: number } | null>(
     initialPreciseLocation
   );
   const [addressLoading, setAddressLoading] = useState(false);
+  const [addressError, setAddressError] = useState('');
+  const [neighborhoodError, setNeighborhoodError] = useState('');
 
   const neighborhoods = neighborhoodService.getAll();
 
@@ -77,12 +78,13 @@ export default function LocationPicker({
     if (!address.trim()) return;
 
     setAddressLoading(true);
+    setAddressError('');
 
     try {
       const result = await geocodeAddress(address);
 
       if (!result) {
-        showToast('Address not found. Please try a different address or select from the dropdown.', 'error');
+        setAddressError('Address not found. Try a different address or select from the dropdown.');
         setAddressLoading(false);
         return;
       }
@@ -90,17 +92,18 @@ export default function LocationPicker({
       const neighborhoodId = findNeighborhoodByPoint(result, neighborhoods);
 
       if (!neighborhoodId) {
-        showToast('Address is outside Portland neighborhoods. Please select from the dropdown.', 'error');
+        setAddressError('Address is outside Portland. Please select from the dropdown.');
         setAddressLoading(false);
         return;
       }
 
       const neighborhood = neighborhoods.find((n) => n.id === neighborhoodId);
       setSelectedNeighborhood(neighborhoodId);
+      setNeighborhoodError('');
       showToast(`Found: ${neighborhood?.name}`, 'success');
     } catch (error) {
       console.error('Address lookup error:', error);
-      showToast('Address lookup failed. Please try again or select from the dropdown.', 'error');
+      setAddressError('Address lookup failed. Try again or select from the dropdown.');
     } finally {
       setAddressLoading(false);
     }
@@ -108,9 +111,10 @@ export default function LocationPicker({
 
   const handleSave = async () => {
     if (!selectedNeighborhood) {
-      showToast('Please select a neighborhood', 'error');
+      setNeighborhoodError('Please select a neighborhood');
       return;
     }
+    setNeighborhoodError('');
 
     const location = preciseLocation
       ? {
@@ -139,9 +143,12 @@ export default function LocationPicker({
             type="text"
             id="address"
             value={address}
-            onChange={(e) => setAddress(e.target.value)}
+            onChange={(e) => {
+              setAddress(e.target.value);
+              if (addressError) setAddressError('');
+            }}
             placeholder="Enter your Portland address"
-            className="input flex-1"
+            className={`input flex-1 ${addressError ? 'border-red-500 focus:ring-red-500' : ''}`}
             disabled={addressLoading || loading}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -159,6 +166,7 @@ export default function LocationPicker({
             {addressLoading ? 'Looking up...' : 'Find'}
           </button>
         </div>
+        {addressError && <p className="text-red-500 text-sm mt-1">{addressError}</p>}
       </div>
 
       {/* Divider */}
@@ -179,8 +187,11 @@ export default function LocationPicker({
         <select
           id="neighborhood"
           value={selectedNeighborhood}
-          onChange={(e) => setSelectedNeighborhood(e.target.value)}
-          className="input"
+          onChange={(e) => {
+            setSelectedNeighborhood(e.target.value);
+            if (neighborhoodError) setNeighborhoodError('');
+          }}
+          className={`input ${neighborhoodError ? 'border-red-500 focus:ring-red-500' : ''}`}
           disabled={loading}
         >
           <option value="">Select your neighborhood</option>
@@ -194,26 +205,16 @@ export default function LocationPicker({
             </optgroup>
           ))}
         </select>
+        {neighborhoodError && <p className="text-red-500 text-sm mt-1">{neighborhoodError}</p>}
       </div>
 
-      {/* Optional Precise Location Toggle */}
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowPreciseLocation(!showPreciseLocation)}
-          className="flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium transition-colors"
-          disabled={loading}
-        >
-          <span className="text-lg">📍</span>
-          <span>{showPreciseLocation ? 'Hide' : 'Share a more specific location (optional)'}</span>
-        </button>
-      </div>
+      
 
-      {/* Precise Location Section (when expanded) */}
-      {showPreciseLocation && selectedNeighborhood && (
+      {selectedNeighborhood && (
         <div className="bg-gray-50 rounded-lg p-6 space-y-4 border border-gray-200">
           <p className="text-sm text-gray-600 italic">
-            This could be an intersection, or a nearby landmark if you prefer
+            <p>This could be an intersection, or a nearby landmark if you prefer</p>
+            <p>Click and drag to move the window. Click to drop a pin</p>
           </p>
 
           {(() => {

@@ -1,7 +1,8 @@
-import { useRef, useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { MoreVertical, Shield, Flag } from 'lucide-react';
 import { blockService, reportService } from '../services';
 import { useToast } from './useToast';
+import { useClickOutside } from '../hooks/useClickOutside';
 import ReportModal from './ReportModal';
 
 interface BlockReportMenuProps {
@@ -18,8 +19,12 @@ export default function BlockReportMenu({
   const [isOpen, setIsOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const { success, error } = useToast();
+
+  const menuRef = useClickOutside<HTMLDivElement>(
+    useCallback(() => setIsOpen(false), []),
+    isOpen
+  );
 
   // Check if user is already blocked
   useEffect(() => {
@@ -29,20 +34,6 @@ export default function BlockReportMenu({
     };
     checkBlockStatus();
   }, [currentUserId, targetUserId]);
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      window.addEventListener('click', handleClickOutside);
-      return () => window.removeEventListener('click', handleClickOutside);
-    }
-  }, [isOpen]);
 
   const handleBlockUser = async () => {
     try {

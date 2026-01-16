@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import type { User } from '@booksharepdx/shared';
 import { authService } from './services';
 
@@ -8,6 +8,7 @@ import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import ScrollToTop from './components/ScrollToTop';
 import VerificationBanner from './components/VerificationBanner';
+import InterestBanner from './components/InterestBanner';
 
 // Page components
 import LandingPage from './pages/LandingPage';
@@ -17,13 +18,20 @@ import SignUpPage from './pages/SignUpPage';
 import LocationSelectionPage from './pages/LocationSelectionPage';
 import ShareDetailPage from './pages/ShareDetailPage';
 import MessagesPage from './pages/MessagesPage';
+import SharePage from './pages/SharePage';
 import ProfilePage from './pages/ProfilePage';
-import SettingsPage from './pages/SettingsPage';
-import AboutPage from './pages/AboutPage';
+// Note: SettingsPage removed - settings are now in MyProfilePage
+
+// Lazy-loaded pages (code splitting)
+const MyProfilePage = lazy(() => import('./pages/MyProfilePage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+// ModerationPage not lazy-loaded yet - has dependencies being refactored
 import ModerationPage from './pages/ModerationPage';
+import VerifyMagicLinkPage from './pages/VerifyMagicLinkPage';
 
 // Context for current user
 import { UserContext, useUser } from './contexts/UserContext';
+import { InterestProvider } from './contexts/InterestContext';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -76,11 +84,14 @@ function AppRoutes() {
 
   return (
     <UserContext.Provider value={{ currentUser, updateCurrentUser }}>
-      <ScrollToTop />
-      <div className="flex flex-col min-h-screen">
-        <Header />
-        <VerificationBanner />
-        <main className="flex-grow">
+      <InterestProvider>
+        <ScrollToTop />
+        <div className="flex flex-col min-h-screen">
+          <Header />
+          <VerificationBanner />
+          <InterestBanner />
+          <main className="flex-grow">
+          <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-600">Loading...</div></div>}>
           <Routes>
             {/* Public routes */}
             <Route path="/" element={
@@ -88,6 +99,7 @@ function AppRoutes() {
             } />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignUpPage />} />
+            <Route path="/verify-magic-link" element={<VerifyMagicLinkPage />} />
             <Route path="/location-selection" element={
               <ProtectedRoute><LocationSelectionPage /></ProtectedRoute>
             } />
@@ -108,10 +120,15 @@ function AppRoutes() {
             <Route path="/messages/:threadId" element={
               <ProtectedRoute><MessagesPage /></ProtectedRoute>
             } />
-            <Route path="/profile/:username" element={<ProfilePage />} />
-            <Route path="/settings" element={
-              <ProtectedRoute><SettingsPage /></ProtectedRoute>
+            <Route path="/share" element={
+              <ProtectedRoute><SharePage /></ProtectedRoute>
             } />
+            <Route path="/my-profile" element={
+              <ProtectedRoute><MyProfilePage /></ProtectedRoute>
+            } />
+            <Route path="/profile/:username" element={<ProfilePage />} />
+            {/* Redirect old settings route to my-profile */}
+            <Route path="/settings" element={<Navigate to="/my-profile" replace />} />
 
             {/* Moderator-only routes */}
             <Route path="/moderation" element={
@@ -121,9 +138,11 @@ function AppRoutes() {
             {/* 404 */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </main>
-        <Footer />
-      </div>
+          </Suspense>
+          </main>
+          <Footer />
+        </div>
+      </InterestProvider>
     </UserContext.Provider>
   );
 }

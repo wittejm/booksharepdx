@@ -6,6 +6,7 @@ import { useUser } from '../contexts/UserContext';
 import { useToast } from '../components/useToast';
 import ToastContainer from '../components/ToastContainer';
 import { formatTimestamp } from '../utils/time';
+import { ERROR_MESSAGES } from '../utils/errorMessages';
 
 export default function MessagesPage() {
   const { threadId } = useParams<{ threadId?: string }>();
@@ -82,13 +83,13 @@ export default function MessagesPage() {
     } catch (error) {
       const err = error as Error & { code?: string };
       if (err.code === 'SESSION_EXPIRED') {
-        showToast('Your session has expired. Please log in again.', 'error');
+        showToast(ERROR_MESSAGES.SESSION_EXPIRED, 'error');
       } else if (err.code === 'UNAUTHORIZED') {
-        showToast('Please log in to view your activity.', 'error');
+        showToast(ERROR_MESSAGES.UNAUTHORIZED, 'error');
       } else if (err.code === 'NETWORK_ERROR') {
-        showToast('Connection interrupted. Please refresh the page.', 'error');
+        showToast(ERROR_MESSAGES.NETWORK_ERROR, 'error');
       } else {
-        showToast('Unable to load your activity. Please try again.', 'error');
+        showToast(ERROR_MESSAGES.GENERIC_LOAD_ERROR, 'error');
       }
     } finally {
       setLoading(false);

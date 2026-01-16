@@ -17,13 +17,12 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import type { Report, User as UserType, Post, Comment, ModerationAction } from '@booksharepdx/shared';
+import type { Report, User as UserType, Post, ModerationAction } from '@booksharepdx/shared';
 import { useUser } from '../contexts/UserContext';
 import {
   reportService,
   userService,
   postService,
-  commentService,
   moderationActionService,
   notificationService,
 } from '../services';
@@ -37,7 +36,6 @@ interface ReportWithDetails extends Report {
   reporter?: UserType;
   reportedUser?: UserType;
   reportedPost?: Post;
-  reportedComment?: Comment;
 }
 
 interface ModerationActionWithDetails extends ModerationAction {
@@ -101,9 +99,6 @@ export default function ModerationPage() {
           }
           if (report.reportedPostId) {
             enriched.reportedPost = (await postService.getById(report.reportedPostId)) || undefined;
-          }
-          if (report.reportedCommentId) {
-            enriched.reportedComment = (await commentService.getById(report.reportedCommentId)) || undefined;
           }
 
           return enriched;
@@ -260,10 +255,6 @@ export default function ModerationPage() {
         await postService.update(selectedReport.reportedPostId, { status: 'archived' });
         contentType = 'post';
         contentId = selectedReport.reportedPostId;
-      } else if (selectedReport.reportedCommentId) {
-        await commentService.delete(selectedReport.reportedCommentId);
-        contentType = 'comment';
-        contentId = selectedReport.reportedCommentId;
       }
 
       if (selectedReport.reportedUserId) {
@@ -628,7 +619,6 @@ export default function ModerationPage() {
                         <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                           <span>{formatTimestamp(report.timestamp)}</span>
                           {report.reportedPostId && <span>Post Report</span>}
-                          {report.reportedCommentId && <span>Comment Report</span>}
                           {report.claimedBy && (
                             <span className="text-blue-600">
                               Claimed by {reports.find((r) => r.id === report.id)?.reporter?.username}
@@ -908,26 +898,19 @@ export default function ModerationPage() {
               </div>
 
               {/* Reported Content */}
-              {(selectedReport.reportedPost || selectedReport.reportedComment) && (
+              {selectedReport.reportedPost && (
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-3">Reported Content</h3>
                   <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                    {selectedReport.reportedPost && (
-                      <div>
-                        <p className="font-medium text-gray-900 mb-2">
-                          {selectedReport.reportedPost.book.title}
-                        </p>
-                        <p className="text-sm text-gray-600">by {selectedReport.reportedPost.book.author}</p>
-                        {selectedReport.reportedPost.notes && (
-                          <p className="text-sm text-gray-700 mt-2">{selectedReport.reportedPost.notes}</p>
-                        )}
-                      </div>
-                    )}
-                    {selectedReport.reportedComment && (
-                      <div>
-                        <p className="text-sm text-gray-900">{selectedReport.reportedComment.content}</p>
-                      </div>
-                    )}
+                    <div>
+                      <p className="font-medium text-gray-900 mb-2">
+                        {selectedReport.reportedPost.book.title}
+                      </p>
+                      <p className="text-sm text-gray-600">by {selectedReport.reportedPost.book.author}</p>
+                      {selectedReport.reportedPost.notes && (
+                        <p className="text-sm text-gray-700 mt-2">{selectedReport.reportedPost.notes}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

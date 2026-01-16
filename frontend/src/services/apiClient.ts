@@ -3,6 +3,8 @@
  * Uses cookie-based JWT authentication
  */
 
+import { ERROR_MESSAGES, getErrorMessage, getErrorMessageFromStatus } from '../utils/errorMessages';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 /**
@@ -29,32 +31,12 @@ export class ApiError extends Error {
     if (this.message && this.message !== 'Request failed') {
       return this.message;
     }
-
-    // Provide fallback messages based on status code
-    switch (this.statusCode) {
-      case 400:
-        return 'The request was invalid. Please check your input and try again.';
-      case 401:
-        return 'You need to log in to perform this action.';
-      case 403:
-        return 'You do not have permission to perform this action.';
-      case 404:
-        return 'The requested resource could not be found.';
-      case 409:
-        return 'This action conflicts with the current state. Please refresh and try again.';
-      case 422:
-        return 'The provided data could not be processed. Please check your input.';
-      case 429:
-        return 'Too many requests. Please wait a moment and try again.';
-      case 500:
-        return 'An unexpected server error occurred. Please try again later.';
-      case 502:
-      case 503:
-      case 504:
-        return 'The service is temporarily unavailable. Please try again later.';
-      default:
-        return 'An unexpected error occurred. Please try again.';
+    // Try error code first, then status code
+    const codeMessage = getErrorMessage(this.code);
+    if (codeMessage !== ERROR_MESSAGES.GENERIC_ERROR) {
+      return codeMessage;
     }
+    return getErrorMessageFromStatus(this.statusCode);
   }
 
   /**
@@ -93,7 +75,7 @@ class ApiClient {
     } catch (networkError) {
       // Handle network errors (CORS issues, server unreachable, etc.)
       throw new ApiError(
-        'Unable to connect to the server. This is likely a server configuration error.',
+        ERROR_MESSAGES.NETWORK_ERROR,
         'NETWORK_ERROR',
         0
       );

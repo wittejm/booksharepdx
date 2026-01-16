@@ -47,3 +47,24 @@ export const refreshTokenCookieOptions = {
   maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
   path: '/',
 };
+
+// Magic link tokens (short-lived, single-use tokens for email verification)
+export interface MagicLinkPayload {
+  userId: string;
+  email: string;
+  type: 'magic-link';
+}
+
+export function signMagicLinkToken(payload: Omit<MagicLinkPayload, 'type'>): string {
+  return jwt.sign({ ...payload, type: 'magic-link' }, env.jwtSecret, {
+    expiresIn: '30m', // 30 minutes
+  });
+}
+
+export function verifyMagicLinkToken(token: string): MagicLinkPayload {
+  const payload = jwt.verify(token, env.jwtSecret) as MagicLinkPayload;
+  if (payload.type !== 'magic-link') {
+    throw new Error('Invalid token type');
+  }
+  return payload;
+}

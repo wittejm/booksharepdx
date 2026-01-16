@@ -4,13 +4,13 @@ import { AppDataSource } from '../config/database.js';
 import { Notification } from '../entities/Notification.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validation.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { findByIdOrThrow, requireOwnership } from '../utils/db.js';
 
 const router = Router();
 
 const createNotificationSchema = z.object({
   userId: z.string().uuid(),
-  type: z.enum(['exchange_proposed', 'exchange_confirmed', 'exchange_declined', 'message', 'comment', 'moderator_action']),
+  type: z.enum(['exchange_proposed', 'exchange_confirmed', 'exchange_declined', 'message', 'moderator_action']),
   content: z.string(),
   relatedId: z.string().uuid().optional(),
 });
@@ -58,14 +58,14 @@ router.put('/:id/read', requireAuth, async (req, res, next) => {
     const { id } = req.params;
     const notificationRepo = AppDataSource.getRepository(Notification);
 
-    const notification = await notificationRepo.findOne({ where: { id } });
-    if (!notification) {
-      throw new AppError('Notification not found', 404, 'NOT_FOUND');
-    }
+    const notification = await findByIdOrThrow(
+      notificationRepo,
+      id,
+      'Notification not found',
+      'NOT_FOUND'
+    );
 
-    if (notification.userId !== req.user!.id) {
-      throw new AppError('Cannot modify other users\' notifications', 403, 'FORBIDDEN');
-    }
+    requireOwnership(notification.userId, req.user!.id);
 
     notification.read = true;
     await notificationRepo.save(notification);

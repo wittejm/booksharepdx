@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '../services';
 import { useUser } from '../contexts/UserContext';
-import { useToast } from '../components/useToast';
-import ToastContainer from '../components/ToastContainer';
 import type { User } from '@booksharepdx/shared';
+import { ERROR_MESSAGES } from '../utils/errorMessages';
+import {
+  getPendingAction,
+  clearPendingAction,
+  buildRedirectUrl,
+  broadcastLogin,
+  onCrossTabLogin,
+} from '../utils/pendingAuth';
 
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState('');
@@ -13,8 +19,39 @@ export default function LoginPage() {
   const [error, setError] = useState<string | undefined>();
 
   const navigate = useNavigate();
-  const { updateCurrentUser } = useUser();
-  const { showToast, toasts, dismiss } = useToast();
+  const { currentUser, updateCurrentUser } = useUser();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (currentUser) {
+      handlePostLoginRedirect();
+    }
+  }, [currentUser]);
+
+  // Listen for login events from other tabs (e.g., magic link clicked in another tab)
+  useEffect(() => {
+    const cleanup = onCrossTabLogin(async () => {
+      // Another tab logged in, fetch the current user and redirect
+      const user = await authService.getCurrentUser();
+      if (user) {
+        updateCurrentUser(user);
+        handlePostLoginRedirect();
+      }
+    });
+    return cleanup;
+  }, []);
+
+  // Handle redirect after login, checking for pending actions
+  const handlePostLoginRedirect = () => {
+    const pendingAction = getPendingAction();
+    if (pendingAction) {
+      const redirectUrl = buildRedirectUrl(pendingAction);
+      clearPendingAction();
+      navigate(redirectUrl);
+    } else {
+      navigate('/browse');
+    }
+  };
 
   const validateForm = () => {
     if (!identifier.trim()) {
@@ -40,26 +77,22 @@ export default function LoginPage() {
       if ('id' in result) {
         // Direct login - we got a user object
         updateCurrentUser(result as User);
-        showToast('Login successful!', 'success', 2000);
-        setTimeout(() => {
-          navigate('/browse');
-        }, 500);
+        broadcastLogin(); // Notify other tabs
+        handlePostLoginRedirect();
       } else {
         // Email flow - show "check your email" message
         setLinkSent(true);
-        showToast('Sign-in link sent! Check your email.', 'success');
       }
     } catch (error) {
       const err = error as Error & { code?: string };
       if (err.code === 'USER_NOT_FOUND') {
-        setError('No account found with that email or username.');
-        showToast('Account not found', 'error');
+        setError(ERROR_MESSAGES.ACCOUNT_NOT_FOUND);
       } else if (err.code === 'ACCOUNT_BANNED') {
-        showToast('Your account has been suspended. Please contact support.', 'error');
+        setError(ERROR_MESSAGES.ACCOUNT_BANNED);
       } else if (err.code === 'NETWORK_ERROR') {
-        showToast('Unable to connect to the server. Please check your connection.', 'error');
+        setError(ERROR_MESSAGES.NETWORK_ERROR);
       } else {
-        showToast(err.message || 'Unable to send sign-in link. Please try again.', 'error');
+        setError(err.message || ERROR_MESSAGES.GENERIC_ERROR);
       }
     } finally {
       setLoading(false);
@@ -142,8 +175,6 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
-
-      <ToastContainer toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

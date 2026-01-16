@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../services';
 import { useUser } from '../contexts/UserContext';
-import { useToast } from '../components/useToast';
-import ToastContainer from '../components/ToastContainer';
 import { isValidEmail } from '../utils/validation';
 
 export default function SignUpPage() {
@@ -16,7 +14,6 @@ export default function SignUpPage() {
 
   const [agreedToGuidelines, setAgreedToGuidelines] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { showToast, toasts, dismiss } = useToast();
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const navigate = useNavigate();
@@ -55,10 +52,11 @@ export default function SignUpPage() {
       ...prev,
       [name]: value,
     }));
-    if (errors[name]) {
+    if (errors[name] || errors.form) {
       setErrors((prev) => {
         const newErrors = { ...prev };
         delete newErrors[name];
+        delete newErrors.form;
         return newErrors;
       });
     }
@@ -75,11 +73,7 @@ export default function SignUpPage() {
     try {
       const user = await authService.signup(formData);
       updateCurrentUser(user);
-      showToast('Account created successfully!', 'success', 2000);
-
-      setTimeout(() => {
-        navigate('/location-selection');
-      }, 1500);
+      navigate('/location-selection');
     } catch (error) {
       const err = error as Error & { code?: string };
       const code = err.code;
@@ -87,12 +81,10 @@ export default function SignUpPage() {
 
       if (code === 'EMAIL_TAKEN') {
         setErrors({ email: 'This email is already registered. Please login instead.' });
-        showToast('Email already in use', 'error');
       } else if (code === 'USERNAME_TAKEN') {
         setErrors({ username: 'This username is already taken. Please choose another.' });
-        showToast('Username already taken', 'error');
       } else {
-        showToast(message, 'error');
+        setErrors({ form: message || 'Something went wrong. Please try again.' });
       }
     } finally {
       setLoading(false);
@@ -104,6 +96,12 @@ export default function SignUpPage() {
       <div className="w-full max-w-md">
         <div className="card p-8">
           <h1 className="text-3xl font-bold text-center mb-8 text-gray-900">Join BookSharePDX</h1>
+
+          {errors.form && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm mb-4">
+              {errors.form}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -193,9 +191,9 @@ export default function SignUpPage() {
               />
               <label htmlFor="guidelines" className="text-sm text-gray-700 cursor-pointer">
                 I agree to the{' '}
-                <Link to="/about#community-guidelines" className="text-primary-600 hover:text-primary-700 underline">
+                <a href="/about#community-guidelines" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 underline">
                   Community Guidelines
-                </Link>{' '}
+                </a>{' '}
                 and understand that BookSharePDX is a community built on trust and respect.
               </label>
             </div>
@@ -227,8 +225,6 @@ export default function SignUpPage() {
           </Link>
         </div>
       </div>
-
-      <ToastContainer toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

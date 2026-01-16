@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../../contexts/UserContext';
+import { useInterest } from '../../contexts/InterestContext';
 import { authService } from '../../services';
 import logo from '../../assets/logo.png';
 
 export default function Header() {
   const { currentUser, updateCurrentUser } = useUser();
+  const { summary: interestSummary } = useInterest();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -60,10 +62,15 @@ export default function Header() {
               <>
                 {/* Logged-in Navigation */}
                 <Link
-                  to={`/profile/${currentUser.username}?action=share`}
-                  className="text-gray-700 hover:text-[#164E4A] font-medium transition-colors"
+                  to="/share"
+                  className="text-gray-700 hover:text-[#164E4A] font-medium transition-colors relative"
                 >
                   Share
+                  {interestSummary.totalCount > 0 && (
+                    <span className="absolute -top-2 -right-3 min-w-[18px] h-[18px] bg-blue-600 text-white text-xs font-semibold rounded-full flex items-center justify-center px-1">
+                      {interestSummary.totalCount}
+                    </span>
+                  )}
                 </Link>
                 <Link
                   to="/messages"
@@ -135,18 +142,11 @@ export default function Header() {
                 {isProfileDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                     <Link
-                      to={`/profile/${currentUser.username}`}
+                      to="/my-profile"
                       className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-t-lg font-medium"
                       onClick={closeMenu}
                     >
                       My Profile
-                    </Link>
-                    <Link
-                      to="/settings"
-                      className="block px-4 py-2 text-gray-700 hover:bg-gray-50 font-medium"
-                      onClick={closeMenu}
-                    >
-                      Settings
                     </Link>
                     <button
                       onClick={handleLogout}
@@ -226,11 +226,16 @@ export default function Header() {
             {currentUser ? (
               <>
                 <Link
-                  to={`/profile/${currentUser.username}?action=share`}
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg font-medium"
+                  to="/share"
+                  className="flex items-center justify-between px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg font-medium"
                   onClick={closeMenu}
                 >
-                  Share
+                  <span>Share</span>
+                  {interestSummary.totalCount > 0 && (
+                    <span className="min-w-[20px] h-[20px] bg-blue-600 text-white text-xs font-semibold rounded-full flex items-center justify-center px-1">
+                      {interestSummary.totalCount}
+                    </span>
+                  )}
                 </Link>
                 <Link
                   to="/messages"
@@ -241,18 +246,11 @@ export default function Header() {
                 </Link>
                 <div className="border-t border-gray-200 pt-2 mt-2">
                   <Link
-                    to={`/profile/${currentUser.username}`}
+                    to="/my-profile"
                     className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg font-medium"
                     onClick={closeMenu}
                   >
                     My Profile
-                  </Link>
-                  <Link
-                    to="/settings"
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg font-medium"
-                    onClick={closeMenu}
-                  >
-                    Settings
                   </Link>
                   <button
                     onClick={handleLogout}

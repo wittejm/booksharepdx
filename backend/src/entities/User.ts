@@ -61,6 +61,15 @@ export class User {
   booksReceived: number;
 
   @Column({ type: "int", default: 0 })
+  booksLoaned: number;
+
+  @Column({ type: "int", default: 0 })
+  booksBorrowed: number;
+
+  @Column({ type: "int", default: 0 })
+  booksTraded: number;
+
+  @Column({ type: "int", default: 0 })
   bookshares: number;
 
   // Profile extras
@@ -123,6 +132,9 @@ export class User {
       stats: {
         booksGiven: this.booksGiven,
         booksReceived: this.booksReceived,
+        booksLoaned: this.booksLoaned,
+        booksBorrowed: this.booksBorrowed,
+        booksTraded: this.booksTraded,
         bookshares: this.bookshares,
       },
       readingPreferences: this.readingPreferences || undefined,

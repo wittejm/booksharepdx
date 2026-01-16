@@ -7,7 +7,6 @@ import type {
   Post,
   MessageThread,
   Message,
-  Comment,
   Report,
   Vouch,
   Neighborhood,
@@ -15,6 +14,8 @@ import type {
   Block,
   ModerationAction,
   Notification,
+  Interest,
+  InterestSummary,
 } from '@booksharepdx/shared';
 import { apiClient } from './apiClient';
 import { neighborhoods } from '../data/neighborhoods';
@@ -55,6 +56,11 @@ export const authService = {
     const response = await apiClient.put<{ data: User }>('/auth/me', updates);
     return response.data;
   },
+
+  verifyMagicLink: async (token: string): Promise<User> => {
+    const response = await apiClient.get<{ data: User }>(`/auth/verify-magic-link?token=${encodeURIComponent(token)}`);
+    return response.data;
+  },
 };
 
 // User Service
@@ -91,42 +97,26 @@ export const userService = {
     }
   },
 
-  incrementBooksGiven: async (userId: string): Promise<User | null> => {
+  // Generic stat increment - pass stat names to increment
+  incrementStats: async (
+    userId: string,
+    stats: Partial<Record<keyof User['stats'], number>>
+  ): Promise<User | null> => {
     const user = await userService.getById(userId);
     if (!user) return null;
 
-    return await userService.update(userId, {
-      stats: {
-        ...user.stats,
-        booksGiven: user.stats.booksGiven + 1,
-      },
-    });
+    const updatedStats = { ...user.stats };
+    for (const [key, amount] of Object.entries(stats)) {
+      updatedStats[key as keyof User['stats']] += amount;
+    }
+
+    return await userService.update(userId, { stats: updatedStats });
   },
 
-  incrementBooksReceived: async (userId: string): Promise<User | null> => {
-    const user = await userService.getById(userId);
-    if (!user) return null;
-
-    return await userService.update(userId, {
-      stats: {
-        ...user.stats,
-        booksReceived: user.stats.booksReceived + 1,
-      },
-    });
-  },
-
-  incrementExchangeStats: async (userId: string): Promise<User | null> => {
-    const user = await userService.getById(userId);
-    if (!user) return null;
-
-    return await userService.update(userId, {
-      stats: {
-        ...user.stats,
-        booksGiven: user.stats.booksGiven + 1,
-        booksReceived: user.stats.booksReceived + 1,
-      },
-    });
-  },
+  // Convenience methods
+  incrementBooksGiven: (userId: string) => userService.incrementStats(userId, { booksGiven: 1 }),
+  incrementBooksReceived: (userId: string) => userService.incrementStats(userId, { booksReceived: 1 }),
+  incrementBooksTraded: (userId: string) => userService.incrementStats(userId, { booksTraded: 1 }),
 };
 
 // Post Service
@@ -219,42 +209,6 @@ export const messageService = {
 
   markAsRead: async (threadId: string, userId: string): Promise<void> => {
     await apiClient.post(`/messages/threads/${threadId}/read`, { userId });
-  },
-};
-
-// Comment Service
-export const commentService = {
-  getByPostId: async (postId: string): Promise<Comment[]> => {
-    try {
-      const response = await apiClient.get<{ data: Comment[] }>(`/comments/post/${postId}`);
-      return response.data;
-    } catch {
-      // Return empty array if comments not found or endpoint doesn't exist
-      return [];
-    }
-  },
-
-  getById: async (id: string): Promise<Comment | null> => {
-    try {
-      const response = await apiClient.get<{ data: Comment }>(`/comments/${id}`);
-      return response.data;
-    } catch (error) {
-      return null;
-    }
-  },
-
-  create: async (comment: Omit<Comment, 'id' | 'timestamp'>): Promise<Comment> => {
-    const response = await apiClient.post<{ data: Comment }>('/comments', comment);
-    return response.data;
-  },
-
-  delete: async (id: string): Promise<boolean> => {
-    try {
-      await apiClient.delete(`/comments/${id}`);
-      return true;
-    } catch (error) {
-      return false;
-    }
   },
 };
 
@@ -426,6 +380,41 @@ export const moderationActionService = {
 
   getByModeratorId: async (moderatorId: string): Promise<ModerationAction[]> => {
     const response = await apiClient.get<{ data: ModerationAction[] }>(`/moderation/actions?moderatorId=${moderatorId}`);
+    return response.data;
+  },
+};
+
+// Interest Service - tracks interest in shares
+export const interestService = {
+  // Get summary of active interest for the current user's shares
+  getSummary: async (): Promise<InterestSummary> => {
+    try {
+      const response = await apiClient.get<{ data: InterestSummary }>('/interests/summary');
+      return response.data;
+    } catch {
+      return { totalCount: 0, uniquePeople: 0, uniquePosts: 0, interests: [] };
+    }
+  },
+
+  // Get active interests for a specific post
+  getByPostId: async (postId: string): Promise<Interest[]> => {
+    try {
+      const response = await apiClient.get<{ data: Interest[] }>(`/interests/post/${postId}`);
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+
+  // Create interest (called when someone messages about a post)
+  create: async (postId: string): Promise<Interest> => {
+    const response = await apiClient.post<{ data: Interest }>('/interests', { postId });
+    return response.data;
+  },
+
+  // Resolve interest (when exchange is completed or declined)
+  resolve: async (interestId: string): Promise<Interest> => {
+    const response = await apiClient.patch<{ data: Interest }>(`/interests/${interestId}`, { status: 'resolved' });
     return response.data;
   },
 };

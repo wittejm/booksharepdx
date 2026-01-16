@@ -30,7 +30,10 @@ export interface UserLocation {
 export interface UserStats {
   booksGiven: number;
   booksReceived: number;
-  bookshares: number; // mutual vouches
+  booksLoaned: number;
+  booksBorrowed: number;
+  booksTraded: number;
+  bookshares: number; // total of all transactions
 }
 
 export interface ReadingPreferences {
@@ -60,7 +63,6 @@ export interface Post {
   pendingExchange?: PendingExchange;
   archivedAt?: number;
   givenTo?: string; // userId
-  commentCount?: number; // Number of comments on this post
 }
 
 export interface BookInfo {
@@ -98,15 +100,6 @@ export interface Message {
   systemMessageType?: 'exchange_proposed' | 'exchange_completed' | 'exchange_declined' | 'exchange_cancelled' | 'gift_completed';
 }
 
-// Comment Types
-export interface Comment {
-  id: string;
-  postId: string;
-  userId: string;
-  content: string;
-  timestamp: number;
-}
-
 // Block Types
 export interface Block {
   blockerId: string;
@@ -120,7 +113,6 @@ export interface Report {
   reporterId: string;
   reportedUserId?: string;
   reportedPostId?: string;
-  reportedCommentId?: string;
   reasons: ('spam' | 'harassment' | 'scam' | 'inappropriate' | 'other')[];
   details?: string;
   includeMessageHistory?: boolean;
@@ -180,7 +172,7 @@ export interface GeoJSONPolygon {
 export interface Notification {
   id: string;
   userId: string;
-  type: 'exchange_proposed' | 'exchange_confirmed' | 'exchange_declined' | 'message' | 'comment' | 'moderator_action';
+  type: 'exchange_proposed' | 'exchange_confirmed' | 'exchange_declined' | 'message' | 'moderator_action';
   content: string;
   read: boolean;
   timestamp: number;
@@ -192,5 +184,24 @@ export interface SavedPost {
   userId: string;
   postId: string;
   timestamp: number;
-  expressedInterest: boolean; // true if they messaged/commented
+  expressedInterest: boolean; // true if they messaged about the post
+}
+
+// Interest Types - tracks when someone expresses interest in a share
+export interface Interest {
+  id: string;
+  postId: string;
+  interestedUserId: string;
+  ownerId: string; // post owner
+  status: 'active' | 'resolved';
+  createdAt: number;
+  resolvedAt?: number;
+}
+
+// Summary of active interest for a user's shares
+export interface InterestSummary {
+  totalCount: number; // unique (person, post) pairs
+  uniquePeople: number;
+  uniquePosts: number;
+  interests: Interest[];
 }

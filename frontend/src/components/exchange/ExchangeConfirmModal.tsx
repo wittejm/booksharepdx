@@ -80,9 +80,9 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
         pendingExchange: undefined,
       });
 
-      // Update stats for both users
-      await userService.incrementExchangeStats(post.pendingExchange.initiatorUserId);
-      await userService.incrementExchangeStats(currentUserId);
+      // Update stats for both users (trade = increment booksTraded)
+      await userService.incrementBooksTraded(post.pendingExchange.initiatorUserId);
+      await userService.incrementBooksTraded(currentUserId);
 
       // Send completion message
       const thread = await messageService.getOrCreateThread(

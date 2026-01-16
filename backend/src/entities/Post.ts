@@ -11,7 +11,6 @@ import {
   Relation,
 } from 'typeorm';
 import type { User } from './User.js';
-import type { Comment } from './Comment.js';
 import type { MessageThread } from './MessageThread.js';
 
 export type PostType = 'giveaway' | 'exchange';
@@ -73,9 +72,6 @@ export class Post {
   updatedAt: Date;
 
   // Relations
-  @OneToMany('Comment', 'post')
-  comments: Relation<Comment[]>;
-
   @OneToMany('MessageThread', 'post')
   messageThreads: Relation<MessageThread[]>;
 

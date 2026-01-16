@@ -96,10 +96,9 @@ export default function LandingPage() {
                     const hideOnMobile = index >= 2 ? 'hidden md:block' : '';
 
                     return (
-                      <Link
+                      <div
                         key={post.id}
-                        to={`/share/${post.id}`}
-                        className={`${hideOnMobile} ${hideOnTablet} block bg-white rounded-lg shadow-md hover:shadow-lg transition-all overflow-hidden border border-gray-200 hover:border-primary-400 group`}
+                        className={`${hideOnMobile} ${hideOnTablet} bg-white rounded-lg shadow-md overflow-hidden border border-gray-200`}
                       >
                         <div className="flex gap-3 p-3 items-start">
                           {/* Column 1: Book Cover */}
@@ -117,7 +116,7 @@ export default function LandingPage() {
 
                           {/* Column 2: Book Details */}
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-gray-900 text-sm truncate group-hover:text-primary-600 transition-colors">
+                            <h4 className="font-semibold text-gray-900 text-sm truncate">
                               {post.book.title}
                             </h4>
                             <p className="text-xs text-gray-600 truncate mt-0.5">
@@ -150,7 +149,7 @@ export default function LandingPage() {
                             </div>
                           )}
                         </div>
-                      </Link>
+                      </div>
                     );
                   })}
 

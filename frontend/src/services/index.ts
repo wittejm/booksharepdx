@@ -7,7 +7,6 @@ export {
   userService,
   postService,
   messageService,
-  commentService,
   blockService,
   reportService,
   vouchService,
@@ -15,4 +14,5 @@ export {
   savedPostService,
   neighborhoodService,
   moderationActionService,
+  interestService,
 } from './apiService';

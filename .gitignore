@@ -3,8 +3,12 @@ node_modules/
 .pnp
 .pnp.js
 
+tickets/
+
 # Testing
 coverage/
+TEST_LOG.md
+test-screenshots/
 
 # Production
 dist/

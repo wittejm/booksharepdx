@@ -56,13 +56,14 @@ export interface Post {
   userId: string;
   user?: User; // Included when fetching posts
   book: BookInfo;
-  type: 'giveaway' | 'exchange';
+  type: 'giveaway' | 'exchange' | 'loan';
   notes?: string;
   createdAt: number;
   status: 'active' | 'pending_exchange' | 'archived';
   pendingExchange?: PendingExchange;
   archivedAt?: number;
   givenTo?: string; // userId
+  loanDuration?: number; // in days: 30, 60, or 90 (only for loan posts)
 }
 
 export interface BookInfo {
@@ -88,6 +89,12 @@ export interface MessageThread {
   participants: string[]; // 2 userIds
   lastMessageAt: number;
   unreadCount: { [userId: string]: number };
+  status: MessageThreadStatus;
+  ownerCompleted: boolean;
+  requesterCompleted: boolean;
+  ownerConfirmedReturn: boolean;
+  requesterConfirmedReturn: boolean;
+  loanDueDate: number | null;
 }
 
 export interface Message {
@@ -96,8 +103,12 @@ export interface Message {
   senderId: string;
   content: string;
   timestamp: number;
-  type: 'user' | 'system';
+  type: 'user' | 'system' | 'trade_proposal';
   systemMessageType?: 'exchange_proposed' | 'exchange_completed' | 'exchange_declined' | 'exchange_cancelled' | 'gift_completed';
+  // Trade proposal fields (only for type: 'trade_proposal')
+  offeredPostId?: string;    // The proposer's book
+  requestedPostId?: string;  // The book they want
+  proposalStatus?: 'pending' | 'accepted' | 'declined';
 }
 
 // Block Types
@@ -204,4 +215,80 @@ export interface InterestSummary {
   uniquePeople: number;
   uniquePosts: number;
   interests: Interest[];
+}
+
+// MessageThread Status (for request/completion flow)
+export type MessageThreadStatus =
+  | 'active'
+  | 'declined_by_owner'
+  | 'cancelled_by_requester'
+  | 'post_removed'
+  | 'dismissed'
+  | 'given_to_other'
+  | 'accepted'
+  | 'on_loan';
+
+// Geo Utilities
+/**
+ * Calculate the great-circle distance between two points using Haversine formula.
+ * @returns Distance in miles
+ */
+export function calculateDistance(
+  loc1: { lat: number; lng: number },
+  loc2: { lat: number; lng: number }
+): number {
+  const R = 3959; // Earth's radius in miles
+  const lat1 = (loc1.lat * Math.PI) / 180;
+  const lat2 = (loc2.lat * Math.PI) / 180;
+  const deltaLat = ((loc2.lat - loc1.lat) * Math.PI) / 180;
+  const deltaLng = ((loc2.lng - loc1.lng) * Math.PI) / 180;
+
+  const a =
+    Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+/**
+ * Extract lat/lng coordinates from a UserLocation.
+ * For neighborhoods, returns centroid. For pins, returns direct coords.
+ * @throws Error if neighborhood is not found when location type is 'neighborhood'
+ */
+export function getLocationCoords(
+  location: UserLocation,
+  neighborhoods: Neighborhood[]
+): { lat: number; lng: number } | null {
+  if (location.type === 'pin') {
+    if (location.lat !== undefined && location.lng !== undefined) {
+      return { lat: location.lat, lng: location.lng };
+    }
+    return null;
+  }
+
+  if (location.type === 'neighborhood') {
+    if (!location.neighborhoodId) {
+      return null;
+    }
+    const neighborhood = neighborhoods.find((n) => n.id === location.neighborhoodId);
+    if (!neighborhood) {
+      throw new Error(`Neighborhood with id "${location.neighborhoodId}" not found`);
+    }
+    return { lat: neighborhood.centroid.lat, lng: neighborhood.centroid.lng };
+  }
+
+  return null;
+}
+
+/**
+ * Format distance in miles to human-readable string.
+ * @throws Error if distance is negative
+ */
+export function formatDistance(miles: number): string {
+  if (miles < 0) {
+    throw new Error('Distance cannot be negative');
+  }
+  const rounded = Math.round(miles * 10) / 10;
+  return `${rounded} mi`;
 }

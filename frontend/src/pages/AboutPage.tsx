@@ -115,100 +115,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* How It Works Detail Section */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-bold text-gray-900 mb-12 text-center">How BookSharePDX Works</h2>
-
-          <div className="space-y-8">
-            {/* Step 1 */}
-            <div className="bg-white rounded-lg p-8 border-l-4 border-primary-600">
-              <div className="flex items-start space-x-6">
-                <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-primary-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                    1
-                  </div>
-                </div>
-                <div className="flex-grow">
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-2">Create Your Account</h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Sign up with your email address and create a profile. Tell the community about yourself - what kinds of books you love, what neighborhood you're in, and what brought you to BookSharePDX. This helps you connect with like-minded neighbors.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Step 2 */}
-            <div className="bg-white rounded-lg p-8 border-l-4 border-primary-600">
-              <div className="flex items-start space-x-6">
-                <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-primary-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                    2
-                  </div>
-                </div>
-                <div className="flex-grow">
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-2">List Your Books</h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Share books you'd like to pass along. Upload photos, add details like title and author, write a brief description, and let neighbors know if you're giving it away or trading for something. You choose the terms!
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Step 3 */}
-            <div className="bg-white rounded-lg p-8 border-l-4 border-primary-600">
-              <div className="flex items-start space-x-6">
-                <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-primary-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                    3
-                  </div>
-                </div>
-                <div className="flex-grow">
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-2">Browse & Connect</h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Explore books being shared by people in your neighborhood. When you find something you like, message the owner directly through our secure messaging system. Start a conversation and arrange a time and place to meet.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Step 4 */}
-            <div className="bg-white rounded-lg p-8 border-l-4 border-primary-600">
-              <div className="flex items-start space-x-6">
-                <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-primary-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                    4
-                  </div>
-                </div>
-                <div className="flex-grow">
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-2">Meet & Exchange</h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Meet your neighbor at an agreed location - a coffee shop, park, or another public place. Exchange books and get to know each other! Many of our users have made genuine friendships through BookSharePDX.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Step 5 */}
-            <div className="bg-white rounded-lg p-8 border-l-4 border-primary-600">
-              <div className="flex items-start space-x-6">
-                <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-primary-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                    5
-                  </div>
-                </div>
-                <div className="flex-grow">
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-2">Build Community</h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Complete your exchange and enjoy your new book! Leave feedback about your experience if you'd like, and continue sharing and connecting with your neighbors. Every exchange builds a stronger, more connected community.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Team/Credits Section */}
       <section className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -250,39 +156,21 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* FAQ Section */}
+      {/* Data policy */}
       <section className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-bold text-gray-900 mb-12 text-center">Frequently Asked Questions</h2>
+          <h2 className="text-4xl font-bold text-gray-900 mb-8 text-center">Data Policy</h2>
 
-          <div className="space-y-4">
-            {faqs.map((faq) => (
-              <div key={faq.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
-                <button
-                  onClick={() => setExpandedFaq(expandedFaq === faq.id ? null : faq.id)}
-                  className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                >
-                  <h3 className="text-lg font-semibold text-gray-900 text-left">
-                    {faq.question}
-                  </h3>
-                  <span
-                    className={`flex-shrink-0 text-2xl transition-transform ${
-                      expandedFaq === faq.id ? 'rotate-180' : ''
-                    }`}
-                  >
-                    ▼
-                  </span>
-                </button>
-
-                {expandedFaq === faq.id && (
-                  <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-                    <p className="text-gray-600 leading-relaxed">
-                      {faq.answer}
-                    </p>
-                  </div>
-                )}
-              </div>
-            ))}
+          <div className="bg-gradient-to-br from-primary-50 to-warm-50 rounded-lg p-8">
+            <p className="text-lg text-gray-700 mb-6 leading-relaxed">
+              We don't sell your data.
+            </p>
+            <p className="text-lg text-gray-700 mb-6 leading-relaxed">
+              You can delete any of your posts or messages and they are gone forever.
+            </p>
+            <p className="text-lg text-gray-700 leading-relaxed">
+              You can delete your account, and optionally delete all of your old posts and messages when you do.
+            </p>
           </div>
         </div>
       </section>

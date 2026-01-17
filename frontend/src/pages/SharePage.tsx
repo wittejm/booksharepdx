@@ -23,6 +23,8 @@ export default function SharePage() {
 
   const shouldAutoFocusShare = searchParams.get('action') === 'share';
   const shouldScrollToInterest = searchParams.get('scrollToInterest') === 'true';
+  const focusPostId = searchParams.get('focusPost');
+  const showThreadId = searchParams.get('showThread');
 
   const handleShareSuccess = () => {
     reloadPosts();
@@ -31,8 +33,12 @@ export default function SharePage() {
   const reloadPosts = async () => {
     if (!currentUser) return;
     try {
-      const userPosts = await postService.getByUserId(currentUser.id);
-      setPosts(userPosts);
+      const [activePosts, pendingPosts, archivedPosts] = await Promise.all([
+        postService.getByUserId(currentUser.id, 'active'),
+        postService.getByUserId(currentUser.id, 'pending_exchange'),
+        postService.getByUserId(currentUser.id, 'archived'),
+      ]);
+      setPosts([...activePosts, ...pendingPosts, ...archivedPosts]);
     } catch (error) {
       console.error('Failed to reload posts:', error);
     }
@@ -44,8 +50,13 @@ export default function SharePage() {
 
       setLoading(true);
       try {
-        const userPosts = await postService.getByUserId(currentUser.id);
-        setPosts(userPosts);
+        // Fetch all post statuses for user's shares
+        const [activePosts, pendingPosts, archivedPosts] = await Promise.all([
+          postService.getByUserId(currentUser.id, 'active'),
+          postService.getByUserId(currentUser.id, 'pending_exchange'),
+          postService.getByUserId(currentUser.id, 'archived'),
+        ]);
+        setPosts([...activePosts, ...pendingPosts, ...archivedPosts]);
 
         const saved = await savedPostService.getByUserId(currentUser.id);
         const savedPostsData = await Promise.all(
@@ -95,12 +106,45 @@ export default function SharePage() {
     }
   }, [shouldScrollToInterest, loading, interestSummary, setSearchParams]);
 
+  // Scroll to focused post (e.g., after proposing an exchange)
+  useEffect(() => {
+    if (focusPostId && !loading) {
+      const element = postRefs.current.get(focusPostId);
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Highlight effect
+          element.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2');
+          setTimeout(() => {
+            element.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2');
+          }, 2000);
+        }, 100);
+      }
+    }
+  }, [focusPostId, loading]);
+
   // Redirect to login if not authenticated
   if (!currentUser) {
     return <Navigate to="/login" replace />;
   }
 
-  const getActivePosts = () => posts.filter((p) => p.status === 'active');
+  const getActivePosts = () => {
+    // Include active posts AND pending_exchange posts (accepted but not yet completed)
+    const activePosts = posts.filter((p) => p.status === 'active' || p.status === 'pending_exchange');
+    // Sort: pending_exchange first (need action), then posts with interest, then others
+    const postIdsWithInterest = new Set(interestSummary.interests.map(i => i.postId));
+    return [...activePosts].sort((a, b) => {
+      // Pending exchange posts come first
+      if (a.status === 'pending_exchange' && b.status !== 'pending_exchange') return -1;
+      if (a.status !== 'pending_exchange' && b.status === 'pending_exchange') return 1;
+      // Then posts with interest
+      const aHasInterest = postIdsWithInterest.has(a.id);
+      const bHasInterest = postIdsWithInterest.has(b.id);
+      if (aHasInterest && !bHasInterest) return -1;
+      if (!aHasInterest && bHasInterest) return 1;
+      return 0;
+    });
+  };
   const getArchivedPosts = () => posts.filter((p) => p.status === 'archived');
 
   const tabPosts =
@@ -190,7 +234,17 @@ export default function SharePage() {
                 {activeTab === 'saved' ? (
                   <PostCard post={post} />
                 ) : (
-                  <ShareCard post={post} onUpdate={reloadPosts} />
+                  <ShareCard
+                    post={post}
+                    onUpdate={reloadPosts}
+                    autoFocusThreadId={post.id === focusPostId ? showThreadId : undefined}
+                    onAutoFocusComplete={() => {
+                      // Clear the URL params after focusing
+                      if (focusPostId || showThreadId) {
+                        setSearchParams({});
+                      }
+                    }}
+                  />
                 )}
               </div>
             ))

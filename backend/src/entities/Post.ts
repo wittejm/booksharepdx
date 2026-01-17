@@ -13,7 +13,7 @@ import {
 import type { User } from './User.js';
 import type { MessageThread } from './MessageThread.js';
 
-export type PostType = 'giveaway' | 'exchange';
+export type PostType = 'giveaway' | 'exchange' | 'loan';
 export type PostStatus = 'active' | 'pending_exchange' | 'archived';
 
 @Entity('posts')
@@ -65,6 +65,9 @@ export class Post {
   @Column({ type: 'varchar', nullable: true })
   givenTo: string | null;
 
+  @Column({ type: 'int', nullable: true })
+  loanDuration: number | null; // in days: 30, 60, or 90
+
   @CreateDateColumn()
   createdAt: Date;
 
@@ -87,6 +90,7 @@ export class Post {
       pendingExchange: this.pendingExchange || undefined,
       archivedAt: this.archivedAt?.getTime(),
       givenTo: this.givenTo || undefined,
+      loanDuration: this.loanDuration || undefined,
     };
   }
 }

@@ -93,7 +93,6 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
 
       await messageService.sendMessage({
         threadId: thread.id,
-        senderId: 'system',
         content: `Exchange Completed\n\n• ${initiatorUser.username} gave: "${givingPost.book.title}" by ${givingPost.book.author}\n• ${currentUser.username} gave: "${post.book.title}" by ${post.book.author}\n\nBoth books marked as exchanged!`,
         type: 'system',
         systemMessageType: 'exchange_completed',
@@ -144,7 +143,6 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
 
       await messageService.sendMessage({
         threadId: thread.id,
-        senderId: 'system',
         content: `Exchange Declined\n\n${currentUser.username} declined the exchange for "${post.book.title}"\nReason: ${reasonText}${declineMessage ? '\n\n' + declineMessage : ''}`,
         type: 'system',
         systemMessageType: 'exchange_declined',
@@ -209,7 +207,6 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
 
       await messageService.sendMessage({
         threadId: thread.id,
-        senderId: 'system',
         content: `Exchange Updated\n\n${currentUser.username}'s "${post.book.title}" is no longer available.\n${currentUser.username} is offering "${alternativePost.book.title}" instead.\n\nPlease confirm this exchange.`,
         type: 'system',
         systemMessageType: 'exchange_proposed',
@@ -265,7 +262,6 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
 
       await messageService.sendMessage({
         threadId: thread.id,
-        senderId: 'system',
         content: `Gift Completed\n\n${initiatorUser.username} gave "${givingPost.book.title}" to ${currentUser.username} as a gift.`,
         type: 'system',
         systemMessageType: 'gift_completed',

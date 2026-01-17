@@ -96,12 +96,22 @@ class ApiClient {
 
       // Backend returns { error: { message, code, details? } }
       const errorData = errorBody.error || errorBody;
-      throw new ApiError(
+      const error = new ApiError(
         (errorData as any).message || 'Request failed',
         (errorData as any).code || 'UNKNOWN',
         response.status,
         (errorData as any).details
       );
+
+      // Auto-redirect to login on session expiration (except for auth endpoints)
+      if (error.isAuthError() && !endpoint.startsWith('/auth/')) {
+        // Redirect to login page
+        window.location.href = '/login?expired=true';
+        // Return a never-resolving promise to prevent further processing
+        return new Promise(() => {});
+      }
+
+      throw error;
     }
 
     // Handle empty responses

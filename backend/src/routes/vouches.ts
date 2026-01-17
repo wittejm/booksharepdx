@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { AppDataSource } from '../config/database.js';
 import { Vouch } from '../entities/Vouch.js';
-import { User } from '../entities/User.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validation.js';
 import { AppError } from '../middleware/errorHandler.js';
@@ -45,7 +44,6 @@ router.post('/', requireAuth, validateBody(createVouchSchema), async (req, res, 
     const { userId: otherUserId } = req.body;
     const currentUserId = req.user!.id;
     const vouchRepo = AppDataSource.getRepository(Vouch);
-    const userRepo = AppDataSource.getRepository(User);
 
     // Can't vouch for yourself
     if (otherUserId === currentUserId) {
@@ -76,18 +74,6 @@ router.post('/', requireAuth, validateBody(createVouchSchema), async (req, res, 
       existing.mutuallyConfirmed = true;
       await vouchRepo.save(existing);
 
-      // Update bookshares count for both users
-      const user1 = await userRepo.findOne({ where: { id: user1Id } });
-      const user2 = await userRepo.findOne({ where: { id: user2Id } });
-      if (user1) {
-        user1.bookshares += 1;
-        await userRepo.save(user1);
-      }
-      if (user2) {
-        user2.bookshares += 1;
-        await userRepo.save(user2);
-      }
-
       return res.json({ data: existing.toJSON() });
     }
 
@@ -110,7 +96,6 @@ router.put('/:id/confirm', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
     const vouchRepo = AppDataSource.getRepository(Vouch);
-    const userRepo = AppDataSource.getRepository(User);
 
     const vouch = await vouchRepo.findOne({ where: { id } });
     if (!vouch) {
@@ -136,18 +121,6 @@ router.put('/:id/confirm', requireAuth, async (req, res, next) => {
 
     vouch.mutuallyConfirmed = true;
     await vouchRepo.save(vouch);
-
-    // Update bookshares count for both users
-    const user1 = await userRepo.findOne({ where: { id: vouch.user1Id } });
-    const user2 = await userRepo.findOne({ where: { id: vouch.user2Id } });
-    if (user1) {
-      user1.bookshares += 1;
-      await userRepo.save(user1);
-    }
-    if (user2) {
-      user2.bookshares += 1;
-      await userRepo.save(user2);
-    }
 
     res.json({ data: vouch.toJSON() });
   } catch (error) {

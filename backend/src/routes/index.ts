@@ -12,8 +12,14 @@ import savedPostRoutes from './savedPosts.js';
 import neighborhoodRoutes from './neighborhoods.js';
 import bookRoutes from './books.js';
 import uploadRoutes from './uploads.js';
+import interestRoutes from './interests.js';
 
 const router = Router();
+
+// Health check endpoint
+router.get('/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: Date.now() });
+});
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
@@ -28,5 +34,6 @@ router.use('/saved-posts', savedPostRoutes);
 router.use('/neighborhoods', neighborhoodRoutes);
 router.use('/books', bookRoutes);
 router.use('/uploads', uploadRoutes);
+router.use('/interests', interestRoutes);
 
 export default router;

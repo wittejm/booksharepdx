@@ -39,7 +39,7 @@ export default function MarkAsGivenModal({ open, onClose, post, currentUserId }:
     async function loadInteractions() {
       try {
         // Get message threads for this post
-        const threads = await messageService.getThreads(currentUserId);
+        const threads = await messageService.getThreads();
         const postThreads = threads.filter(t => t.postId === post.id);
 
         const interactions: Interaction[] = [];
@@ -150,7 +150,6 @@ export default function MarkAsGivenModal({ open, onClose, post, currentUserId }:
 
         await messageService.sendMessage({
           threadId: thread.id,
-          senderId: 'system',
           content: `Exchange proposed:\n• Give: "${post.book.title}" by ${post.book.author}\n• Receive: "${receivingPost.book.title}" by ${receivingPost.book.author}\n\n${selectedRecipient.username}, please confirm this exchange.`,
           type: 'system',
           systemMessageType: 'exchange_proposed',
@@ -179,7 +178,6 @@ export default function MarkAsGivenModal({ open, onClose, post, currentUserId }:
 
         await messageService.sendMessage({
           threadId: thread.id,
-          senderId: 'system',
           content: `Gift completed\n\n${currentUser?.username || 'User'} gave "${post.book.title}" to ${selectedRecipient.username} as a gift.`,
           type: 'system',
           systemMessageType: 'gift_completed',

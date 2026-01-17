@@ -51,7 +51,6 @@ export default function ExchangeCancelModal({ open, onClose, post, currentUserId
 
       await messageService.sendMessage({
         threadId: thread.id,
-        senderId: 'system',
         content: `Exchange Cancelled\n\n${currentUser.username} cancelled the pending exchange.`,
         type: 'system',
         systemMessageType: 'exchange_cancelled',

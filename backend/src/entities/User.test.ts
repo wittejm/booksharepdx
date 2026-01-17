@@ -17,7 +17,9 @@ describe('User entity', () => {
       user.locationLng = null;
       user.booksGiven = 5;
       user.booksReceived = 3;
-      user.bookshares = 8;
+      user.booksLoaned = 0;
+      user.booksBorrowed = 0;
+      user.booksTraded = 0;
       user.profilePicture = 'https://example.com/pic.jpg';
       user.readingPreferences = { favoriteGenres: ['fiction', 'mystery'] };
       user.socialLinks = [{ label: 'Goodreads', url: 'https://goodreads.com/user' }];
@@ -38,7 +40,7 @@ describe('User entity', () => {
       expect(json.location.neighborhoodId).toBe('buckman');
       expect(json.stats.booksGiven).toBe(5);
       expect(json.stats.booksReceived).toBe(3);
-      expect(json.stats.bookshares).toBe(8);
+      expect(json.stats.bookshares).toBe(8); // computed: 5 + 3 + 0 + 0 + 0
       expect(json.profilePicture).toBe('https://example.com/pic.jpg');
       expect(json.readingPreferences?.favoriteGenres).toEqual(['fiction', 'mystery']);
       expect(json.socialLinks).toHaveLength(1);
@@ -57,7 +59,9 @@ describe('User entity', () => {
       user.locationLng = -122.6;
       user.booksGiven = 0;
       user.booksReceived = 0;
-      user.bookshares = 0;
+      user.booksLoaned = 0;
+      user.booksBorrowed = 0;
+      user.booksTraded = 0;
       user.profilePicture = null;
       user.readingPreferences = null;
       user.socialLinks = null;
@@ -87,7 +91,9 @@ describe('User entity', () => {
       user.locationLng = null;
       user.booksGiven = 0;
       user.booksReceived = 0;
-      user.bookshares = 0;
+      user.booksLoaned = 0;
+      user.booksBorrowed = 0;
+      user.booksTraded = 0;
       user.profilePicture = null;
       user.readingPreferences = null;
       user.socialLinks = null;
@@ -116,7 +122,9 @@ describe('User entity', () => {
       user.locationLng = null;
       user.booksGiven = 0;
       user.booksReceived = 0;
-      user.bookshares = 0;
+      user.booksLoaned = 0;
+      user.booksBorrowed = 0;
+      user.booksTraded = 0;
       user.profilePicture = null;
       user.readingPreferences = null;
       user.socialLinks = null;

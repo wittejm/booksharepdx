@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import type { MessageThread, Message, Post, User } from '@booksharepdx/shared';
+import type { MessageThread, Message, Post, User, MessageThreadStatus } from '@booksharepdx/shared';
 import { messageService, postService, userService, vouchService } from '../services';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../components/useToast';
+import { useConfirm } from '../components/useConfirm';
 import ToastContainer from '../components/ToastContainer';
 import { formatTimestamp } from '../utils/time';
 import { ERROR_MESSAGES } from '../utils/errorMessages';
@@ -19,11 +20,17 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
   const { showToast, toasts, dismiss } = useToast();
+  const { confirm, ConfirmDialogComponent } = useConfirm();
 
   // Thread data cache
   const [threadPosts, setThreadPosts] = useState<{ [threadId: string]: Post }>({});
   const [threadUsers, setThreadUsers] = useState<{ [threadId: string]: User }>({});
+
+  // Trade proposal post cache (for rendering proposal cards)
+  const [proposalPosts, setProposalPosts] = useState<{ [postId: string]: Post }>({});
+  const [respondingToProposal, setRespondingToProposal] = useState(false);
 
   // Mobile view state
   const [showConversation, setShowConversation] = useState(false);
@@ -33,10 +40,52 @@ export default function MessagesPage() {
   const [hasVouched, setHasVouched] = useState(false);
   const [vouchLoading, setVouchLoading] = useState(false);
 
+  // Trade proposal state
+  const [myPosts, setMyPosts] = useState<Post[]>([]);
+  const [selectedMyPostForTrade, setSelectedMyPostForTrade] = useState<string | null>(null);
+
   // Load threads on mount
   useEffect(() => {
     loadThreads();
   }, [currentUser]);
+
+  // Load user's posts when messages change (for trade proposals)
+  useEffect(() => {
+    if (selectedThread && messages.length > 0) {
+      const hasProposal = messages.some(m => m.systemMessageType === 'exchange_proposed');
+      if (hasProposal && myPosts.length === 0) {
+        loadMyPostsForTrade();
+      }
+    }
+  }, [selectedThread, messages]);
+
+  // Load posts for trade_proposal messages (to render proposal cards)
+  useEffect(() => {
+    const loadProposalPostsData = async () => {
+      const tradeProposals = messages.filter(m => m.type === 'trade_proposal');
+      const postIdsToLoad = new Set<string>();
+
+      tradeProposals.forEach(proposal => {
+        if (proposal.requestedPostId && !proposalPosts[proposal.requestedPostId]) {
+          postIdsToLoad.add(proposal.requestedPostId);
+        }
+      });
+
+      if (postIdsToLoad.size === 0) return;
+
+      const loadedPosts: { [postId: string]: Post } = {};
+      await Promise.all(
+        Array.from(postIdsToLoad).map(async (postId) => {
+          const post = await postService.getById(postId);
+          if (post) loadedPosts[postId] = post;
+        })
+      );
+
+      setProposalPosts(prev => ({ ...prev, ...loadedPosts }));
+    };
+
+    loadProposalPostsData();
+  }, [messages]);
 
   // Load thread from URL parameter
   useEffect(() => {
@@ -54,16 +103,13 @@ export default function MessagesPage() {
 
     setLoading(true);
     try {
-      const userThreads = await messageService.getThreads(currentUser.id);
-      // Sort by most recent message
-      const sortedThreads = userThreads.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
-      setThreads(sortedThreads);
+      const userThreads = await messageService.getThreads();
 
       // Preload post and user data for each thread
       const posts: { [threadId: string]: Post } = {};
       const users: { [threadId: string]: User } = {};
 
-      for (const thread of sortedThreads) {
+      for (const thread of userThreads) {
         const post = await postService.getById(thread.postId);
         if (post) {
           posts[thread.id] = post;
@@ -80,6 +126,17 @@ export default function MessagesPage() {
 
       setThreadPosts(posts);
       setThreadUsers(users);
+
+      // Filter to only show threads where current user is the REQUESTER (not the post owner)
+      // Activity page is for tracking books you've requested from others
+      const requesterThreads = userThreads.filter(thread => {
+        const post = posts[thread.id];
+        return post && post.userId !== currentUser.id;
+      });
+
+      // Sort by most recent message
+      const sortedThreads = requesterThreads.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+      setThreads(sortedThreads);
     } catch (error) {
       const err = error as Error & { code?: string };
       if (err.code === 'SESSION_EXPIRED') {
@@ -107,7 +164,7 @@ export default function MessagesPage() {
     setMessages(threadMessages);
 
     // Mark as read
-    await messageService.markAsRead(thread.id, currentUser.id);
+    await messageService.markAsRead(thread.id);
 
     // Update thread in list to clear unread count
     setThreads(prev => prev.map(t =>
@@ -161,9 +218,7 @@ export default function MessagesPage() {
     try {
       const message = await messageService.sendMessage({
         threadId: selectedThread.id,
-        senderId: currentUser.id,
         content: newMessage.trim(),
-        type: 'user',
       });
 
       setMessages(prev => [...prev, message]);
@@ -216,6 +271,295 @@ export default function MessagesPage() {
     }
   };
 
+  const handleCancelRequest = async () => {
+    if (!currentUser || !selectedThread) return;
+
+    const post = threadPosts[selectedThread.id];
+    const confirmed = await confirm({
+      title: 'Cancel Request',
+      message: `Cancel your request for "${post?.book.title || 'this book'}"?`,
+      confirmText: 'Cancel Request',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
+
+    setStatusLoading(true);
+    try {
+      await messageService.updateThreadStatus(selectedThread.id, 'cancelled_by_requester');
+      showToast('Request cancelled', 'info');
+      await loadThreads();
+      setSelectedThread(null);
+      setShowConversation(false);
+    } catch (error) {
+      showToast('Failed to cancel request', 'error');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const handleDismiss = async () => {
+    if (!currentUser || !selectedThread) return;
+
+    setStatusLoading(true);
+    try {
+      await messageService.updateThreadStatus(selectedThread.id, 'dismissed');
+      showToast('Dismissed', 'info');
+      await loadThreads();
+      setSelectedThread(null);
+      setShowConversation(false);
+    } catch (error) {
+      showToast('Failed to dismiss', 'error');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const handleCompleteExchange = async () => {
+    if (!currentUser || !selectedThread) return;
+
+    const post = threadPosts[selectedThread.id];
+    const isExchange = post?.type === 'exchange';
+
+    const confirmed = await confirm({
+      title: isExchange ? 'Confirm Trade' : 'Confirm Receipt',
+      message: isExchange
+        ? `Confirm that you completed the trade for "${post?.book.title || 'the book'}"?`
+        : `Confirm that you received "${post?.book.title || 'the book'}"?`,
+      confirmText: isExchange ? 'Yes, trade completed' : 'Yes, I received it',
+      variant: 'info'
+    });
+    if (!confirmed) return;
+
+    setStatusLoading(true);
+    try {
+      const result = await messageService.markComplete(selectedThread.id);
+      if (result.bothCompleted) {
+        showToast(isExchange ? 'Trade completed! Stats updated.' : 'Gift completed! Stats updated.', 'success');
+      } else {
+        showToast(isExchange
+          ? 'Marked as completed. Waiting for the other person to confirm.'
+          : 'Marked as received. Waiting for owner to confirm.',
+          'success'
+        );
+      }
+      await loadThreads();
+      // Reload the selected thread to update UI
+      const updatedThreads = await messageService.getThreads();
+      const updatedThread = updatedThreads.find(t => t.id === selectedThread.id);
+      if (updatedThread) {
+        setSelectedThread(updatedThread);
+      }
+      // Reload messages to show any system message
+      const updatedMessages = await messageService.getMessages(selectedThread.id);
+      setMessages(updatedMessages);
+    } catch (error) {
+      showToast('Failed to confirm', 'error');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const loadMyPostsForTrade = async () => {
+    if (!currentUser) return;
+    try {
+      const posts = await postService.getByUserId(currentUser.id);
+      setMyPosts(posts.filter(p => p.status === 'active' && p.type !== 'loan'));
+    } catch (error) {
+      console.error('Failed to load posts:', error);
+    }
+  };
+
+  const handleAcceptTrade = async () => {
+    if (!currentUser || !selectedThread || !selectedMyPostForTrade) return;
+
+    const post = threadPosts[selectedThread.id];
+    const myPost = myPosts.find(p => p.id === selectedMyPostForTrade);
+    if (!myPost) return;
+
+    const confirmed = await confirm({
+      title: 'Accept Trade',
+      message: `Trade your "${myPost.book.title}" for their "${post?.book.title}"?`,
+      confirmText: 'Accept Trade',
+      variant: 'info'
+    });
+    if (!confirmed) return;
+
+    setStatusLoading(true);
+    try {
+      await messageService.acceptTrade(selectedThread.id, selectedMyPostForTrade, post.id);
+      showToast('Trade accepted!', 'success');
+      await loadThreads();
+      // Reload thread
+      const updatedThreads = await messageService.getThreads();
+      const updatedThread = updatedThreads.find(t => t.id === selectedThread.id);
+      if (updatedThread) {
+        setSelectedThread(updatedThread);
+      }
+      // Reload messages
+      const threadMessages = await messageService.getMessages(selectedThread.id);
+      setMessages(threadMessages);
+    } catch (error) {
+      showToast('Failed to accept trade', 'error');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const handleDeclineTrade = async () => {
+    if (!currentUser || !selectedThread) return;
+
+    const confirmed = await confirm({
+      title: 'Decline Trade',
+      message: 'Decline this trade proposal? You can continue messaging about other options.',
+      confirmText: 'Decline',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
+
+    setStatusLoading(true);
+    try {
+      // Send decline message
+      await messageService.sendMessage({
+        threadId: selectedThread.id,
+        content: 'Trade Declined\n\nI\'ve declined this trade proposal. Feel free to propose a different trade or continue the conversation.',
+        type: 'system',
+        systemMessageType: 'exchange_declined',
+      });
+      showToast('Trade declined', 'info');
+      // Reload messages
+      const threadMessages = await messageService.getMessages(selectedThread.id);
+      setMessages(threadMessages);
+    } catch (error) {
+      showToast('Failed to decline trade', 'error');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const handleAcceptProposal = async (messageId: string) => {
+    if (!selectedThread) return;
+
+    setRespondingToProposal(true);
+    try {
+      await messageService.respondToProposal(selectedThread.id, messageId, 'accept');
+      // Update the proposal message status in state
+      setMessages(prev => prev.map(m =>
+        m.id === messageId ? { ...m, proposalStatus: 'accepted' } : m
+      ));
+      showToast('Exchange accepted! Coordinate the handoff in messages.', 'success');
+      // Reload thread to get updated status
+      const updatedThreads = await messageService.getThreads();
+      const updatedThread = updatedThreads.find(t => t.id === selectedThread.id);
+      if (updatedThread) {
+        setSelectedThread(updatedThread);
+      }
+    } catch (error) {
+      console.error('Failed to accept proposal:', error);
+      showToast('Failed to accept exchange proposal', 'error');
+    } finally {
+      setRespondingToProposal(false);
+    }
+  };
+
+  const handleDeclineProposal = async (messageId: string, requestedPost: Post | undefined) => {
+    if (!selectedThread) return;
+
+    const confirmed = await confirm({
+      title: 'Decline Exchange?',
+      message: `Are you sure you want to decline "${requestedPost?.book.title || 'this book'}" as an exchange?`,
+      confirmText: 'Decline',
+      variant: 'warning'
+    });
+
+    if (!confirmed) return;
+
+    setRespondingToProposal(true);
+    try {
+      await messageService.respondToProposal(selectedThread.id, messageId, 'decline');
+      // Update the proposal message status in state
+      setMessages(prev => prev.map(m =>
+        m.id === messageId ? { ...m, proposalStatus: 'declined' } : m
+      ));
+      showToast('Exchange proposal declined', 'info');
+    } catch (error) {
+      console.error('Failed to decline proposal:', error);
+      showToast('Failed to decline exchange proposal', 'error');
+    } finally {
+      setRespondingToProposal(false);
+    }
+  };
+
+  const handleConfirmReturn = async () => {
+    if (!currentUser || !selectedThread) return;
+
+    const post = threadPosts[selectedThread.id];
+    const confirmed = await confirm({
+      title: 'Confirm Return',
+      message: `Confirm that you returned "${post?.book.title || 'the book'}"?`,
+      confirmText: 'Yes, I returned it',
+      variant: 'info'
+    });
+    if (!confirmed) return;
+
+    setStatusLoading(true);
+    try {
+      const result = await messageService.confirmReturn(selectedThread.id);
+      if (result.bothConfirmedReturn) {
+        showToast('Loan completed! Stats updated.', 'success');
+      } else {
+        showToast('Marked as returned. Waiting for owner to confirm.', 'success');
+      }
+      await loadThreads();
+      // Reload the selected thread to update UI
+      const updatedThreads = await messageService.getThreads();
+      const updatedThread = updatedThreads.find(t => t.id === selectedThread.id);
+      if (updatedThread) {
+        setSelectedThread(updatedThread);
+      }
+    } catch (error) {
+      showToast('Failed to confirm return', 'error');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  // Check if there's a pending trade proposal
+  const hasPendingTradeProposal = (): boolean => {
+    if (!selectedThread || selectedThread.status !== 'active') return false;
+    // Look for exchange_proposed message that hasn't been responded to
+    const proposalMessages = messages.filter(m => m.systemMessageType === 'exchange_proposed');
+    const declineMessages = messages.filter(m => m.systemMessageType === 'exchange_declined');
+    // If there's a proposal after the last decline (or no decline), it's pending
+    if (proposalMessages.length === 0) return false;
+    const lastProposal = proposalMessages[proposalMessages.length - 1];
+    const lastDecline = declineMessages[declineMessages.length - 1];
+    if (!lastDecline) return true;
+    return lastProposal.timestamp > lastDecline.timestamp;
+  };
+
+  // Check if current user is the requester (not the post owner)
+  const isRequester = (thread: MessageThread): boolean => {
+    const post = threadPosts[thread.id];
+    return post ? post.userId !== currentUser?.id : true;
+  };
+
+  // Get status message for non-active threads
+  const getStatusMessage = (status: MessageThreadStatus): string | null => {
+    switch (status) {
+      case 'declined_by_owner':
+        return 'Your request was declined';
+      case 'given_to_other':
+        return 'This book was given to someone else';
+      case 'cancelled_by_requester':
+        return 'You cancelled this request';
+      case 'accepted':
+        return 'Your request was accepted!';
+      case 'on_loan':
+        return 'You currently have this book on loan';
+      default:
+        return null;
+    }
+  };
 
   const getSystemMessageDisplay = (type: Message['systemMessageType']) => {
     switch (type) {
@@ -306,9 +650,20 @@ export default function MessagesPage() {
                         {/* Thread info */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2 mb-1">
-                            <h3 className="font-semibold text-gray-900 truncate">
-                              {post.book.title}
-                            </h3>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <h3 className="font-semibold text-gray-900 truncate">
+                                {post.book.title}
+                              </h3>
+                              <span className={`flex-shrink-0 text-xs px-1.5 py-0.5 rounded font-medium ${
+                                post.type === 'giveaway'
+                                  ? 'bg-green-100 text-green-700'
+                                  : post.type === 'exchange'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-purple-100 text-purple-700'
+                              }`}>
+                                {post.type === 'giveaway' ? 'Gift' : post.type === 'exchange' ? 'Trade' : 'Loan'}
+                              </span>
+                            </div>
                             {unreadCount > 0 && (
                               <span className="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-primary-600 rounded-full">
                                 {unreadCount}
@@ -399,6 +754,62 @@ export default function MessagesPage() {
                         );
                       }
 
+                      // Trade proposal visual card
+                      if (message.type === 'trade_proposal') {
+                        const requestedPost = message.requestedPostId ? proposalPosts[message.requestedPostId] : undefined;
+                        const isMyProposal = message.senderId === currentUser.id;
+                        const isPending = message.proposalStatus === 'pending';
+
+                        return (
+                          <div key={message.id} className="flex justify-center my-2">
+                            <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+                              {/* Book cover and title */}
+                              <div className="flex flex-col items-center">
+                                <div className="w-16 h-24 bg-gray-100 rounded overflow-hidden flex items-center justify-center mb-2">
+                                  {requestedPost?.book.coverImage ? (
+                                    <img
+                                      src={requestedPost.book.coverImage}
+                                      alt={requestedPost.book.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">No cover</span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-700 font-medium text-center max-w-[120px] truncate" title={requestedPost?.book.title}>
+                                  {requestedPost?.book.title || 'Loading...'}
+                                </p>
+                              </div>
+
+                              {/* Accept/Decline buttons for recipient */}
+                              {!isMyProposal && isPending && (
+                                <div className="flex gap-2 mt-3">
+                                  <button
+                                    onClick={() => handleAcceptProposal(message.id)}
+                                    disabled={respondingToProposal}
+                                    className="flex-1 btn-primary text-xs py-1.5 disabled:opacity-50"
+                                  >
+                                    Accept
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeclineProposal(message.id, requestedPost)}
+                                    disabled={respondingToProposal}
+                                    className="flex-1 btn-secondary text-xs py-1.5 disabled:opacity-50"
+                                  >
+                                    Decline
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* Timestamp */}
+                              <p className="text-xs text-gray-400 text-center mt-2">
+                                {formatTimestamp(message.timestamp)}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+
                       const isCurrentUser = message.senderId === currentUser.id;
                       return (
                         <div
@@ -429,6 +840,165 @@ export default function MessagesPage() {
 
                 {/* Message input */}
                 <div className="p-4 border-t border-gray-200 bg-white">
+                  {/* Status banner for non-active threads */}
+                  {selectedThread.status !== 'active' && (
+                    <div className={`mb-3 p-3 rounded-lg ${
+                      selectedThread.status === 'accepted'
+                        ? 'bg-green-50 border border-green-200'
+                        : selectedThread.status === 'on_loan'
+                          ? (() => {
+                              const isOverdue = selectedThread.loanDueDate && selectedThread.loanDueDate < Date.now();
+                              return isOverdue
+                                ? 'bg-red-50 border border-red-300'
+                                : 'bg-purple-50 border border-purple-200';
+                            })()
+                          : 'bg-yellow-50 border border-yellow-200'
+                    }`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className={`text-sm ${
+                            selectedThread.status === 'accepted'
+                              ? 'text-green-800'
+                              : selectedThread.status === 'on_loan'
+                                ? (() => {
+                                    const isOverdue = selectedThread.loanDueDate && selectedThread.loanDueDate < Date.now();
+                                    return isOverdue ? 'text-red-800' : 'text-purple-800';
+                                  })()
+                                : 'text-yellow-800'
+                          }`}>
+                            {getStatusMessage(selectedThread.status)}
+                          </p>
+                          {selectedThread.status === 'on_loan' && selectedThread.loanDueDate && (
+                            <p className={`text-xs mt-1 ${
+                              selectedThread.loanDueDate < Date.now()
+                                ? 'text-red-700 font-medium'
+                                : 'text-purple-600'
+                            }`}>
+                              {selectedThread.loanDueDate < Date.now()
+                                ? `Overdue! Was due ${new Date(selectedThread.loanDueDate).toLocaleDateString()}`
+                                : `Due ${new Date(selectedThread.loanDueDate).toLocaleDateString()}`}
+                            </p>
+                          )}
+                          {selectedThread.status === 'accepted' && (
+                            <p className="text-xs text-gray-600 mt-1">
+                              {(() => {
+                                const isExchange = threadPosts[selectedThread.id]?.type === 'exchange';
+                                if (selectedThread.requesterCompleted) {
+                                  return isExchange ? '✓ You confirmed the trade' : '✓ You confirmed receipt';
+                                }
+                                if (selectedThread.ownerCompleted) {
+                                  return isExchange
+                                    ? 'They confirmed - please confirm the trade'
+                                    : 'Owner confirmed - please confirm receipt';
+                                }
+                                return isExchange
+                                  ? 'Coordinate the exchange, then confirm completion'
+                                  : 'Coordinate pickup, then confirm receipt';
+                              })()}
+                            </p>
+                          )}
+                        </div>
+                        {(selectedThread.status === 'declined_by_owner' || selectedThread.status === 'given_to_other') && (
+                          <button
+                            onClick={handleDismiss}
+                            disabled={statusLoading}
+                            className="text-sm px-3 py-1 text-gray-700 hover:bg-gray-200 rounded transition-colors disabled:opacity-50"
+                          >
+                            Dismiss
+                          </button>
+                        )}
+                        {selectedThread.status === 'accepted' && isRequester(selectedThread) && !selectedThread.requesterCompleted && (
+                          <button
+                            onClick={handleCompleteExchange}
+                            disabled={statusLoading}
+                            className="px-4 py-2 text-sm bg-green-600 text-white hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            {statusLoading ? 'Confirming...' : threadPosts[selectedThread.id]?.type === 'exchange' ? 'Trade Completed' : 'Gift Received'}
+                          </button>
+                        )}
+                        {selectedThread.status === 'on_loan' && isRequester(selectedThread) && !selectedThread.requesterConfirmedReturn && (
+                          <button
+                            onClick={handleConfirmReturn}
+                            disabled={statusLoading}
+                            className="px-4 py-2 text-sm bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            {statusLoading ? 'Confirming...' : 'I Returned It'}
+                          </button>
+                        )}
+                        {selectedThread.status === 'on_loan' && isRequester(selectedThread) && selectedThread.requesterConfirmedReturn && (
+                          <span className="px-3 py-1 text-sm text-purple-700 bg-purple-100 rounded">
+                            ✓ You confirmed return
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cancel button for active requests */}
+                  {selectedThread.status === 'active' && isRequester(selectedThread) && (
+                    <div className="mb-3 flex justify-end">
+                      <button
+                        onClick={handleCancelRequest}
+                        disabled={statusLoading}
+                        className="text-sm px-3 py-1 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                      >
+                        Cancel Request
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Trade proposal section - show to requester when owner proposes */}
+                  {hasPendingTradeProposal() && (() => {
+                    const lastProposal = messages.filter(m => m.systemMessageType === 'exchange_proposed').pop();
+                    const isRecipient = lastProposal && lastProposal.senderId !== currentUser.id;
+                    if (!isRecipient) return null;
+
+                    return (
+                      <div className="mb-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm font-medium text-blue-800 mb-3">
+                          Trade Proposal Received
+                        </p>
+                        <p className="text-sm text-blue-700 mb-3">
+                          Select one of your books to trade:
+                        </p>
+                        {myPosts.length === 0 ? (
+                          <p className="text-sm text-gray-600 mb-3">
+                            You don't have any active books to trade.
+                          </p>
+                        ) : (
+                          <select
+                            value={selectedMyPostForTrade || ''}
+                            onChange={(e) => setSelectedMyPostForTrade(e.target.value || null)}
+                            className="input w-full mb-3"
+                          >
+                            <option value="">Select a book...</option>
+                            {myPosts.map(post => (
+                              <option key={post.id} value={post.id}>
+                                {post.book.title} by {post.book.author}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={handleDeclineTrade}
+                            disabled={statusLoading}
+                            className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            Decline
+                          </button>
+                          <button
+                            onClick={handleAcceptTrade}
+                            disabled={statusLoading || !selectedMyPostForTrade}
+                            className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            {statusLoading ? 'Processing...' : 'Accept Trade'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {canVouch && (
                     <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
                       <div className="flex items-center justify-between gap-3">
@@ -455,23 +1025,26 @@ export default function MessagesPage() {
                     </div>
                   )}
 
-                  <form onSubmit={handleSendMessage} className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Type a message..."
-                      className="input flex-1"
-                      disabled={sending}
-                    />
-                    <button
-                      type="submit"
-                      disabled={sending || !newMessage.trim()}
-                      className="btn-primary px-6 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {sending ? 'Sending...' : 'Send'}
-                    </button>
-                  </form>
+                  {/* Only show message input for active/accepted/on_loan threads */}
+                  {(selectedThread.status === 'active' || selectedThread.status === 'accepted' || selectedThread.status === 'on_loan') && (
+                    <form onSubmit={handleSendMessage} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="Type a message..."
+                        className="input flex-1"
+                        disabled={sending}
+                      />
+                      <button
+                        type="submit"
+                        disabled={sending || !newMessage.trim()}
+                        className="btn-primary px-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {sending ? 'Sending...' : 'Send'}
+                      </button>
+                    </form>
+                  )}
                 </div>
               </div>
             ) : (
@@ -499,6 +1072,7 @@ export default function MessagesPage() {
       </div>
 
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
+      {ConfirmDialogComponent}
     </div>
   );
 }

@@ -4,7 +4,6 @@ import { env } from './env.js';
 // Import entities
 import { User } from '../entities/User.js';
 import { Post } from '../entities/Post.js';
-import { Comment } from '../entities/Comment.js';
 import { MessageThread } from '../entities/MessageThread.js';
 import { Message } from '../entities/Message.js';
 import { Block } from '../entities/Block.js';
@@ -24,7 +23,6 @@ export const AppDataSource = new DataSource({
   entities: [
     User,
     Post,
-    Comment,
     MessageThread,
     Message,
     Block,

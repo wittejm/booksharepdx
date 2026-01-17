@@ -27,9 +27,7 @@ export default function RequestForm({ postId, postUserId, onCancel, onSuccess }:
       const thread = await messageService.getOrCreateThread(currentUser.id, postUserId, postId);
       await messageService.sendMessage({
         threadId: thread.id,
-        senderId: currentUser.id,
         content: message.trim(),
-        type: 'user',
       });
       setMessage('');
       onSuccess();

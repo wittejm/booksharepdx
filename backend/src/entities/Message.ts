@@ -11,13 +11,14 @@ import {
 import type { User } from './User.js';
 import type { MessageThread } from './MessageThread.js';
 
-export type MessageType = 'user' | 'system';
+export type MessageType = 'user' | 'system' | 'trade_proposal';
 export type SystemMessageType =
   | 'exchange_proposed'
   | 'exchange_completed'
   | 'exchange_declined'
   | 'exchange_cancelled'
   | 'gift_completed';
+export type ProposalStatus = 'pending' | 'accepted' | 'declined';
 
 @Entity('messages')
 export class Message {
@@ -48,6 +49,16 @@ export class Message {
   @Column({ type: 'varchar', nullable: true })
   systemMessageType: SystemMessageType | null;
 
+  // Trade proposal fields (only for type: 'trade_proposal')
+  @Column({ type: 'varchar', nullable: true })
+  offeredPostId: string | null;  // The proposer's book
+
+  @Column({ type: 'varchar', nullable: true })
+  requestedPostId: string | null;  // The book they want
+
+  @Column({ type: 'varchar', nullable: true })
+  proposalStatus: ProposalStatus | null;
+
   @CreateDateColumn()
   timestamp: Date;
 
@@ -60,6 +71,9 @@ export class Message {
       timestamp: this.timestamp.getTime(),
       type: this.type,
       systemMessageType: this.systemMessageType || undefined,
+      offeredPostId: this.offeredPostId || undefined,
+      requestedPostId: this.requestedPostId || undefined,
+      proposalStatus: this.proposalStatus || undefined,
     };
   }
 }

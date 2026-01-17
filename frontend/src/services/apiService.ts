@@ -135,8 +135,9 @@ export const postService = {
     }
   },
 
-  getByUserId: async (userId: string): Promise<Post[]> => {
-    const response = await apiClient.get<{ data: Post[] }>(`/posts?userId=${userId}`);
+  getByUserId: async (userId: string, status?: 'active' | 'pending_exchange' | 'archived'): Promise<Post[]> => {
+    const statusParam = status ? `&status=${status}` : '';
+    const response = await apiClient.get<{ data: Post[] }>(`/posts?userId=${userId}${statusParam}`);
     return response.data;
   },
 
@@ -171,44 +172,105 @@ export const postService = {
 
 // Message Service
 export const messageService = {
-  getThreads: async (userId: string): Promise<MessageThread[]> => {
-    const response = await apiClient.get<{ data: MessageThread[] }>(`/messages/threads?userId=${userId}`);
+  getThreads: async (): Promise<MessageThread[]> => {
+    const response = await apiClient.get<{ data: MessageThread[] }>('/messages/threads');
     return response.data;
   },
 
   getMessages: async (threadId: string): Promise<Message[]> => {
-    const response = await apiClient.get<{ data: Message[] }>(`/messages/threads/${threadId}/messages`);
+    const response = await apiClient.get<{ data: Message[] }>(`/messages/threads/${threadId}`);
     return response.data;
   },
 
-  sendMessage: async (message: Omit<Message, 'id' | 'timestamp'>): Promise<Message> => {
-    const response = await apiClient.post<{ data: Message }>('/messages', message);
+  sendMessage: async (params: {
+    threadId: string;
+    content: string;
+    type?: 'user' | 'system' | 'trade_proposal';
+    systemMessageType?: 'exchange_proposed' | 'exchange_completed' | 'exchange_declined' | 'exchange_cancelled' | 'gift_completed';
+    // Trade proposal fields (required when type is 'trade_proposal')
+    offeredPostId?: string;
+    requestedPostId?: string;
+  }): Promise<Message> => {
+    const response = await apiClient.post<{ data: Message }>(`/messages/threads/${params.threadId}/messages`, {
+      content: params.content,
+      type: params.type || 'user',
+      systemMessageType: params.systemMessageType,
+      offeredPostId: params.offeredPostId,
+      requestedPostId: params.requestedPostId,
+    });
     return response.data;
   },
 
-  createThread: async (postId: string, participants: string[]): Promise<MessageThread> => {
+  createThread: async (postId: string, recipientId: string): Promise<MessageThread> => {
     const response = await apiClient.post<{ data: MessageThread }>('/messages/threads', {
       postId,
-      participants,
+      recipientId,
     });
     return response.data;
   },
 
   getOrCreateThread: async (currentUserId: string, otherUserId: string, postId: string): Promise<MessageThread> => {
-    const threads = await messageService.getThreads(currentUserId);
+    const threads = await messageService.getThreads();
     let thread = threads.find(
       t => t.postId === postId && t.participants.includes(otherUserId)
     );
 
     if (!thread) {
-      thread = await messageService.createThread(postId, [currentUserId, otherUserId]);
+      thread = await messageService.createThread(postId, otherUserId);
     }
 
     return thread;
   },
 
-  markAsRead: async (threadId: string, userId: string): Promise<void> => {
-    await apiClient.post(`/messages/threads/${threadId}/read`, { userId });
+  markAsRead: async (threadId: string): Promise<void> => {
+    await apiClient.put(`/messages/threads/${threadId}/read`);
+  },
+
+  updateThreadStatus: async (
+    threadId: string,
+    status: 'declined_by_owner' | 'cancelled_by_requester' | 'dismissed' | 'accepted',
+    options?: { loanDueDate?: number; convertToGift?: boolean }
+  ): Promise<MessageThread> => {
+    const response = await apiClient.patch<{ data: MessageThread }>(
+      `/messages/threads/${threadId}/status`,
+      { status, ...options }
+    );
+    return response.data;
+  },
+
+  markComplete: async (threadId: string): Promise<MessageThread & { bothCompleted: boolean }> => {
+    const response = await apiClient.post<{ data: MessageThread & { bothCompleted: boolean } }>(
+      `/messages/threads/${threadId}/complete`
+    );
+    return response.data;
+  },
+
+  acceptTrade: async (threadId: string, myPostId: string, theirPostId: string): Promise<MessageThread> => {
+    const response = await apiClient.post<{ data: MessageThread }>(
+      `/messages/threads/${threadId}/accept-trade`,
+      { myPostId, theirPostId }
+    );
+    return response.data;
+  },
+
+  confirmReturn: async (threadId: string, relistPost?: boolean): Promise<MessageThread & { bothConfirmedReturn: boolean }> => {
+    const response = await apiClient.post<{ data: MessageThread & { bothConfirmedReturn: boolean } }>(
+      `/messages/threads/${threadId}/confirm-return`,
+      { relistPost }
+    );
+    return response.data;
+  },
+
+  respondToProposal: async (
+    threadId: string,
+    messageId: string,
+    response: 'accept' | 'decline'
+  ): Promise<{ proposalMessage: Message; thread: MessageThread }> => {
+    const resp = await apiClient.post<{ data: { proposalMessage: Message; thread: MessageThread } }>(
+      `/messages/threads/${threadId}/respond-proposal`,
+      { messageId, response }
+    );
+    return resp.data;
   },
 };
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '../services';
 import { useUser } from '../contexts/UserContext';
 import type { User } from '@booksharepdx/shared';
@@ -17,6 +17,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  const [searchParams] = useSearchParams();
+  const sessionExpired = searchParams.get('expired') === 'true';
 
   const navigate = useNavigate();
   const { currentUser, updateCurrentUser } = useUser();
@@ -104,6 +106,14 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="card p-8">
           <h1 className="text-3xl font-bold text-center mb-8 text-gray-900">Login to BookSharePDX</h1>
+
+          {sessionExpired && (
+            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                Your session has expired. Please log in again to continue.
+              </p>
+            </div>
+          )}
 
           {linkSent ? (
             <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">

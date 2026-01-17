@@ -1,20 +1,29 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
-import type { User, Post } from '@booksharepdx/shared';
-import { userService, postService, neighborhoodService } from '../services';
+import type { User, Post, MessageThread } from '@booksharepdx/shared';
+import { userService, postService, neighborhoodService, messageService } from '../services';
 import { useUser } from '../contexts/UserContext';
+import { useToast } from '../components/useToast';
 import PostCard from '../components/PostCard';
+import ToastContainer from '../components/ToastContainer';
 
 type TabType = 'shares' | 'loves' | 'lookingFor';
 
 export default function ProfilePage() {
   const { username } = useParams<{ username: string }>();
   const { currentUser } = useUser();
+  const { showToast, toasts, dismiss } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('shares');
   const [statsExpanded, setStatsExpanded] = useState(false);
+
+  // Exchange mode: my exchange posts that this user has expressed interest in
+  const [exchangeInfo, setExchangeInfo] = useState<{
+    myPosts: Post[];
+    threadIds: { [postId: string]: string };
+  } | null>(null);
 
   // Redirect to my-profile if viewing your own profile
   if (currentUser?.username === username) {
@@ -33,6 +42,11 @@ export default function ProfilePage() {
         if (userData) {
           const userPosts = await postService.getByUserId(userData.id);
           setPosts(userPosts.filter((p) => p.status === 'active'));
+
+          // Check if this user has active threads on any of my exchange posts
+          if (currentUser && userData.id !== currentUser.id) {
+            await loadExchangeInfo(userData.id);
+          }
         }
       } catch (error) {
         console.error('Failed to load profile:', error);
@@ -42,7 +56,50 @@ export default function ProfilePage() {
     };
 
     loadProfile();
-  }, [username]);
+  }, [username, currentUser]);
+
+  // Load exchange info: find my exchange posts where this user has expressed interest
+  const loadExchangeInfo = async (profileUserId: string) => {
+    if (!currentUser) return;
+
+    try {
+      const threads = await messageService.getThreads();
+
+      // Find threads where:
+      // - I'm a participant
+      // - The other participant is the profile user
+      // - The thread is active (they expressed interest)
+      // - The post is my exchange post
+      const myExchangePosts: Post[] = [];
+      const threadIds: { [postId: string]: string } = {};
+
+      for (const thread of threads) {
+        if (thread.status !== 'active') continue;
+
+        // Check if profile user is in this thread
+        if (!thread.participants.includes(profileUserId)) continue;
+
+        // Get the post
+        const post = await postService.getById(thread.postId);
+        if (!post) continue;
+
+        // Check if it's MY exchange post (I'm the owner)
+        if (post.userId === currentUser.id && post.type === 'exchange') {
+          myExchangePosts.push(post);
+          threadIds[post.id] = thread.id;
+        }
+      }
+
+      if (myExchangePosts.length > 0) {
+        setExchangeInfo({ myPosts: myExchangePosts, threadIds });
+      } else {
+        setExchangeInfo(null);
+      }
+    } catch (error) {
+      console.error('Failed to load exchange info:', error);
+      setExchangeInfo(null);
+    }
+  };
 
   const getLocationDisplay = (u: User) => {
     if (u.location.neighborhoodId) {
@@ -89,6 +146,28 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-5xl mx-auto">
+        {/* Exchange Mode Banner - non-dismissable, just informational */}
+        {exchangeInfo && exchangeInfo.myPosts.length > 0 && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-blue-900">Exchange Available</p>
+                <p className="text-sm text-blue-700">
+                  {user?.username} is interested in {exchangeInfo.myPosts.length === 1
+                    ? `"${exchangeInfo.myPosts[0].book.title}"`
+                    : `${exchangeInfo.myPosts.length} of your books`
+                  }. Click "Exchange" on any book to propose a trade.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Profile Header */}
         <div className="card p-6 mb-6">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
@@ -225,7 +304,11 @@ export default function ProfilePage() {
               </div>
             ) : (
               posts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  exchangeInfo={exchangeInfo || undefined}
+                />
               ))
             )}
           </div>
@@ -358,6 +441,7 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+      <ToastContainer toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

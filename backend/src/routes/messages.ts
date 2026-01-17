@@ -16,8 +16,8 @@ const createThreadSchema = z.object({
 });
 
 const sendMessageSchema = z.object({
-  content: z.string().min(1).max(5000),
-  type: z.enum(['user', 'system']).optional().default('user'),
+  content: z.string().max(5000),  // Allow empty for trade_proposal type
+  type: z.enum(['user', 'system', 'trade_proposal']).optional().default('user'),
   systemMessageType: z.enum([
     'exchange_proposed',
     'exchange_completed',
@@ -25,7 +25,13 @@ const sendMessageSchema = z.object({
     'exchange_cancelled',
     'gift_completed',
   ]).optional(),
-});
+  // Trade proposal fields (required when type is 'trade_proposal')
+  offeredPostId: z.string().uuid().optional(),
+  requestedPostId: z.string().uuid().optional(),
+}).refine(
+  (data) => data.type === 'trade_proposal' || data.content.length >= 1,
+  { message: 'Content is required for non-trade-proposal messages', path: ['content'] }
+);
 
 // GET /api/messages/threads - Get user's message threads
 router.get('/threads', requireAuth, async (req, res, next) => {
@@ -139,7 +145,7 @@ router.post('/threads', requireAuth, validateBody(createThreadSchema), async (re
 router.post('/threads/:threadId/messages', requireAuth, validateBody(sendMessageSchema), async (req, res, next) => {
   try {
     const { threadId } = req.params;
-    const { content, type, systemMessageType } = req.body;
+    const { content, type, systemMessageType, offeredPostId, requestedPostId } = req.body;
     const threadRepo = AppDataSource.getRepository(MessageThread);
     const messageRepo = AppDataSource.getRepository(Message);
 
@@ -165,6 +171,10 @@ router.post('/threads/:threadId/messages', requireAuth, validateBody(sendMessage
       content,
       type,
       systemMessageType: systemMessageType || null,
+      // Trade proposal fields
+      offeredPostId: type === 'trade_proposal' ? offeredPostId : null,
+      requestedPostId: type === 'trade_proposal' ? requestedPostId : null,
+      proposalStatus: type === 'trade_proposal' ? 'pending' : null,
     });
 
     await messageRepo.save(message);
@@ -178,6 +188,89 @@ router.post('/threads/:threadId/messages', requireAuth, validateBody(sendMessage
     await threadRepo.save(thread);
 
     res.status(201).json({ data: message.toJSON() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+const updateStatusSchema = z.object({
+  status: z.enum([
+    'declined_by_owner',
+    'cancelled_by_requester',
+    'dismissed',
+    'accepted',
+  ]),
+  loanDueDate: z.number().optional(), // timestamp for loan due date
+  convertToGift: z.boolean().optional(), // if true, converts loan to gift
+});
+
+// PATCH /api/messages/threads/:threadId/status - Update thread status
+router.patch('/threads/:threadId/status', requireAuth, validateBody(updateStatusSchema), async (req, res, next) => {
+  try {
+    const { threadId } = req.params;
+    const { status, loanDueDate, convertToGift } = req.body;
+    const userId = req.user!.id;
+    const threadRepo = AppDataSource.getRepository(MessageThread);
+    const postRepo = AppDataSource.getRepository(Post);
+
+    const thread = await threadRepo.findOne({
+      where: { id: threadId },
+      relations: ['post'],
+    });
+
+    if (!thread) {
+      throw new AppError('Thread not found', 404, 'THREAD_NOT_FOUND');
+    }
+    if (!thread.participants.includes(userId)) {
+      throw new AppError('Not a participant', 403, 'NOT_THREAD_PARTICIPANT');
+    }
+
+    const isOwner = thread.post?.userId === userId;
+    const isRequester = !isOwner;
+
+    // Validate status transition based on role
+    if (status === 'declined_by_owner' && !isOwner) {
+      throw new AppError('Only the post owner can decline', 403, 'NOT_OWNER');
+    }
+    if (status === 'cancelled_by_requester' && !isRequester) {
+      throw new AppError('Only the requester can cancel', 403, 'NOT_REQUESTER');
+    }
+    if (status === 'accepted' && !isOwner) {
+      throw new AppError('Only the post owner can accept', 403, 'NOT_OWNER');
+    }
+
+    // Handle "give forever" for loans - convert to gift
+    if (convertToGift && thread.post?.type === 'loan') {
+      await postRepo.update(thread.postId, { type: 'giveaway' });
+      thread.post.type = 'giveaway';
+    }
+
+    // Update thread status
+    thread.status = status;
+
+    // Set loan due date if provided and it's a loan
+    if (loanDueDate && thread.post?.type === 'loan') {
+      thread.loanDueDate = new Date(loanDueDate);
+    }
+
+    await threadRepo.save(thread);
+
+    // If owner accepts this requester, mark other threads as given_to_other
+    if (status === 'accepted' && thread.post) {
+      await threadRepo
+        .createQueryBuilder()
+        .update(MessageThread)
+        .set({ status: 'given_to_other' })
+        .where('postId = :postId', { postId: thread.postId })
+        .andWhere('id != :threadId', { threadId })
+        .andWhere('status = :activeStatus', { activeStatus: 'active' })
+        .execute();
+
+      // Update post status to pending
+      await postRepo.update(thread.postId, { status: 'pending_exchange' });
+    }
+
+    res.json({ data: thread.toJSON() });
   } catch (error) {
     next(error);
   }
@@ -209,6 +302,404 @@ router.put('/threads/:threadId/read', requireAuth, async (req, res, next) => {
     await threadRepo.save(thread);
 
     res.json({ data: { success: true } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+const acceptTradeSchema = z.object({
+  myPostId: z.string().uuid(),
+  theirPostId: z.string().uuid(),
+});
+
+// POST /api/messages/threads/:threadId/accept-trade - Accept a trade proposal
+router.post('/threads/:threadId/accept-trade', requireAuth, validateBody(acceptTradeSchema), async (req, res, next) => {
+  try {
+    const { threadId } = req.params;
+    const { myPostId, theirPostId } = req.body;
+    const userId = req.user!.id;
+    const threadRepo = AppDataSource.getRepository(MessageThread);
+    const postRepo = AppDataSource.getRepository(Post);
+    const messageRepo = AppDataSource.getRepository(Message);
+
+    const thread = await threadRepo.findOne({
+      where: { id: threadId },
+      relations: ['post'],
+    });
+
+    if (!thread) {
+      throw new AppError('Thread not found', 404, 'THREAD_NOT_FOUND');
+    }
+    if (!thread.participants.includes(userId)) {
+      throw new AppError('Not a participant', 403, 'NOT_THREAD_PARTICIPANT');
+    }
+
+    // Verify posts exist and belong to correct users
+    const myPost = await postRepo.findOne({ where: { id: myPostId, userId } });
+    if (!myPost) {
+      throw new AppError('Your post not found', 404, 'POST_NOT_FOUND');
+    }
+
+    const theirPost = await postRepo.findOne({ where: { id: theirPostId } });
+    if (!theirPost || theirPost.userId === userId) {
+      throw new AppError('Their post not found', 404, 'POST_NOT_FOUND');
+    }
+
+    // Update both posts to pending_exchange
+    const pendingExchange = {
+      initiatorUserId: theirPost.userId, // They proposed
+      recipientUserId: userId, // We're accepting
+      givingPostId: theirPost.id,
+      receivingPostId: myPost.id,
+      timestamp: Date.now(),
+    };
+
+    await postRepo.update(myPostId, {
+      status: 'pending_exchange',
+      pendingExchange,
+    });
+
+    await postRepo.update(theirPostId, {
+      status: 'pending_exchange',
+      pendingExchange,
+    });
+
+    // Update thread to accepted
+    thread.status = 'accepted';
+    await threadRepo.save(thread);
+
+    // Mark other threads on both posts as given_to_other
+    await threadRepo
+      .createQueryBuilder()
+      .update(MessageThread)
+      .set({ status: 'given_to_other' })
+      .where('postId IN (:...postIds)', { postIds: [myPostId, theirPostId] })
+      .andWhere('id != :threadId', { threadId })
+      .andWhere('status = :activeStatus', { activeStatus: 'active' })
+      .execute();
+
+    // Send system message confirming trade
+    const message = messageRepo.create({
+      threadId,
+      senderId: userId,
+      content: `Trade Accepted!\n\nBoth books are now pending exchange. Coordinate the handoff via messages, then confirm completion.`,
+      type: 'system',
+      systemMessageType: 'exchange_proposed', // Reuse for now
+    });
+    await messageRepo.save(message);
+
+    res.json({ data: thread.toJSON() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+const respondToProposalSchema = z.object({
+  messageId: z.string().uuid(),
+  response: z.enum(['accept', 'decline']),
+});
+
+// POST /api/messages/threads/:threadId/respond-proposal - Accept or decline a trade proposal
+router.post('/threads/:threadId/respond-proposal', requireAuth, validateBody(respondToProposalSchema), async (req, res, next) => {
+  try {
+    const { threadId } = req.params;
+    const { messageId, response } = req.body;
+    const userId = req.user!.id;
+    const threadRepo = AppDataSource.getRepository(MessageThread);
+    const messageRepo = AppDataSource.getRepository(Message);
+    const postRepo = AppDataSource.getRepository(Post);
+
+    const thread = await threadRepo.findOne({
+      where: { id: threadId },
+      relations: ['post'],
+    });
+
+    if (!thread) {
+      throw new AppError('Thread not found', 404, 'THREAD_NOT_FOUND');
+    }
+    if (!thread.participants.includes(userId)) {
+      throw new AppError('Not a participant', 403, 'NOT_THREAD_PARTICIPANT');
+    }
+
+    // Find the proposal message
+    const proposalMessage = await messageRepo.findOne({
+      where: { id: messageId, threadId, type: 'trade_proposal' },
+    });
+
+    if (!proposalMessage) {
+      throw new AppError('Trade proposal not found', 404, 'PROPOSAL_NOT_FOUND');
+    }
+
+    if (proposalMessage.proposalStatus !== 'pending') {
+      throw new AppError('This proposal has already been responded to', 400, 'PROPOSAL_ALREADY_RESPONDED');
+    }
+
+    // Only the recipient (not the sender) can respond
+    if (proposalMessage.senderId === userId) {
+      throw new AppError('You cannot respond to your own proposal', 403, 'CANNOT_RESPOND_TO_OWN_PROPOSAL');
+    }
+
+    if (response === 'decline') {
+      // Just mark as declined
+      proposalMessage.proposalStatus = 'declined';
+      await messageRepo.save(proposalMessage);
+
+      // Send system message
+      const declineMessage = messageRepo.create({
+        threadId,
+        senderId: userId,
+        content: 'Exchange proposal declined.',
+        type: 'system',
+        systemMessageType: 'exchange_declined',
+      });
+      await messageRepo.save(declineMessage);
+
+      res.json({ data: { proposalMessage: proposalMessage.toJSON(), thread: thread.toJSON() } });
+      return;
+    }
+
+    // Accept the proposal
+    proposalMessage.proposalStatus = 'accepted';
+    await messageRepo.save(proposalMessage);
+
+    const offeredPostId = proposalMessage.offeredPostId!;  // The proposer's book
+    const requestedPostId = proposalMessage.requestedPostId!;  // The book they want (the recipient's book)
+
+    // Verify posts exist
+    const offeredPost = await postRepo.findOne({ where: { id: offeredPostId } });
+    const requestedPost = await postRepo.findOne({ where: { id: requestedPostId } });
+
+    if (!offeredPost || !requestedPost) {
+      throw new AppError('One or both posts not found', 404, 'POST_NOT_FOUND');
+    }
+
+    // Update both posts to pending_exchange
+    await postRepo.update(offeredPostId, { status: 'pending_exchange' });
+    await postRepo.update(requestedPostId, { status: 'pending_exchange' });
+
+    // Update thread to accepted
+    thread.status = 'accepted';
+    await threadRepo.save(thread);
+
+    // Mark other threads on both posts as given_to_other
+    await threadRepo
+      .createQueryBuilder()
+      .update(MessageThread)
+      .set({ status: 'given_to_other' })
+      .where('postId IN (:...postIds)', { postIds: [offeredPostId, requestedPostId] })
+      .andWhere('id != :threadId', { threadId })
+      .andWhere('status = :activeStatus', { activeStatus: 'active' })
+      .execute();
+
+    // Send system message confirming trade
+    const acceptMessage = messageRepo.create({
+      threadId,
+      senderId: userId,
+      content: `Exchange accepted! Both books are now pending exchange. Coordinate the handoff via messages, then confirm completion.`,
+      type: 'system',
+      systemMessageType: 'exchange_proposed',
+    });
+    await messageRepo.save(acceptMessage);
+
+    res.json({ data: { proposalMessage: proposalMessage.toJSON(), thread: thread.toJSON() } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/messages/threads/:threadId/complete - Mark gift/trade as completed by current user
+router.post('/threads/:threadId/complete', requireAuth, async (req, res, next) => {
+  try {
+    const { threadId } = req.params;
+    const userId = req.user!.id;
+    const threadRepo = AppDataSource.getRepository(MessageThread);
+    const postRepo = AppDataSource.getRepository(Post);
+
+    const thread = await threadRepo.findOne({
+      where: { id: threadId },
+      relations: ['post'],
+    });
+
+    if (!thread) {
+      throw new AppError('Thread not found', 404, 'THREAD_NOT_FOUND');
+    }
+    if (!thread.participants.includes(userId)) {
+      throw new AppError('Not a participant', 403, 'NOT_THREAD_PARTICIPANT');
+    }
+    if (thread.status !== 'accepted') {
+      throw new AppError('Thread must be in accepted status to complete', 400, 'INVALID_STATUS');
+    }
+
+    const isOwner = thread.post?.userId === userId;
+
+    // Update the appropriate completion flag
+    if (isOwner) {
+      thread.ownerCompleted = true;
+    } else {
+      thread.requesterCompleted = true;
+    }
+
+    await threadRepo.save(thread);
+
+    // Check if both parties have completed
+    if (thread.ownerCompleted && thread.requesterCompleted && thread.post) {
+      const postType = thread.post.type;
+      const messageRepo = AppDataSource.getRepository(Message);
+
+      if (postType === 'loan') {
+        // For loans: transition to on_loan status (don't update stats yet - that happens on return)
+        thread.status = 'on_loan';
+        await threadRepo.save(thread);
+
+        // Send system message
+        const message = messageRepo.create({
+          threadId,
+          senderId: userId,
+          content: 'Loan handoff confirmed! The book is now on loan.',
+          type: 'system',
+          systemMessageType: 'gift_completed', // Reuse for now
+        });
+        await messageRepo.save(message);
+      } else {
+        // Import User entity for stats update
+        const { User } = await import('../entities/User.js');
+        const userRepo = AppDataSource.getRepository(User);
+
+        const ownerId = thread.post.userId;
+        const requesterId = thread.participants.find(p => p !== ownerId)!;
+
+        if (postType === 'exchange') {
+          // Trade: increment booksTraded for both
+          await userRepo.increment({ id: ownerId }, 'booksTraded', 1);
+          await userRepo.increment({ id: requesterId }, 'booksTraded', 1);
+        } else {
+          // Gift: increment booksGiven for owner, booksReceived for requester
+          await userRepo.increment({ id: ownerId }, 'booksGiven', 1);
+          await userRepo.increment({ id: requesterId }, 'booksReceived', 1);
+        }
+
+        // Archive the post
+        await postRepo.update(thread.post.id, {
+          status: 'archived',
+          archivedAt: new Date(),
+          givenTo: requesterId,
+        });
+
+        // Send system message
+        const message = messageRepo.create({
+          threadId,
+          senderId: userId,
+          content: postType === 'exchange'
+            ? 'Trade completed! Both books have been exchanged.'
+            : 'Gift completed! The book has been given.',
+          type: 'system',
+          systemMessageType: postType === 'exchange' ? 'exchange_completed' : 'gift_completed',
+        });
+        await messageRepo.save(message);
+      }
+    }
+
+    res.json({
+      data: {
+        ...thread.toJSON(),
+        bothCompleted: thread.ownerCompleted && thread.requesterCompleted,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+const confirmReturnSchema = z.object({
+  relistPost: z.boolean().optional(), // only for owner - if true, relist the book
+});
+
+// POST /api/messages/threads/:threadId/confirm-return - Confirm loan return
+router.post('/threads/:threadId/confirm-return', requireAuth, validateBody(confirmReturnSchema), async (req, res, next) => {
+  try {
+    const { threadId } = req.params;
+    const { relistPost } = req.body;
+    const userId = req.user!.id;
+    const threadRepo = AppDataSource.getRepository(MessageThread);
+    const postRepo = AppDataSource.getRepository(Post);
+
+    const thread = await threadRepo.findOne({
+      where: { id: threadId },
+      relations: ['post'],
+    });
+
+    if (!thread) {
+      throw new AppError('Thread not found', 404, 'THREAD_NOT_FOUND');
+    }
+    if (!thread.participants.includes(userId)) {
+      throw new AppError('Not a participant', 403, 'NOT_THREAD_PARTICIPANT');
+    }
+    if (thread.status !== 'on_loan') {
+      throw new AppError('Thread must be in on_loan status to confirm return', 400, 'INVALID_STATUS');
+    }
+
+    const isOwner = thread.post?.userId === userId;
+
+    // Update the appropriate return flag
+    if (isOwner) {
+      thread.ownerConfirmedReturn = true;
+    } else {
+      thread.requesterConfirmedReturn = true;
+    }
+
+    await threadRepo.save(thread);
+
+    // Check if both parties have confirmed return
+    if (thread.ownerConfirmedReturn && thread.requesterConfirmedReturn && thread.post) {
+      // Import User entity for stats update
+      const { User } = await import('../entities/User.js');
+      const userRepo = AppDataSource.getRepository(User);
+
+      const ownerId = thread.post.userId;
+      const borrowerId = thread.participants.find(p => p !== ownerId)!;
+
+      // Update stats
+      await userRepo.increment({ id: ownerId }, 'booksLoaned', 1);
+      await userRepo.increment({ id: borrowerId }, 'booksBorrowed', 1);
+
+      // Handle post status based on owner's choice
+      if (relistPost) {
+        // Relist the book
+        await postRepo.update(thread.post.id, {
+          status: 'active',
+        });
+      } else {
+        // Archive the post
+        await postRepo.update(thread.post.id, {
+          status: 'archived',
+          archivedAt: new Date(),
+        });
+      }
+
+      // Reset thread to allow future loans (or mark as complete)
+      thread.status = 'dismissed'; // Mark as dismissed/complete
+      await threadRepo.save(thread);
+
+      // Send system message
+      const messageRepo = AppDataSource.getRepository(Message);
+      const message = messageRepo.create({
+        threadId,
+        senderId: userId,
+        content: relistPost
+          ? 'Book returned and relisted! The loan is complete.'
+          : 'Book returned! The loan is complete.',
+        type: 'system',
+        systemMessageType: 'gift_completed', // Reuse for now
+      });
+      await messageRepo.save(message);
+    }
+
+    res.json({
+      data: {
+        ...thread.toJSON(),
+        bothConfirmedReturn: thread.ownerConfirmedReturn && thread.requesterConfirmedReturn,
+      },
+    });
   } catch (error) {
     next(error);
   }

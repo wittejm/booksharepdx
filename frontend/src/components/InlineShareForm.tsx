@@ -35,7 +35,8 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
 
   // Share type
-  const [shareType, setShareType] = useState<'giveaway' | 'exchange'>('giveaway');
+  const [shareType, setShareType] = useState<'giveaway' | 'exchange' | 'loan'>('giveaway');
+  const [loanDuration, setLoanDuration] = useState<number>(30); // default 30 days
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -67,6 +68,7 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
         },
         type: shareType,
         status: 'active',
+        ...(shareType === 'loan' && { loanDuration }),
       });
 
       showToast('Book shared successfully!', 'success');
@@ -76,6 +78,7 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
       setSelectedGenres([]);
       setStep('collapsed');
       setShareType('giveaway');
+      setLoanDuration(30);
 
       onSuccess?.();
     } catch (err) {
@@ -209,7 +212,38 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
                   <div className="font-medium">Exchange</div>
                   <div className="text-xs text-gray-500">Trade for another book</div>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setShareType('loan')}
+                  className={`flex-1 p-3 rounded-lg border-2 transition-colors ${
+                    shareType === 'loan'
+                      ? 'border-purple-500 bg-purple-50 text-purple-700'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="font-medium">Loan</div>
+                  <div className="text-xs text-gray-500">Lend temporarily</div>
+                </button>
               </div>
+
+              {/* Loan duration dropdown */}
+              {shareType === 'loan' && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Loan Duration</label>
+                  <select
+                    value={loanDuration}
+                    onChange={(e) => setLoanDuration(Number(e.target.value))}
+                    className="input w-full"
+                  >
+                    <option value={30}>30 days</option>
+                    <option value={60}>60 days</option>
+                    <option value={90}>90 days</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Borrowers can request longer if needed
+                  </p>
+                </div>
+              )}
 
               {/* Genre multi-select */}
               <div className="mb-4">

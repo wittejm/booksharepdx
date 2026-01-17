@@ -9,7 +9,6 @@ import {
   Relation,
 } from 'typeorm';
 import type { Post } from './Post.js';
-import type { Comment } from './Comment.js';
 import type { Message } from './Message.js';
 
 export type UserRole = 'user' | 'moderator' | 'admin';
@@ -69,8 +68,7 @@ export class User {
   @Column({ type: "int", default: 0 })
   booksTraded: number;
 
-  @Column({ type: "int", default: 0 })
-  bookshares: number;
+  // Note: bookshares is computed dynamically in toJSON() as sum of all transactions
 
   // Profile extras
   @Column({ type: 'text', nullable: true })
@@ -106,9 +104,6 @@ export class User {
   @OneToMany('Post', 'user')
   posts: Relation<Post[]>;
 
-  @OneToMany('Comment', 'user')
-  comments: Relation<Comment[]>;
-
   @OneToMany('Message', 'sender')
   messages: Relation<Message[]>;
 
@@ -135,7 +130,7 @@ export class User {
         booksLoaned: this.booksLoaned,
         booksBorrowed: this.booksBorrowed,
         booksTraded: this.booksTraded,
-        bookshares: this.bookshares,
+        bookshares: this.booksGiven + this.booksReceived + this.booksLoaned + this.booksBorrowed + this.booksTraded,
       },
       readingPreferences: this.readingPreferences || undefined,
       socialLinks: this.socialLinks || undefined,

@@ -109,9 +109,7 @@ export default function ShareDetailPage() {
       );
       await messageService.sendMessage({
         threadId: thread.id,
-        senderId: currentUser.id,
         content: interestedMessage.trim() || "Hi! I'm interested in this book.",
-        type: 'user',
       });
       showToast('Message sent!', 'success');
 

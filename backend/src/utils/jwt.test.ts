@@ -9,6 +9,7 @@ vi.mock('../config/env.js', () => ({
     jwtExpiresIn: '15m',
     jwtRefreshExpiresIn: '7d',
     isProd: false,
+    isStaging: false,
   },
 }));
 

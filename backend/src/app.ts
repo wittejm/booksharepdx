@@ -60,8 +60,13 @@ export function createApp() {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  // API routes
-  app.use('/api', routes);
+  // API routes - disable caching for dynamic data
+  app.use('/api', (req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    next();
+  }, routes);
 
   // 404 handler
   app.use((req, res) => {

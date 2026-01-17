@@ -51,7 +51,7 @@ export default function LandingPage() {
                   Share books with your neighbors.
                 </h1>
                 <p className="text-xl text-gray-600 mt-6 leading-relaxed">
-                  Build community, one page at a time. Discover local books, connect with readers in your neighborhood.
+                  Give away books you've finished. Find something new to read. Meet the people who live near you.
                 </p>
               </div>
 
@@ -171,22 +171,22 @@ export default function LandingPage() {
 
       {/* How It Works Section */}
       <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-4">Join our growing community!</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">How it works</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             {/* Step 1 */}
             <div className="text-center">
               <div className="mb-6 flex justify-center">
                 <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
-                  <span className="text-3xl">👤</span>
+                  <span className="text-3xl">📚</span>
                 </div>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Create Account</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Post your books</h3>
               <p className="text-gray-600">
-                Sign up with your email and tell us about yourself. It takes just 2 minutes.
+                Books you want to give away, trade, or loan out. Someone nearby probably wants to read them.
               </p>
             </div>
 
@@ -194,38 +194,12 @@ export default function LandingPage() {
             <div className="text-center">
               <div className="mb-6 flex justify-center">
                 <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
-                  <span className="text-3xl">📖</span>
+                  <span className="text-3xl">👋</span>
                 </div>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">List Your Books</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Meet up and share</h3>
               <p className="text-gray-600">
-                List books you want to give away or trade.
-              </p>
-            </div>
-
-            {/* Step 3 */}
-            <div className="text-center">
-              <div className="mb-6 flex justify-center">
-                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
-                  <span className="text-3xl">💬</span>
-                </div>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Connect & Message</h3>
-              <p className="text-gray-600">
-                Browse local books and message neighbors. Arrange pickup times and locations.
-              </p>
-            </div>
-
-            {/* Step 4 */}
-            <div className="text-center">
-              <div className="mb-6 flex justify-center">
-                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
-                  <span className="text-3xl">✨</span>
-                </div>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Build Community</h3>
-              <p className="text-gray-600">
-                Exchange books, make friends, and strengthen your neighborhood connections.
+                Message your neighbors, figure out a time, hand off the book. Maybe make a friend.
               </p>
             </div>
           </div>
@@ -235,16 +209,16 @@ export default function LandingPage() {
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-primary-600 to-primary-700 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">Ready to share?</h2>
+          <h2 className="text-4xl md:text-5xl font-bold mb-6">Got books collecting dust?</h2>
           <p className="text-lg text-primary-100 mb-8 max-w-2xl mx-auto">
-            Join the BookSharePDX community today and start building meaningful connections through a shared love of reading.
+            Someone in your neighborhood wants to read them.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/signup"
               className="bg-white text-primary-600 font-semibold px-8 py-3 rounded-lg hover:bg-gray-100 transition-colors"
             >
-              Get Started Now
+              Sign Up
             </Link>
             <Link
               to="/about"

@@ -7,10 +7,12 @@ interface ConfirmOptions {
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'warning' | 'info';
+  hideCancel?: boolean; // For alert-style dialogs with only one button
 }
 
 interface UseConfirmReturn {
   confirm: (options: ConfirmOptions) => Promise<boolean>;
+  alert: (options: Omit<ConfirmOptions, 'hideCancel'>) => Promise<void>; // One-button alert
   ConfirmDialogComponent: React.ReactNode;
 }
 
@@ -31,6 +33,16 @@ export function useConfirm(): UseConfirmReturn {
         open: true,
         options,
         resolver: resolve
+      });
+    });
+  }, []);
+
+  const alert = useCallback((options: Omit<ConfirmOptions, 'hideCancel'>): Promise<void> => {
+    return new Promise((resolve) => {
+      setDialogState({
+        open: true,
+        options: { ...options, hideCancel: true, confirmText: options.confirmText || 'OK' },
+        resolver: () => resolve()
       });
     });
   }, []);
@@ -67,8 +79,9 @@ export function useConfirm(): UseConfirmReturn {
       confirmText={dialogState.options.confirmText}
       cancelText={dialogState.options.cancelText}
       variant={dialogState.options.variant}
+      hideCancel={dialogState.options.hideCancel}
     />
   );
 
-  return { confirm, ConfirmDialogComponent };
+  return { confirm, alert, ConfirmDialogComponent };
 }

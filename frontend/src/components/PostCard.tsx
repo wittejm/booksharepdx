@@ -239,7 +239,10 @@ export default function PostCard({ post, distance, autoOpenRequest, exchangeInfo
           postId={post.id}
           postUserId={post.userId}
           onCancel={() => setShowContactForm(false)}
-          onSuccess={() => setShowContactForm(false)}
+          onSuccess={(thread) => {
+            setExistingThread(thread);
+            setShowContactForm(false);
+          }}
         />
       )}
       {ConfirmDialogComponent}

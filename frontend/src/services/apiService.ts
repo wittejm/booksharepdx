@@ -135,7 +135,7 @@ export const postService = {
     }
   },
 
-  getByUserId: async (userId: string, status?: 'active' | 'pending_exchange' | 'archived'): Promise<Post[]> => {
+  getByUserId: async (userId: string, status?: 'active' | 'agreed_upon' | 'archived'): Promise<Post[]> => {
     const statusParam = status ? `&status=${status}` : '';
     const response = await apiClient.get<{ data: Post[] }>(`/posts?userId=${userId}${statusParam}`);
     return response.data;
@@ -335,7 +335,7 @@ export const reportService = {
   },
 };
 
-// Vouch Service
+// Vouch Service - Vouch is a non-MVP feature
 export const vouchService = {
   getForUser: async (userId: string): Promise<Vouch[]> => {
     const response = await apiClient.get<{ data: Vouch[] }>(`/vouches?userId=${userId}`);

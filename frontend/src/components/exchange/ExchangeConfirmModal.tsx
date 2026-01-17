@@ -39,7 +39,7 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
 
         // Check if the selected book (current post) is still available
         const currentPostData = await postService.getById(post.id);
-        if (currentPostData?.status !== 'pending_exchange') {
+        if (currentPostData?.status !== 'agreed_upon') {
           // Book was already given away
           setBookNoLongerAvailable(true);
         }
@@ -177,7 +177,7 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
 
       // Set up new pending exchange with alternative book
       await postService.update(alternativePost.id, {
-        status: 'pending_exchange',
+        status: 'agreed_upon',
         pendingExchange: {
           initiatorUserId: currentUserId, // Now recipient becomes initiator
           recipientUserId: post.pendingExchange.initiatorUserId,
@@ -188,7 +188,7 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
       });
 
       await postService.update(givingPost.id, {
-        status: 'pending_exchange',
+        status: 'agreed_upon',
         pendingExchange: {
           initiatorUserId: currentUserId,
           recipientUserId: post.pendingExchange.initiatorUserId,

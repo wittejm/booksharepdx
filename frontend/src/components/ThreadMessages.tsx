@@ -33,13 +33,18 @@ export default function ThreadMessages({ threadId, otherUsername, highlightBanne
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Load requested posts for trade proposals (the book NOT the thread's origin)
+  // Load posts for trade proposals
+  // IMPORTANT - Trade proposal field semantics:
+  //   - offeredPostId = the POSTER's book (what they're giving away)
+  //   - requestedPostId = the REQUESTER's book (what the poster SELECTED/WANTS)
+  // We display requestedPostId because that's the book the poster chose from the requester's collection
   useEffect(() => {
     const loadProposalPosts = async () => {
       const tradeProposals = messages.filter(m => m.type === 'trade_proposal');
       const postIdsToLoad = new Set<string>();
 
       tradeProposals.forEach(proposal => {
+        // Load the REQUESTED post (the book the poster selected from the requester)
         if (proposal.requestedPostId && !proposalPosts[proposal.requestedPostId]) {
           postIdsToLoad.add(proposal.requestedPostId);
         }
@@ -176,30 +181,32 @@ export default function ThreadMessages({ threadId, otherUsername, highlightBanne
               );
             }
 
-            // Trade proposal visual card - shows the requested book (not the thread's origin post)
+            // Trade proposal visual card
+            // Shows requestedPostId = the book the POSTER SELECTED from the requester's collection
+            // (NOT offeredPostId which is the poster's original book)
             if (message.type === 'trade_proposal') {
-              const requestedPost = message.requestedPostId ? proposalPosts[message.requestedPostId] : undefined;
+              const selectedPost = message.requestedPostId ? proposalPosts[message.requestedPostId] : undefined;
               const isMyProposal = message.senderId === currentUser?.id;
               const isPending = message.proposalStatus === 'pending';
 
               return (
                 <div key={message.id} className="flex justify-center my-2">
                   <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
-                    {/* Book cover and title */}
+                    {/* Book cover and title - shows the book the poster selected */}
                     <div className="flex flex-col items-center">
                       <div className="w-16 h-24 bg-gray-100 rounded overflow-hidden flex items-center justify-center mb-2">
-                        {requestedPost?.book.coverImage ? (
+                        {selectedPost?.book.coverImage ? (
                           <img
-                            src={requestedPost.book.coverImage}
-                            alt={requestedPost.book.title}
+                            src={selectedPost.book.coverImage}
+                            alt={selectedPost.book.title}
                             className="w-full h-full object-cover"
                           />
                         ) : (
                           <span className="text-gray-400 text-xs">No cover</span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-700 font-medium text-center max-w-[120px] truncate" title={requestedPost?.book.title}>
-                        {requestedPost?.book.title || 'Loading...'}
+                      <p className="text-xs text-gray-700 font-medium text-center max-w-[120px] truncate" title={selectedPost?.book.title}>
+                        {selectedPost?.book.title || 'Loading...'}
                       </p>
                     </div>
 
@@ -214,7 +221,7 @@ export default function ThreadMessages({ threadId, otherUsername, highlightBanne
                           Accept
                         </button>
                         <button
-                          onClick={() => handleDeclineProposal(message.id, requestedPost)}
+                          onClick={() => handleDeclineProposal(message.id, selectedPost)}
                           disabled={responding}
                           className="flex-1 btn-secondary text-xs py-1.5 disabled:opacity-50"
                         >

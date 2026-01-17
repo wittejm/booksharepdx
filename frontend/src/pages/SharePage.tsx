@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Navigate } from 'react-router-dom';
-import type { Post } from '@booksharepdx/shared';
-import { postService, savedPostService } from '../services';
+import type { Post, MessageThread } from '@booksharepdx/shared';
+import { postService, savedPostService, messageService } from '../services';
 import { useUser } from '../contexts/UserContext';
 import { useInterest } from '../contexts/InterestContext';
 import ShareCard from '../components/ShareCard';
@@ -18,6 +18,7 @@ export default function SharePage() {
   const [activeTab, setActiveTab] = useState<TabType>('active');
   const [posts, setPosts] = useState<Post[]>([]);
   const [savedPosts, setSavedPosts] = useState<Post[]>([]);
+  const [threads, setThreads] = useState<MessageThread[]>([]);
   const postRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const hasScrolledToInterest = useRef(false);
 
@@ -33,12 +34,14 @@ export default function SharePage() {
   const reloadPosts = async () => {
     if (!currentUser) return;
     try {
-      const [activePosts, pendingPosts, archivedPosts] = await Promise.all([
+      const [activePosts, agreedPosts, archivedPosts, allThreads] = await Promise.all([
         postService.getByUserId(currentUser.id, 'active'),
-        postService.getByUserId(currentUser.id, 'pending_exchange'),
+        postService.getByUserId(currentUser.id, 'agreed_upon'),
         postService.getByUserId(currentUser.id, 'archived'),
+        messageService.getThreads(),
       ]);
-      setPosts([...activePosts, ...pendingPosts, ...archivedPosts]);
+      setPosts([...activePosts, ...agreedPosts, ...archivedPosts]);
+      setThreads(allThreads);
     } catch (error) {
       console.error('Failed to reload posts:', error);
     }
@@ -50,13 +53,15 @@ export default function SharePage() {
 
       setLoading(true);
       try {
-        // Fetch all post statuses for user's shares
-        const [activePosts, pendingPosts, archivedPosts] = await Promise.all([
+        // Fetch all post statuses for user's shares and their threads
+        const [activePosts, agreedPosts, archivedPosts, allThreads] = await Promise.all([
           postService.getByUserId(currentUser.id, 'active'),
-          postService.getByUserId(currentUser.id, 'pending_exchange'),
+          postService.getByUserId(currentUser.id, 'agreed_upon'),
           postService.getByUserId(currentUser.id, 'archived'),
+          messageService.getThreads(),
         ]);
-        setPosts([...activePosts, ...pendingPosts, ...archivedPosts]);
+        setPosts([...activePosts, ...agreedPosts, ...archivedPosts]);
+        setThreads(allThreads);
 
         const saved = await savedPostService.getByUserId(currentUser.id);
         const savedPostsData = await Promise.all(
@@ -128,15 +133,35 @@ export default function SharePage() {
     return <Navigate to="/login" replace />;
   }
 
+  // Helper to check if owner has completed a post (via its accepted thread)
+  // For trades, the thread may be on the OTHER post in the exchange, so check both
+  const isOwnerCompleted = (post: Post): boolean => {
+    // First check if there's a thread directly on this post
+    let acceptedThread = threads.find(t => t.postId === post.id && t.status === 'accepted');
+
+    // For trades, also check the other post in the exchange
+    if (!acceptedThread && post.pendingExchange?.otherPostId) {
+      acceptedThread = threads.find(t => t.postId === post.pendingExchange!.otherPostId && t.status === 'accepted');
+    }
+
+    return acceptedThread?.ownerCompleted ?? false;
+  };
+
   const getActivePosts = () => {
-    // Include active posts AND pending_exchange posts (accepted but not yet completed)
-    const activePosts = posts.filter((p) => p.status === 'active' || p.status === 'pending_exchange');
-    // Sort: pending_exchange first (need action), then posts with interest, then others
+    // Active = posts where owner has NOT marked complete
+    // - 'active' posts (no one accepted yet)
+    // - 'agreed_upon' posts where ownerCompleted is false
+    const activePosts = posts.filter((p) => {
+      if (p.status === 'active') return true;
+      if (p.status === 'agreed_upon') return !isOwnerCompleted(p);
+      return false;
+    });
+    // Sort: agreed_upon first (need action), then posts with interest, then others
     const postIdsWithInterest = new Set(interestSummary.interests.map(i => i.postId));
     return [...activePosts].sort((a, b) => {
-      // Pending exchange posts come first
-      if (a.status === 'pending_exchange' && b.status !== 'pending_exchange') return -1;
-      if (a.status !== 'pending_exchange' && b.status === 'pending_exchange') return 1;
+      // Agreed upon posts come first (need action)
+      if (a.status === 'agreed_upon' && b.status !== 'agreed_upon') return -1;
+      if (a.status !== 'agreed_upon' && b.status === 'agreed_upon') return 1;
       // Then posts with interest
       const aHasInterest = postIdsWithInterest.has(a.id);
       const bHasInterest = postIdsWithInterest.has(b.id);
@@ -145,7 +170,16 @@ export default function SharePage() {
       return 0;
     });
   };
-  const getArchivedPosts = () => posts.filter((p) => p.status === 'archived');
+
+  const getArchivedPosts = () => {
+    // Archive = posts where owner HAS marked complete (ownerCompleted is true)
+    // Also include any manually archived posts (status === 'archived')
+    return posts.filter((p) => {
+      if (p.status === 'archived') return true;
+      if (p.status === 'agreed_upon') return isOwnerCompleted(p);
+      return false;
+    });
+  };
 
   const tabPosts =
     activeTab === 'active'

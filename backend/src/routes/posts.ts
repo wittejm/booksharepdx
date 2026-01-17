@@ -28,7 +28,7 @@ const createPostSchema = z.object({
 
 const updatePostSchema = z.object({
   notes: z.string().optional(),
-  status: z.enum(['active', 'pending_exchange', 'archived']).optional(),
+  status: z.enum(['active', 'agreed_upon', 'archived']).optional(),
   pendingExchange: z.object({
     initiatorUserId: z.string(),
     recipientUserId: z.string(),
@@ -48,7 +48,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
     const neighborhoodId = req.query.neighborhoodId as string | undefined;
     const type = req.query.type as 'giveaway' | 'exchange' | undefined;
     const genre = req.query.genre as string | undefined;
-    const status = req.query.status as 'active' | 'pending_exchange' | 'archived' | undefined;
+    const status = req.query.status as 'active' | 'agreed_upon' | 'archived' | undefined;
     const search = req.query.search as string | undefined;
     const userId = req.query.userId as string | undefined;
     const limit = parseInt(req.query.limit as string) || 20;
@@ -287,7 +287,7 @@ router.put('/:id', requireAuth, validateBody(updatePostSchema), async (req, res,
     });
 
     // Handle status change to archived (given/exchanged)
-    const wasActive = post.status === 'active' || post.status === 'pending_exchange';
+    const wasActive = post.status === 'active' || post.status === 'agreed_upon';
     const becomingArchived = req.body.status === 'archived' && wasActive;
 
     // Apply updates

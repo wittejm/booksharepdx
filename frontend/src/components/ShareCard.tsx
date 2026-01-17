@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import type { Post, Interest, User, MessageThread } from '@booksharepdx/shared';
 import { postService, interestService, userService, messageService } from '../services';
 import { useConfirm } from './useConfirm';
@@ -24,8 +24,9 @@ interface ShareCardProps {
 export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFocusComplete }: ShareCardProps) {
   const { currentUser } = useUser();
   const { summary: interestSummary } = useInterest();
-  const { confirm, ConfirmDialogComponent } = useConfirm();
+  const { confirm, alert, ConfirmDialogComponent } = useConfirm();
   const { showToast } = useToast();
+  const navigate = useNavigate();
 
   // Get interest count for this post from context
   const interestCount = interestSummary.interests.filter(i => i.postId === post.id).length;
@@ -50,9 +51,9 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
   const [customDueDate, setCustomDueDate] = useState<string>('');
   const [useCustomDate, setUseCustomDate] = useState(false);
 
-  // Load accepted thread for pending_exchange posts (includes on_loan threads for loans)
+  // Load accepted thread for agreed_upon posts (includes on_loan threads for loans)
   useEffect(() => {
-    if (post.status === 'pending_exchange' && currentUser) {
+    if (post.status === 'agreed_upon' && currentUser) {
       loadAcceptedThread();
     }
   }, [post.id, post.status, currentUser]);
@@ -61,12 +62,83 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
   const [onLoanThread, setOnLoanThread] = useState<MessageThread | null>(null);
   const [borrowerUser, setBorrowerUser] = useState<User | null>(null);
 
+  // State for archived post threads (to view conversation history)
+  const [archivedThreads, setArchivedThreads] = useState<MessageThread[]>([]);
+  const [archivedUsers, setArchivedUsers] = useState<{ [threadId: string]: User }>({});
+
+  // State for recipient user (who the book was given to)
+  const [recipientUser, setRecipientUser] = useState<User | null>(null);
+
+  // State for trading partner (for exchange posts with pendingExchange)
+  const [tradingPartner, setTradingPartner] = useState<User | null>(null);
+
+  // State for traded book (the book received in exchange)
+  const [tradedBook, setTradedBook] = useState<Post | null>(null);
+
+  // Load recipient user for archived posts
+  useEffect(() => {
+    if (post.status === 'archived' && post.givenTo && currentUser) {
+      loadRecipientUser();
+    }
+  }, [post.id, post.status, post.givenTo, currentUser]);
+
+  // Load trading partner for exchange posts
+  useEffect(() => {
+    if (post.type === 'exchange' && post.pendingExchange?.otherUserId && currentUser) {
+      loadTradingPartner();
+    }
+  }, [post.id, post.type, post.pendingExchange, currentUser]);
+
+  // Load traded book for exchange posts (to show what book was received)
+  useEffect(() => {
+    if (post.type === 'exchange' && post.pendingExchange?.otherPostId && currentUser) {
+      loadTradedBook();
+    }
+  }, [post.id, post.type, post.pendingExchange, currentUser]);
+
+  const loadRecipientUser = async () => {
+    if (!post.givenTo) return;
+    try {
+      const user = await userService.getById(post.givenTo);
+      setRecipientUser(user);
+    } catch (error) {
+      console.error('Failed to load recipient user:', error);
+    }
+  };
+
+  const loadTradingPartner = async () => {
+    if (!post.pendingExchange?.otherUserId) return;
+    try {
+      const user = await userService.getById(post.pendingExchange.otherUserId);
+      setTradingPartner(user);
+    } catch (error) {
+      console.error('Failed to load trading partner:', error);
+    }
+  };
+
+  const loadTradedBook = async () => {
+    if (!post.pendingExchange?.otherPostId) return;
+    try {
+      const otherPost = await postService.getById(post.pendingExchange.otherPostId);
+      setTradedBook(otherPost);
+    } catch (error) {
+      console.error('Failed to load traded book:', error);
+    }
+  };
+
   // Load on_loan thread for loan posts
   useEffect(() => {
     if (post.type === 'loan' && currentUser) {
       loadOnLoanThread();
     }
   }, [post.id, post.type, currentUser]);
+
+  // Load threads for archived posts
+  useEffect(() => {
+    if (post.status === 'archived' && currentUser) {
+      loadArchivedThreads();
+    }
+  }, [post.id, post.status, currentUser]);
 
   // Load interests when expanded
   useEffect(() => {
@@ -93,9 +165,19 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
   const loadAcceptedThread = async () => {
     try {
       const threads = await messageService.getThreads();
-      const accepted = threads.find(
-        t => t.postId === post.id && t.status === 'accepted' && !t.ownerCompleted
+      // Find thread with accepted status (regardless of owner completion status)
+      // For trades, the thread may be on the OTHER post in the exchange, so check both
+      let accepted = threads.find(
+        t => t.postId === post.id && t.status === 'accepted'
       );
+
+      // For trades, also check the other post in the exchange
+      if (!accepted && post.pendingExchange?.otherPostId) {
+        accepted = threads.find(
+          t => t.postId === post.pendingExchange!.otherPostId && t.status === 'accepted'
+        );
+      }
+
       if (accepted) {
         setAcceptedThread(accepted);
         const otherUserId = accepted.participants.find(p => p !== currentUser?.id);
@@ -125,6 +207,30 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
       }
     } catch (error) {
       console.error('Failed to load on_loan thread:', error);
+    }
+  };
+
+  const loadArchivedThreads = async () => {
+    try {
+      const threads = await messageService.getThreads();
+      // Find all threads for this post (could be the completed one or declined ones)
+      const postThreads = threads.filter(t => t.postId === post.id);
+      setArchivedThreads(postThreads);
+
+      // Load user data for each thread
+      const users: { [threadId: string]: User } = {};
+      for (const thread of postThreads) {
+        const otherUserId = thread.participants.find(p => p !== currentUser?.id);
+        if (otherUserId) {
+          const user = await userService.getById(otherUserId);
+          if (user) {
+            users[thread.id] = user;
+          }
+        }
+      }
+      setArchivedUsers(users);
+    } catch (error) {
+      console.error('Failed to load archived threads:', error);
     }
   };
 
@@ -246,8 +352,8 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
 
     const actionText = relistPost ? 'Relist Book' : 'Archive Book';
     const confirmed = await confirm({
-      title: 'Confirm Return',
-      message: `Confirm that ${borrowerUser.username} returned "${post.book.title}"? The book will be ${relistPost ? 'relisted for others' : 'archived'}.`,
+      title: 'Complete Return',
+      message: `Did ${borrowerUser.username} return "${post.book.title}"? The book will be ${relistPost ? 'relisted for others' : 'archived'}.`,
       confirmText: actionText,
       variant: 'info'
     });
@@ -259,14 +365,14 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
       if (result.bothConfirmedReturn) {
         showToast(relistPost ? 'Book returned and relisted!' : 'Book returned! Loan complete.', 'success');
       } else {
-        showToast(`Marked as returned. Waiting for ${borrowerUser.username} to confirm.`, 'success');
+        showToast('Return recorded', 'success');
       }
       setOnLoanThread(null);
       setBorrowerUser(null);
       onUpdate?.();
     } catch (error) {
-      console.error('Failed to confirm return:', error);
-      showToast('Failed to confirm return', 'error');
+      console.error('Failed to record return:', error);
+      showToast('Failed to record return', 'error');
     } finally {
       setActionLoading(null);
     }
@@ -301,8 +407,8 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
     if (!acceptedThread || !acceptedUser) return;
 
     const confirmed = await confirm({
-      title: 'Confirm Gift',
-      message: `Confirm that you gave "${post.book.title}" to ${acceptedUser.username}?`,
+      title: 'Complete Gift',
+      message: `Did you give "${post.book.title}" to ${acceptedUser.username}?`,
       confirmText: 'Yes, I gave it',
       variant: 'info'
     });
@@ -310,12 +416,8 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
 
     setActionLoading(acceptedThread.id);
     try {
-      const result = await messageService.markComplete(acceptedThread.id);
-      if (result.bothCompleted) {
-        showToast('Gift completed! Stats updated.', 'success');
-      } else {
-        showToast(`Marked as given. Waiting for ${acceptedUser.username} to confirm receipt.`, 'success');
-      }
+      await messageService.markComplete(acceptedThread.id);
+      showToast('Your gift has been archived', 'success');
       onUpdate?.();
     } catch (error) {
       console.error('Failed to complete gift:', error);
@@ -343,6 +445,17 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
   };
 
   const handleDelete = async () => {
+    // Check if post is part of an uncompleted trade
+    if (post.status === 'agreed_upon' || post.pendingExchange) {
+      await alert({
+        title: 'Cannot Delete',
+        message: 'You cannot delete this post while it is part of an uncompleted trade.',
+        variant: 'warning'
+      });
+      setShowMenu(false);
+      return;
+    }
+
     const confirmed = await confirm({
       title: 'Delete Post',
       message: 'Are you sure you want to delete this post? This action cannot be undone.',
@@ -477,7 +590,7 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
                   onClick={() => setShowMenu(false)}
                 />
                 <div className="absolute right-0 top-10 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 w-48">
-                  {post.status === 'active' ? (
+                  {post.status === 'active' && (
                     <>
                       <button
                         onClick={handleMarkAsGiven}
@@ -492,7 +605,16 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
                         Delete
                       </button>
                     </>
-                  ) : (
+                  )}
+                  {post.status === 'agreed_upon' && (
+                    <button
+                      onClick={handleDelete}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      Delete
+                    </button>
+                  )}
+                  {post.status === 'archived' && (
                     <>
                       <button
                         onClick={handleReactivate}
@@ -516,6 +638,29 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
 
         <div className="p-4">
           <BookDisplay book={post.book} type={post.type} status={post.status}>
+            {/* Trading partner badge for exchange posts with pendingExchange */}
+            {post.type === 'exchange' && tradingPartner && post.status !== 'archived' && (
+              <div className="mt-2">
+                <button
+                  onClick={() => {
+                    if (acceptedThread) {
+                      // Thread is on this post - toggle inline messages
+                      setShowMessagesForThread(
+                        showMessagesForThread === acceptedThread.id ? null : acceptedThread.id
+                      );
+                    } else {
+                      // Thread is on the other post - navigate to Activity
+                      navigate(`/activity?postId=${post.pendingExchange?.otherPostId}`);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors"
+                >
+                  Trading with
+                  <Avatar src={tradingPartner.profilePicture} username={tradingPartner.username} size="xs" />
+                  <span>{tradingPartner.username}</span>
+                </button>
+              </div>
+            )}
             {/* Notes */}
             {post.notes && (
               <p className="text-sm text-gray-600 mt-2 line-clamp-2">{post.notes}</p>
@@ -656,8 +801,8 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
             </div>
           )}
 
-          {/* Pending Completion Section - for pending_exchange posts */}
-          {post.status === 'pending_exchange' && acceptedThread && acceptedUser && (
+          {/* Pending Completion Section - for agreed_upon posts */}
+          {post.status === 'agreed_upon' && acceptedThread && acceptedUser && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="bg-green-50 border border-green-200 rounded-lg overflow-hidden">
                 <div className="p-4">
@@ -692,12 +837,12 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
                           disabled={actionLoading === acceptedThread.id}
                         className="px-4 py-2 text-sm bg-green-600 text-white hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50"
                       >
-                        {actionLoading === acceptedThread.id ? 'Confirming...' : 'Gift Completed'}
+                        {actionLoading === acceptedThread.id ? 'Completing...' : 'Gift Completed'}
                       </button>
                     )}
                     {acceptedThread.ownerCompleted && (
                       <span className="px-3 py-1 text-sm text-green-700 bg-green-100 rounded">
-                        ✓ You confirmed
+                        ✓ Completed
                       </span>
                     )}
                   </div>
@@ -711,6 +856,88 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
                   />
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Archived Post Section - show who received it and conversation history */}
+          {post.status === 'archived' && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              {/* Trade completion display */}
+              {post.type === 'exchange' && tradingPartner && tradedBook ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-blue-800">Traded with</span>
+                    <Link
+                      to={`/profile/${tradingPartner.username}`}
+                      className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+                    >
+                      <Avatar src={tradingPartner.profilePicture} username={tradingPartner.username} size="xs" />
+                      <span className="font-medium text-blue-900">{tradingPartner.username}</span>
+                    </Link>
+                    <span className="text-sm text-blue-800">for</span>
+                    <span className="font-medium text-blue-900">{tradedBook.book.title}</span>
+                  </div>
+                </div>
+              ) : recipientUser && (
+                /* "You gave this to" display for gifts */
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-green-800">You gave this to</span>
+                    <Link
+                      to={`/profile/${recipientUser.username}`}
+                      className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                    >
+                      <Avatar src={recipientUser.profilePicture} username={recipientUser.username} size="sm" />
+                      <span className="font-medium text-green-900">{recipientUser.username}</span>
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {/* Conversation history */}
+              {archivedThreads.length > 0 && (
+                <div className="space-y-2">
+                  {archivedThreads.map(thread => {
+                    const user = archivedUsers[thread.id];
+                    if (!user) return null;
+
+                    return (
+                      <div
+                        key={thread.id}
+                        className="bg-gray-50 rounded-lg overflow-hidden"
+                      >
+                        <div className="flex items-center justify-between gap-3 p-3">
+                          <Link
+                            to={`/profile/${user.username}`}
+                            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                          >
+                            <Avatar src={user.profilePicture} username={user.username} size="sm" />
+                            <span className="font-medium text-gray-900">{user.username}</span>
+                          </Link>
+                          <button
+                            onClick={() => setShowMessagesForThread(
+                              showMessagesForThread === thread.id ? null : thread.id
+                            )}
+                            className={`px-3 py-1 text-sm rounded transition-colors ${
+                              showMessagesForThread === thread.id
+                                ? 'bg-primary-100 text-primary-700'
+                                : 'text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {showMessagesForThread === thread.id ? 'Hide' : 'Messages'}
+                          </button>
+                        </div>
+                        {showMessagesForThread === thread.id && (
+                          <ThreadMessages
+                            threadId={thread.id}
+                            otherUsername={user.username}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -778,7 +1005,7 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
                         )}
                         {onLoanThread.ownerConfirmedReturn && (
                           <span className="px-3 py-1 text-sm text-purple-700 bg-purple-100 rounded">
-                            ✓ You confirmed return
+                            ✓ Return completed
                           </span>
                         )}
                         </div>

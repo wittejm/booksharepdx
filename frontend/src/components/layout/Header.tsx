@@ -73,7 +73,7 @@ export default function Header() {
                   )}
                 </Link>
                 <Link
-                  to="/messages"
+                  to="/activity"
                   className="text-gray-700 hover:text-[#164E4A] font-medium transition-colors"
                 >
                   My Activity
@@ -238,7 +238,7 @@ export default function Header() {
                   )}
                 </Link>
                 <Link
-                  to="/messages"
+                  to="/activity"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg font-medium"
                   onClick={closeMenu}
                 >

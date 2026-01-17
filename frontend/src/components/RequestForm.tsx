@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { MessageThread } from '@booksharepdx/shared';
 import { messageService } from '../services';
 import { useUser } from '../contexts/UserContext';
 
@@ -6,7 +7,7 @@ interface RequestFormProps {
   postId: string;
   postUserId: string;
   onCancel: () => void;
-  onSuccess: () => void;
+  onSuccess: (thread: MessageThread) => void;
 }
 
 /**
@@ -30,7 +31,7 @@ export default function RequestForm({ postId, postUserId, onCancel, onSuccess }:
         content: message.trim(),
       });
       setMessage('');
-      onSuccess();
+      onSuccess(thread);
     } finally {
       setIsSending(false);
     }

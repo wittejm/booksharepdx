@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import type { MessageThread, Message, Post, User, MessageThreadStatus } from '@booksharepdx/shared';
 import { messageService, postService, userService, vouchService } from '../services';
 import { useUser } from '../contexts/UserContext';
@@ -9,10 +9,12 @@ import ToastContainer from '../components/ToastContainer';
 import { formatTimestamp } from '../utils/time';
 import { ERROR_MESSAGES } from '../utils/errorMessages';
 
-export default function MessagesPage() {
+export default function ActivityPage() {
   const { threadId } = useParams<{ threadId?: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { currentUser } = useUser();
   const navigate = useNavigate();
+  const highlightPostId = searchParams.get('postId');
 
   const [threads, setThreads] = useState<MessageThread[]>([]);
   const [selectedThread, setSelectedThread] = useState<MessageThread | null>(null);
@@ -35,7 +37,7 @@ export default function MessagesPage() {
   // Mobile view state
   const [showConversation, setShowConversation] = useState(false);
 
-  // Vouch state
+  // Vouch state - Vouch is a non-MVP feature
   const [canVouch, setCanVouch] = useState(false);
   const [hasVouched, setHasVouched] = useState(false);
   const [vouchLoading, setVouchLoading] = useState(false);
@@ -60,12 +62,17 @@ export default function MessagesPage() {
   }, [selectedThread, messages]);
 
   // Load posts for trade_proposal messages (to render proposal cards)
+  // IMPORTANT - Trade proposal field semantics:
+  //   - offeredPostId = the POSTER's book (what they're giving away)
+  //   - requestedPostId = the REQUESTER's book (what the poster SELECTED/WANTS)
+  // We display requestedPostId because that's the book the poster chose from the requester's collection
   useEffect(() => {
     const loadProposalPostsData = async () => {
       const tradeProposals = messages.filter(m => m.type === 'trade_proposal');
       const postIdsToLoad = new Set<string>();
 
       tradeProposals.forEach(proposal => {
+        // Load the REQUESTED post (the book the poster selected from the requester)
         if (proposal.requestedPostId && !proposalPosts[proposal.requestedPostId]) {
           postIdsToLoad.add(proposal.requestedPostId);
         }
@@ -97,6 +104,19 @@ export default function MessagesPage() {
       }
     }
   }, [threadId, threads]);
+
+  // Load thread from postId query parameter (for navigation from ShareCard trading badge)
+  useEffect(() => {
+    if (highlightPostId && threads.length > 0) {
+      const thread = threads.find(t => t.postId === highlightPostId);
+      if (thread) {
+        selectThread(thread);
+        setShowConversation(true);
+        // Clear the query param after selecting
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [highlightPostId, threads]);
 
   const loadThreads = async () => {
     if (!currentUser) return;
@@ -291,7 +311,7 @@ export default function MessagesPage() {
       setSelectedThread(null);
       setShowConversation(false);
     } catch (error) {
-      showToast('Failed to cancel request', 'error');
+      showToast('Failed to cancel request:' + error, 'error');
     } finally {
       setStatusLoading(false);
     }
@@ -308,7 +328,7 @@ export default function MessagesPage() {
       setSelectedThread(null);
       setShowConversation(false);
     } catch (error) {
-      showToast('Failed to dismiss', 'error');
+      showToast('Failed to dismiss:' + error, 'error');
     } finally {
       setStatusLoading(false);
     }
@@ -321,10 +341,10 @@ export default function MessagesPage() {
     const isExchange = post?.type === 'exchange';
 
     const confirmed = await confirm({
-      title: isExchange ? 'Confirm Trade' : 'Confirm Receipt',
+      title: isExchange ? 'Complete Trade' : 'Complete Receipt',
       message: isExchange
-        ? `Confirm that you completed the trade for "${post?.book.title || 'the book'}"?`
-        : `Confirm that you received "${post?.book.title || 'the book'}"?`,
+        ? `Did you complete the trade for "${post?.book.title || 'the book'}"?`
+        : `Did you receive "${post?.book.title || 'the book'}"?`,
       confirmText: isExchange ? 'Yes, trade completed' : 'Yes, I received it',
       variant: 'info'
     });
@@ -332,16 +352,8 @@ export default function MessagesPage() {
 
     setStatusLoading(true);
     try {
-      const result = await messageService.markComplete(selectedThread.id);
-      if (result.bothCompleted) {
-        showToast(isExchange ? 'Trade completed! Stats updated.' : 'Gift completed! Stats updated.', 'success');
-      } else {
-        showToast(isExchange
-          ? 'Marked as completed. Waiting for the other person to confirm.'
-          : 'Marked as received. Waiting for owner to confirm.',
-          'success'
-        );
-      }
+      await messageService.markComplete(selectedThread.id);
+      showToast(isExchange ? 'Trade completed!' : 'Gift received!', 'success');
       await loadThreads();
       // Reload the selected thread to update UI
       const updatedThreads = await messageService.getThreads();
@@ -353,7 +365,7 @@ export default function MessagesPage() {
       const updatedMessages = await messageService.getMessages(selectedThread.id);
       setMessages(updatedMessages);
     } catch (error) {
-      showToast('Failed to confirm', 'error');
+      showToast('Failed to complete: ' + error, 'error');
     } finally {
       setStatusLoading(false);
     }
@@ -399,7 +411,7 @@ export default function MessagesPage() {
       const threadMessages = await messageService.getMessages(selectedThread.id);
       setMessages(threadMessages);
     } catch (error) {
-      showToast('Failed to accept trade', 'error');
+      showToast('Failed to accept trade:' + error, 'error');
     } finally {
       setStatusLoading(false);
     }
@@ -430,7 +442,7 @@ export default function MessagesPage() {
       const threadMessages = await messageService.getMessages(selectedThread.id);
       setMessages(threadMessages);
     } catch (error) {
-      showToast('Failed to decline trade', 'error');
+      showToast('Failed to decline trade:' + error, 'error');
     } finally {
       setStatusLoading(false);
     }
@@ -494,8 +506,8 @@ export default function MessagesPage() {
 
     const post = threadPosts[selectedThread.id];
     const confirmed = await confirm({
-      title: 'Confirm Return',
-      message: `Confirm that you returned "${post?.book.title || 'the book'}"?`,
+      title: 'Complete Return',
+      message: `Did you return "${post?.book.title || 'the book'}"?`,
       confirmText: 'Yes, I returned it',
       variant: 'info'
     });
@@ -505,9 +517,9 @@ export default function MessagesPage() {
     try {
       const result = await messageService.confirmReturn(selectedThread.id);
       if (result.bothConfirmedReturn) {
-        showToast('Loan completed! Stats updated.', 'success');
+        showToast('Loan completed!', 'success');
       } else {
-        showToast('Marked as returned. Waiting for owner to confirm.', 'success');
+        showToast('Return recorded', 'success');
       }
       await loadThreads();
       // Reload the selected thread to update UI
@@ -517,7 +529,7 @@ export default function MessagesPage() {
         setSelectedThread(updatedThread);
       }
     } catch (error) {
-      showToast('Failed to confirm return', 'error');
+      showToast('Failed to record return: ' + error, 'error');
     } finally {
       setStatusLoading(false);
     }
@@ -575,7 +587,7 @@ export default function MessagesPage() {
   const handleBackToList = () => {
     setShowConversation(false);
     setSelectedThread(null);
-    navigate('/messages');
+    navigate('/activity');
   };
 
   if (!currentUser) {
@@ -617,7 +629,8 @@ export default function MessagesPage() {
                 </div>
               ) : (
                 <div className="flex-1 overflow-y-auto">
-                  {threads.map(thread => {
+                  {/* Active threads */}
+                  {threads.filter(t => !t.requesterCompleted).map(thread => {
                     const post = threadPosts[thread.id];
                     const otherUser = threadUsers[thread.id];
                     const unreadCount = thread.unreadCount[currentUser.id] || 0;
@@ -680,6 +693,66 @@ export default function MessagesPage() {
                       </button>
                     );
                   })}
+
+                  {/* Completed section */}
+                  {threads.some(t => t.requesterCompleted) && (
+                    <>
+                      <h2 className="px-4 py-3 text-sm font-semibold text-gray-500 bg-gray-100 border-b border-gray-200">
+                        Completed
+                      </h2>
+                      {threads.filter(t => t.requesterCompleted).map(thread => {
+                        const post = threadPosts[thread.id];
+                        const otherUser = threadUsers[thread.id];
+
+                        if (!post || !otherUser) return null;
+
+                        return (
+                          <button
+                            key={thread.id}
+                            onClick={() => selectThread(thread)}
+                            className={`w-full p-4 flex gap-3 hover:bg-gray-50 transition-colors border-b border-gray-200 text-left opacity-75 ${
+                              selectedThread?.id === thread.id ? 'bg-primary-50' : ''
+                            }`}
+                          >
+                            {/* Book thumbnail */}
+                            <div className="flex-shrink-0">
+                              {post.book.coverImage ? (
+                                <img
+                                  src={post.book.coverImage}
+                                  alt={post.book.title}
+                                  className="w-12 h-16 object-cover rounded shadow-sm"
+                                />
+                              ) : (
+                                <div className="w-12 h-16 bg-gray-200 rounded flex items-center justify-center">
+                                  <span className="text-gray-400 text-xs">No cover</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Thread info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2 mb-1">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <h3 className="font-semibold text-gray-900 truncate">
+                                    {post.book.title}
+                                  </h3>
+                                  <span className="flex-shrink-0 text-xs px-1.5 py-0.5 rounded font-medium bg-gray-100 text-gray-600">
+                                    ✓ {post.type === 'giveaway' ? 'Received' : post.type === 'exchange' ? 'Traded' : 'Returned'}
+                                  </span>
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-600 truncate mb-1">
+                                {otherUser.username}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                {formatTimestamp(thread.lastMessageAt)}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -755,29 +828,31 @@ export default function MessagesPage() {
                       }
 
                       // Trade proposal visual card
+                      // Shows requestedPostId = the book the POSTER SELECTED from the requester's collection
+                      // (NOT offeredPostId which is the poster's original book)
                       if (message.type === 'trade_proposal') {
-                        const requestedPost = message.requestedPostId ? proposalPosts[message.requestedPostId] : undefined;
+                        const selectedPost = message.requestedPostId ? proposalPosts[message.requestedPostId] : undefined;
                         const isMyProposal = message.senderId === currentUser.id;
                         const isPending = message.proposalStatus === 'pending';
 
                         return (
                           <div key={message.id} className="flex justify-center my-2">
                             <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
-                              {/* Book cover and title */}
+                              {/* Book cover and title - shows the book the poster selected */}
                               <div className="flex flex-col items-center">
                                 <div className="w-16 h-24 bg-gray-100 rounded overflow-hidden flex items-center justify-center mb-2">
-                                  {requestedPost?.book.coverImage ? (
+                                  {selectedPost?.book.coverImage ? (
                                     <img
-                                      src={requestedPost.book.coverImage}
-                                      alt={requestedPost.book.title}
+                                      src={selectedPost.book.coverImage}
+                                      alt={selectedPost.book.title}
                                       className="w-full h-full object-cover"
                                     />
                                   ) : (
                                     <span className="text-gray-400 text-xs">No cover</span>
                                   )}
                                 </div>
-                                <p className="text-xs text-gray-700 font-medium text-center max-w-[120px] truncate" title={requestedPost?.book.title}>
-                                  {requestedPost?.book.title || 'Loading...'}
+                                <p className="text-xs text-gray-700 font-medium text-center max-w-[120px] truncate" title={selectedPost?.book.title}>
+                                  {selectedPost?.book.title || 'Loading...'}
                                 </p>
                               </div>
 
@@ -792,7 +867,7 @@ export default function MessagesPage() {
                                     Accept
                                   </button>
                                   <button
-                                    onClick={() => handleDeclineProposal(message.id, requestedPost)}
+                                    onClick={() => handleDeclineProposal(message.id, selectedPost)}
                                     disabled={respondingToProposal}
                                     className="flex-1 btn-secondary text-xs py-1.5 disabled:opacity-50"
                                   >
@@ -884,16 +959,11 @@ export default function MessagesPage() {
                               {(() => {
                                 const isExchange = threadPosts[selectedThread.id]?.type === 'exchange';
                                 if (selectedThread.requesterCompleted) {
-                                  return isExchange ? '✓ You confirmed the trade' : '✓ You confirmed receipt';
-                                }
-                                if (selectedThread.ownerCompleted) {
-                                  return isExchange
-                                    ? 'They confirmed - please confirm the trade'
-                                    : 'Owner confirmed - please confirm receipt';
+                                  return isExchange ? '✓ Trade completed' : '✓ Gift received';
                                 }
                                 return isExchange
-                                  ? 'Coordinate the exchange, then confirm completion'
-                                  : 'Coordinate pickup, then confirm receipt';
+                                  ? 'Coordinate the exchange, then mark as complete'
+                                  : 'Coordinate pickup, then mark as complete';
                               })()}
                             </p>
                           )}
@@ -913,7 +983,7 @@ export default function MessagesPage() {
                             disabled={statusLoading}
                             className="px-4 py-2 text-sm bg-green-600 text-white hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50"
                           >
-                            {statusLoading ? 'Confirming...' : threadPosts[selectedThread.id]?.type === 'exchange' ? 'Trade Completed' : 'Gift Received'}
+                            {statusLoading ? 'Completing...' : threadPosts[selectedThread.id]?.type === 'exchange' ? 'Trade Completed' : 'Gift Received'}
                           </button>
                         )}
                         {selectedThread.status === 'on_loan' && isRequester(selectedThread) && !selectedThread.requesterConfirmedReturn && (
@@ -922,12 +992,12 @@ export default function MessagesPage() {
                             disabled={statusLoading}
                             className="px-4 py-2 text-sm bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors disabled:opacity-50"
                           >
-                            {statusLoading ? 'Confirming...' : 'I Returned It'}
+                            {statusLoading ? 'Recording...' : 'I Returned It'}
                           </button>
                         )}
                         {selectedThread.status === 'on_loan' && isRequester(selectedThread) && selectedThread.requesterConfirmedReturn && (
                           <span className="px-3 py-1 text-sm text-purple-700 bg-purple-100 rounded">
-                            ✓ You confirmed return
+                            ✓ Return completed
                           </span>
                         )}
                       </div>

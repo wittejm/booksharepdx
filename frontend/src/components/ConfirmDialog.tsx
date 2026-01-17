@@ -9,6 +9,7 @@ interface ConfirmDialogProps {
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'warning' | 'info';
+  hideCancel?: boolean; // For alert-style dialogs with only one button
 }
 
 export default function ConfirmDialog({
@@ -19,7 +20,8 @@ export default function ConfirmDialog({
   message,
   confirmText = 'Confirm',
   cancelText = 'Cancel',
-  variant = 'info'
+  variant = 'info',
+  hideCancel = false
 }: ConfirmDialogProps) {
   const handleConfirm = () => {
     onConfirm();
@@ -38,12 +40,14 @@ export default function ConfirmDialog({
         <p className="text-gray-700">{message}</p>
 
         <div className="flex gap-3 justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            {cancelText}
-          </button>
+          {!hideCancel && (
+            <button
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              {cancelText}
+            </button>
+          )}
           <button
             onClick={handleConfirm}
             className={`px-4 py-2 text-white rounded-lg transition-colors ${variantStyles[variant]}`}

@@ -185,6 +185,13 @@ router.post('/threads/:threadId/messages', requireAuth, validateBody(sendMessage
     if (otherParticipant) {
       thread.unreadCount[otherParticipant] = (thread.unreadCount[otherParticipant] || 0) + 1;
     }
+
+    // Reopen thread if requester cancelled and is now messaging again (changed their mind)
+    // Note: 'dismissed' should NOT reopen - that's when requester dismissed after owner declined
+    if (thread.status === 'cancelled_by_requester') {
+      thread.status = 'active';
+    }
+
     await threadRepo.save(thread);
 
     res.status(201).json({ data: message.toJSON() });
@@ -267,7 +274,7 @@ router.patch('/threads/:threadId/status', requireAuth, validateBody(updateStatus
         .execute();
 
       // Update post status to pending
-      await postRepo.update(thread.postId, { status: 'pending_exchange' });
+      await postRepo.update(thread.postId, { status: 'agreed_upon' });
     }
 
     res.json({ data: thread.toJSON() });
@@ -345,23 +352,21 @@ router.post('/threads/:threadId/accept-trade', requireAuth, validateBody(acceptT
       throw new AppError('Their post not found', 404, 'POST_NOT_FOUND');
     }
 
-    // Update both posts to pending_exchange
-    const pendingExchange = {
-      initiatorUserId: theirPost.userId, // They proposed
-      recipientUserId: userId, // We're accepting
-      givingPostId: theirPost.id,
-      receivingPostId: myPost.id,
-      timestamp: Date.now(),
-    };
-
+    // Update both posts to agreed_upon with simplified pendingExchange
     await postRepo.update(myPostId, {
-      status: 'pending_exchange',
-      pendingExchange,
+      status: 'agreed_upon',
+      pendingExchange: {
+        otherUserId: theirPost.userId,
+        otherPostId: theirPost.id,
+      },
     });
 
     await postRepo.update(theirPostId, {
-      status: 'pending_exchange',
-      pendingExchange,
+      status: 'agreed_upon',
+      pendingExchange: {
+        otherUserId: userId,
+        otherPostId: myPostId,
+      },
     });
 
     // Update thread to accepted
@@ -382,7 +387,7 @@ router.post('/threads/:threadId/accept-trade', requireAuth, validateBody(acceptT
     const message = messageRepo.create({
       threadId,
       senderId: userId,
-      content: `Trade Accepted!\n\nBoth books are now pending exchange. Coordinate the handoff via messages, then confirm completion.`,
+      content: `Trade Accepted!\n\nBoth books are now pending exchange. Coordinate the handoff via messages, then mark as complete.`,
       type: 'system',
       systemMessageType: 'exchange_proposed', // Reuse for now
     });
@@ -473,9 +478,25 @@ router.post('/threads/:threadId/respond-proposal', requireAuth, validateBody(res
       throw new AppError('One or both posts not found', 404, 'POST_NOT_FOUND');
     }
 
-    // Update both posts to pending_exchange
-    await postRepo.update(offeredPostId, { status: 'pending_exchange' });
-    await postRepo.update(requestedPostId, { status: 'pending_exchange' });
+    // Update both posts to agreed_upon with trade info
+    // offeredPost is owned by the proposer, requestedPost is owned by the accepter (current user)
+    const proposerId = thread.participants.find(p => p !== userId)!;
+
+    await postRepo.update(offeredPostId, {
+      status: 'agreed_upon',
+      pendingExchange: {
+        otherPostId: requestedPostId,
+        otherUserId: userId,  // The accepter (who owns the requested post)
+      },
+    });
+    await postRepo.update(requestedPostId, {
+      status: 'agreed_upon',
+      type: 'exchange',  // Ensure it's marked as exchange since it's part of a trade
+      pendingExchange: {
+        otherPostId: offeredPostId,
+        otherUserId: proposerId,  // The proposer (who owns the offered post)
+      },
+    });
 
     // Update thread to accepted
     thread.status = 'accepted';
@@ -495,7 +516,7 @@ router.post('/threads/:threadId/respond-proposal', requireAuth, validateBody(res
     const acceptMessage = messageRepo.create({
       threadId,
       senderId: userId,
-      content: `Exchange accepted! Both books are now pending exchange. Coordinate the handoff via messages, then confirm completion.`,
+      content: `Exchange accepted! Both books are now pending exchange. Coordinate the handoff via messages, then mark as complete.`,
       type: 'system',
       systemMessageType: 'exchange_proposed',
     });
@@ -514,6 +535,7 @@ router.post('/threads/:threadId/complete', requireAuth, async (req, res, next) =
     const userId = req.user!.id;
     const threadRepo = AppDataSource.getRepository(MessageThread);
     const postRepo = AppDataSource.getRepository(Post);
+    const messageRepo = AppDataSource.getRepository(Message);
 
     const thread = await threadRepo.findOne({
       where: { id: threadId },
@@ -531,79 +553,63 @@ router.post('/threads/:threadId/complete', requireAuth, async (req, res, next) =
     }
 
     const isOwner = thread.post?.userId === userId;
+    const postType = thread.post?.type;
+    const ownerId = thread.post?.userId;
+    const requesterId = thread.participants.find(p => p !== ownerId)!;
 
-    // Update the appropriate completion flag
-    if (isOwner) {
+    // Import User entity for stats update
+    const { User } = await import('../entities/User.js');
+    const userRepo = AppDataSource.getRepository(User);
+
+    // Each user's completion is independent - update their flag and stats immediately
+    if (isOwner && !thread.ownerCompleted) {
       thread.ownerCompleted = true;
-    } else {
-      thread.requesterCompleted = true;
-    }
-
-    await threadRepo.save(thread);
-
-    // Check if both parties have completed
-    if (thread.ownerCompleted && thread.requesterCompleted && thread.post) {
-      const postType = thread.post.type;
-      const messageRepo = AppDataSource.getRepository(Message);
 
       if (postType === 'loan') {
-        // For loans: transition to on_loan status (don't update stats yet - that happens on return)
+        // For loans: transition to on_loan status
         thread.status = 'on_loan';
-        await threadRepo.save(thread);
-
-        // Send system message
-        const message = messageRepo.create({
-          threadId,
-          senderId: userId,
-          content: 'Loan handoff confirmed! The book is now on loan.',
-          type: 'system',
-          systemMessageType: 'gift_completed', // Reuse for now
-        });
-        await messageRepo.save(message);
       } else {
-        // Import User entity for stats update
-        const { User } = await import('../entities/User.js');
-        const userRepo = AppDataSource.getRepository(User);
-
-        const ownerId = thread.post.userId;
-        const requesterId = thread.participants.find(p => p !== ownerId)!;
-
-        if (postType === 'exchange') {
-          // Trade: increment booksTraded for both
-          await userRepo.increment({ id: ownerId }, 'booksTraded', 1);
-          await userRepo.increment({ id: requesterId }, 'booksTraded', 1);
-        } else {
-          // Gift: increment booksGiven for owner, booksReceived for requester
-          await userRepo.increment({ id: ownerId }, 'booksGiven', 1);
-          await userRepo.increment({ id: requesterId }, 'booksReceived', 1);
-        }
-
-        // Archive the post
-        await postRepo.update(thread.post.id, {
-          status: 'archived',
-          archivedAt: new Date(),
+        // Record who received the book (status stays agreed_upon - each user's view depends on their own completion flag)
+        await postRepo.update(thread.post!.id, {
           givenTo: requesterId,
         });
+
+        // Update owner's stats
+        if (postType === 'exchange') {
+          await userRepo.increment({ id: ownerId }, 'booksTraded', 1);
+        } else {
+          await userRepo.increment({ id: ownerId }, 'booksGiven', 1);
+        }
 
         // Send system message
         const message = messageRepo.create({
           threadId,
           senderId: userId,
           content: postType === 'exchange'
-            ? 'Trade completed! Both books have been exchanged.'
-            : 'Gift completed! The book has been given.',
+            ? 'Trade completed!'
+            : 'Gift completed!',
           type: 'system',
           systemMessageType: postType === 'exchange' ? 'exchange_completed' : 'gift_completed',
         });
         await messageRepo.save(message);
       }
+    } else if (!isOwner && !thread.requesterCompleted) {
+      thread.requesterCompleted = true;
+
+      // Update requester's stats (post may already be archived, that's fine)
+      if (postType !== 'loan') {
+        if (postType === 'exchange') {
+          await userRepo.increment({ id: requesterId }, 'booksTraded', 1);
+        } else {
+          await userRepo.increment({ id: requesterId }, 'booksReceived', 1);
+        }
+      }
     }
 
+    await threadRepo.save(thread);
+
     res.json({
-      data: {
-        ...thread.toJSON(),
-        bothCompleted: thread.ownerCompleted && thread.requesterCompleted,
-      },
+      data: thread.toJSON(),
     });
   } catch (error) {
     next(error);

@@ -1,3 +1,7 @@
+/**
+ * Vouch is a non-MVP feature.
+ * Intended for users to verify they met in person after an exchange.
+ */
 import { Router } from 'express';
 import { z } from 'zod';
 import { AppDataSource } from '../config/database.js';

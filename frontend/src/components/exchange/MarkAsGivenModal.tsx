@@ -113,13 +113,13 @@ export default function MarkAsGivenModal({ open, onClose, post, currentUserId }:
       const isExchange = post.type === 'exchange' && selectedBookId && !giveAwayNoExchange;
 
       if (isExchange) {
-        // Exchange flow - set both posts to pending_exchange
+        // Exchange flow - set both posts to agreed_upon
         const receivingPost = recipientPosts.find(p => p.id === selectedBookId);
         if (!receivingPost) throw new Error('Selected book not found');
 
-        // Update this post to pending_exchange
+        // Update this post to agreed_upon
         await postService.update(post.id, {
-          status: 'pending_exchange',
+          status: 'agreed_upon',
           pendingExchange: {
             initiatorUserId: currentUserId,
             recipientUserId: selectedRecipient.id,
@@ -129,9 +129,9 @@ export default function MarkAsGivenModal({ open, onClose, post, currentUserId }:
           },
         });
 
-        // Update recipient's post to pending_exchange
+        // Update recipient's post to agreed_upon
         await postService.update(receivingPost.id, {
-          status: 'pending_exchange',
+          status: 'agreed_upon',
           pendingExchange: {
             initiatorUserId: currentUserId,
             recipientUserId: selectedRecipient.id,

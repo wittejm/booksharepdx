@@ -81,13 +81,10 @@ describe('Post entity', () => {
       post.book = { title: 'Test', author: 'Author', genre: 'fiction' };
       post.type = 'exchange';
       post.notes = null;
-      post.status = 'pending_exchange';
+      post.status = 'agreed_upon';
       post.pendingExchange = {
-        initiatorUserId: 'initiator-uuid',
-        recipientUserId: 'recipient-uuid',
-        givingPostId: 'post-uuid',
-        receivingPostId: 'other-post-uuid',
-        timestamp: Date.now(),
+        otherUserId: 'other-user-uuid',
+        otherPostId: 'other-post-uuid',
       };
       post.archivedAt = null;
       post.givenTo = null;
@@ -96,9 +93,9 @@ describe('Post entity', () => {
 
       const json = post.toJSON();
 
-      expect(json.status).toBe('pending_exchange');
+      expect(json.status).toBe('agreed_upon');
       expect(json.pendingExchange).toBeDefined();
-      expect(json.pendingExchange?.initiatorUserId).toBe('initiator-uuid');
+      expect(json.pendingExchange?.otherUserId).toBe('other-user-uuid');
     });
 
     it('should handle archived posts', () => {
@@ -184,8 +181,8 @@ describe('Post entity', () => {
       post.status = 'active';
       expect(post.status).toBe('active');
 
-      post.status = 'pending_exchange';
-      expect(post.status).toBe('pending_exchange');
+      post.status = 'agreed_upon';
+      expect(post.status).toBe('agreed_upon');
 
       post.status = 'archived';
       expect(post.status).toBe('archived');

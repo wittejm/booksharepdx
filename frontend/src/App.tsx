@@ -17,7 +17,7 @@ import LoginPage from './pages/LoginPage';
 import SignUpPage from './pages/SignUpPage';
 import LocationSelectionPage from './pages/LocationSelectionPage';
 import ShareDetailPage from './pages/ShareDetailPage';
-import MessagesPage from './pages/MessagesPage';
+import ActivityPage from './pages/ActivityPage';
 import SharePage from './pages/SharePage';
 import ProfilePage from './pages/ProfilePage';
 // Note: SettingsPage removed - settings are now in MyProfilePage
@@ -114,11 +114,11 @@ function AppRoutes() {
             <Route path="/post/:postId" element={<Navigate to={window.location.pathname.replace('/post/', '/share/')} replace />} />
 
             {/* Protected routes */}
-            <Route path="/messages" element={
-              <ProtectedRoute><MessagesPage /></ProtectedRoute>
+            <Route path="/activity" element={
+              <ProtectedRoute><ActivityPage /></ProtectedRoute>
             } />
-            <Route path="/messages/:threadId" element={
-              <ProtectedRoute><MessagesPage /></ProtectedRoute>
+            <Route path="/activity/:threadId" element={
+              <ProtectedRoute><ActivityPage /></ProtectedRoute>
             } />
             <Route path="/share" element={
               <ProtectedRoute><SharePage /></ProtectedRoute>

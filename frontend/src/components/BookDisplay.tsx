@@ -4,7 +4,7 @@ import GenreDisplay from './GenreDisplay';
 interface BookDisplayProps {
   book: BookInfo;
   type?: 'giveaway' | 'exchange' | 'loan';
-  status?: 'active' | 'pending_exchange' | 'archived';
+  status?: 'active' | 'agreed_upon' | 'archived';
   showTypeBadge?: boolean;
   children?: React.ReactNode; // For additional badges or buttons
 }

@@ -8,7 +8,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': '/src',
-      '@booksharepdx/shared': '/node_modules/@booksharepdx/shared/src'
     }
   },
   server: {

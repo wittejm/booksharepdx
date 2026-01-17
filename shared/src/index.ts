@@ -59,7 +59,7 @@ export interface Post {
   type: 'giveaway' | 'exchange' | 'loan';
   notes?: string;
   createdAt: number;
-  status: 'active' | 'pending_exchange' | 'archived';
+  status: 'active' | 'agreed_upon' | 'archived';
   pendingExchange?: PendingExchange;
   archivedAt?: number;
   givenTo?: string; // userId
@@ -75,11 +75,9 @@ export interface BookInfo {
 }
 
 export interface PendingExchange {
-  initiatorUserId: string;
-  recipientUserId: string;
-  givingPostId: string;
-  receivingPostId: string;
-  timestamp: number;
+  otherUserId: string;   // The trading partner's user ID
+  otherPostId: string;   // The trading partner's post ID
+  timestamp?: number;
 }
 
 // Message Types
@@ -157,7 +155,7 @@ export interface ModeratorNote {
   timestamp: number;
 }
 
-// Vouching Types
+// Vouching Types - Vouch is a non-MVP feature
 export interface Vouch {
   id: string;
   user1Id: string;

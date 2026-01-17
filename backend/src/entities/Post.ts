@@ -14,7 +14,7 @@ import type { User } from './User.js';
 import type { MessageThread } from './MessageThread.js';
 
 export type PostType = 'giveaway' | 'exchange' | 'loan';
-export type PostStatus = 'active' | 'pending_exchange' | 'archived';
+export type PostStatus = 'active' | 'agreed_upon' | 'archived';
 
 @Entity('posts')
 export class Post {
@@ -52,11 +52,9 @@ export class Post {
 
   @Column({ type: 'jsonb', nullable: true })
   pendingExchange: {
-    initiatorUserId: string;
-    recipientUserId: string;
-    givingPostId: string;
-    receivingPostId: string;
-    timestamp: number;
+    otherUserId: string;   // The trading partner's user ID
+    otherPostId: string;   // The trading partner's post ID
+    timestamp?: number;
   } | null;
 
   @Column({ type: 'timestamp', nullable: true })

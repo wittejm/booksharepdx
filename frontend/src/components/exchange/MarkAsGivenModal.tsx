@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
-import type { Post, User } from '@booksharepdx/shared';
+import { useState, useEffect, useMemo } from 'react';
+import type { Post, User, MessageThread } from '@booksharepdx/shared';
 import Modal from '../Modal';
 import Avatar from '../Avatar';
 import { postService, userService, messageService } from '../../services';
+import { useUsers } from '../../hooks/useDataLoader';
 import { useToast } from '../useToast';
 import { useUser } from '../../contexts/UserContext';
 import { formatTimestamp } from '../../utils/time';
@@ -24,7 +25,6 @@ interface MarkAsGivenModalProps {
 export default function MarkAsGivenModal({ open, onClose, post, currentUserId }: MarkAsGivenModalProps) {
   const { currentUser } = useUser();
   const [step, setStep] = useState<1 | 2>(1);
-  const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [selectedRecipient, setSelectedRecipient] = useState<User | null>(null);
   const [recipientPosts, setRecipientPosts] = useState<Post[]>([]);
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
@@ -32,47 +32,65 @@ export default function MarkAsGivenModal({ open, onClose, post, currentUserId }:
   const [loading, setLoading] = useState(false);
   const { showToast } = useToast();
 
-  // Step 1: Load interactions (users who messaged about this post)
+  // Step 1: Load threads for this post and their timestamps
+  const [postThreads, setPostThreads] = useState<MessageThread[]>([]);
+  const [threadTimestamps, setThreadTimestamps] = useState<Record<string, number>>({});
+
   useEffect(() => {
     if (!open || step !== 1) return;
 
-    async function loadInteractions() {
+    async function loadThreadsAndTimestamps() {
       try {
-        // Get message threads for this post
         const threads = await messageService.getThreads();
-        const postThreads = threads.filter(t => t.postId === post.id);
+        const filtered = threads.filter(t => t.postId === post.id);
+        setPostThreads(filtered);
 
-        const interactions: Interaction[] = [];
-
-        for (const thread of postThreads) {
-          const otherUserId = thread.participants.find(id => id !== currentUserId);
-          if (!otherUserId) continue;
-
-          const user = await userService.getById(otherUserId);
-          if (!user) continue;
-
+        // Load last message timestamps in parallel
+        const timestamps: Record<string, number> = {};
+        await Promise.all(filtered.map(async (thread) => {
           const messages = await messageService.getMessages(thread.id);
           const lastMessage = messages[messages.length - 1];
-
-          interactions.push({
-            userId: otherUserId,
-            user,
-            timestamp: lastMessage?.timestamp || thread.lastMessageAt,
-            distance: calculateDistance(user),
-          });
-        }
-
-        // Sort by most recent interaction
-        interactions.sort((a, b) => b.timestamp - a.timestamp);
-        setInteractions(interactions);
+          timestamps[thread.id] = lastMessage?.timestamp || thread.lastMessageAt;
+        }));
+        setThreadTimestamps(timestamps);
       } catch (error) {
-        console.error('Failed to load interactions:', error);
+        console.error('Failed to load threads:', error);
         showToast('Failed to load recipients', 'error');
       }
     }
 
-    loadInteractions();
-  }, [open, step, post.id, currentUserId]);
+    loadThreadsAndTimestamps();
+  }, [open, step, post.id]);
+
+  // Extract user IDs from threads for batch loading
+  const userIds = useMemo(() =>
+    postThreads
+      .map(t => t.participants.find(id => id !== currentUserId))
+      .filter(Boolean) as string[],
+    [postThreads, currentUserId]
+  );
+
+  // Batch load users with hook
+  const { users } = useUsers(userIds);
+
+  // Build interactions from threads + users
+  const interactions = useMemo(() => {
+    return postThreads
+      .map(thread => {
+        const otherUserId = thread.participants.find(id => id !== currentUserId);
+        if (!otherUserId) return null;
+        const user = users[otherUserId];
+        if (!user) return null;
+        return {
+          userId: otherUserId,
+          user,
+          timestamp: threadTimestamps[thread.id] || thread.lastMessageAt,
+          distance: calculateDistance(user),
+        };
+      })
+      .filter((i): i is Interaction => i !== null)
+      .sort((a, b) => b.timestamp - a.timestamp);
+  }, [postThreads, users, threadTimestamps, currentUserId]);
 
   // Step 2: Load recipient's posts
   useEffect(() => {

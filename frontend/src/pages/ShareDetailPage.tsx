@@ -1,14 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import type { Post, User } from '@booksharepdx/shared';
-import { postService, userService, messageService, neighborhoodService } from '../services';
+import { postService, messageService, neighborhoodService } from '../services';
 import { useUser } from '../contexts/UserContext';
+import { useUser as useFetchUser, usePost as useFetchPost } from '../hooks/useDataLoader';
 import { useToast } from '../components/useToast';
 import ToastContainer from '../components/ToastContainer';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useConfirm } from '../components/useConfirm';
 import { formatTimestamp } from '../utils/time';
-import { ERROR_MESSAGES } from '../utils/errorMessages';
 
 export default function ShareDetailPage() {
   const { shareId } = useParams<{ shareId: string }>();
@@ -17,10 +16,11 @@ export default function ShareDetailPage() {
   const { currentUser } = useUser();
   const { confirm, ConfirmDialogComponent } = useConfirm();
 
-  const [post, setPost] = useState<Post | null>(null);
-  const [postOwner, setPostOwner] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Load post and owner using data loader hooks
+  const { post, loading: postLoading, error: postError } = useFetchPost(postId);
+  const { user: postOwner, loading: ownerLoading } = useFetchUser(post?.userId);
+
+  const loading = postLoading || ownerLoading;
 
   // "I'm Interested" modal state
   const [showInterestedModal, setShowInterestedModal] = useState(false);
@@ -30,61 +30,15 @@ export default function ShareDetailPage() {
   // Toast state
   const { showToast, toasts, dismiss } = useToast();
 
-  // Distance calculation
-  const [distance, setDistance] = useState<string>('');
-
-  useEffect(() => {
-    loadPostData();
-  }, [postId]);
-
-  const loadPostData = async () => {
-    if (!postId) {
-      setError('No book listing ID was provided. Please check the URL and try again.');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const fetchedPost = await postService.getById(postId);
-      if (!fetchedPost) {
-        setError('This book listing could not be found. It may have been removed or archived by the owner.');
-        setLoading(false);
-        return;
-      }
-      setPost(fetchedPost);
-
-      const owner = await userService.getById(fetchedPost.userId);
-      setPostOwner(owner);
-
-      if (owner && currentUser) {
-        const dist = calculateDistance(owner, currentUser);
-        setDistance(dist);
-      }
-    } catch (err) {
-      const error = err as Error & { code?: string };
-      if (error.code === 'POST_NOT_FOUND') {
-        setError(ERROR_MESSAGES.POST_NOT_FOUND);
-      } else if (error.code === 'NETWORK_ERROR') {
-        setError(ERROR_MESSAGES.NETWORK_ERROR);
-      } else {
-        setError(ERROR_MESSAGES.GENERIC_LOAD_ERROR);
-      }
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const calculateDistance = (owner: User, viewer: User): string => {
-    if (owner.location.type === 'neighborhood' && viewer.location.type === 'neighborhood') {
-      if (owner.location.neighborhoodId === viewer.location.neighborhoodId) {
+  // Distance calculation (computed, not loaded)
+  const distance = useMemo(() => {
+    if (!postOwner || !currentUser) return '';
+    if (postOwner.location.type === 'neighborhood' && currentUser.location.type === 'neighborhood') {
+      if (postOwner.location.neighborhoodId === currentUser.location.neighborhoodId) {
         return 'Same neighborhood';
       }
-      const ownerHood = neighborhoodService.getById(owner.location.neighborhoodId || '');
-      const viewerHood = neighborhoodService.getById(viewer.location.neighborhoodId || '');
+      const ownerHood = neighborhoodService.getById(postOwner.location.neighborhoodId || '');
+      const viewerHood = neighborhoodService.getById(currentUser.location.neighborhoodId || '');
       if (ownerHood && viewerHood) {
         const dist = Math.sqrt(
           Math.pow(ownerHood.centroid.lat - viewerHood.centroid.lat, 2) +
@@ -94,7 +48,7 @@ export default function ShareDetailPage() {
       }
     }
     return 'Distance unknown';
-  };
+  }, [postOwner, currentUser]);
 
   const handleInterestedSubmit = async () => {
     if (!currentUser || !post) return;
@@ -196,7 +150,7 @@ export default function ShareDetailPage() {
     );
   }
 
-  if (error || !post || !postOwner) {
+  if (postError || !post || !postOwner) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="card p-8 text-center max-w-lg mx-auto">
@@ -206,7 +160,7 @@ export default function ShareDetailPage() {
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Book Listing Not Found</h2>
-          <p className="text-gray-600 mb-6">{error || 'This book listing could not be found. It may have been removed or archived.'}</p>
+          <p className="text-gray-600 mb-6">This book listing could not be found. It may have been removed or archived.</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button onClick={() => navigate(-1)} className="btn-secondary">
               Go Back

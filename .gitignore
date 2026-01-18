@@ -4,6 +4,8 @@ node_modules/
 .pnp.js
 
 tickets/
+docs/
+SAVE_STATE.txt
 
 # Testing
 coverage/

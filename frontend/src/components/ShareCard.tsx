@@ -649,8 +649,8 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
             </button>
           )}
 
-          {/* Interest Section - only for active posts */}
-          {post.status === 'active' && (
+          {/* Interest Section - show requests/messages for posts with interest */}
+          {interestCount > 0 && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <button
                 onClick={() => setShowInterests(!showInterests)}
@@ -708,40 +708,42 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
                               >
                                 {showMessagesForThread === interest.id ? 'Hide' : 'Message'}
                               </button>
-                              {post.type === 'exchange' ? (
-                                <>
-                                  <Link
-                                    to={`/profile/${user.username}?tradeFor=${post.id}&threadId=${interest.id}`}
-                                    className="px-3 py-1 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded transition-colors"
-                                  >
-                                    View Books
-                                  </Link>
-                                  <button
-                                    onClick={() => handleAccept(interest)}
-                                    disabled={actionLoading === interest.id}
-                                    className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-200 rounded transition-colors disabled:opacity-50"
-                                    title="Give without exchange"
-                                  >
-                                    Gift
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={() => handleDecline(interest)}
-                                    disabled={actionLoading === interest.id}
-                                    className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
-                                  >
-                                    Decline
-                                  </button>
-                                  <button
-                                    onClick={() => handleAccept(interest)}
-                                    disabled={actionLoading === interest.id}
-                                    className="px-3 py-1 text-sm bg-green-600 text-white hover:bg-green-700 rounded transition-colors disabled:opacity-50"
-                                  >
-                                    {actionLoading === interest.id ? '...' : 'Accept'}
-                                  </button>
-                                </>
+                              {post.status === 'active' && (
+                                post.type === 'exchange' ? (
+                                  <>
+                                    <Link
+                                      to={`/profile/${user.username}?tradeFor=${post.id}&threadId=${interest.id}`}
+                                      className="px-3 py-1 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded transition-colors"
+                                    >
+                                      View Books
+                                    </Link>
+                                    <button
+                                      onClick={() => handleAccept(interest)}
+                                      disabled={actionLoading === interest.id}
+                                      className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-200 rounded transition-colors disabled:opacity-50"
+                                      title="Give without exchange"
+                                    >
+                                      Gift
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={() => handleDecline(interest)}
+                                      disabled={actionLoading === interest.id}
+                                      className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                                    >
+                                      Decline
+                                    </button>
+                                    <button
+                                      onClick={() => handleAccept(interest)}
+                                      disabled={actionLoading === interest.id}
+                                      className="px-3 py-1 text-sm bg-green-600 text-white hover:bg-green-700 rounded transition-colors disabled:opacity-50"
+                                    >
+                                      {actionLoading === interest.id ? '...' : 'Accept'}
+                                    </button>
+                                  </>
+                                )
                               )}
                             </div>
                           </div>

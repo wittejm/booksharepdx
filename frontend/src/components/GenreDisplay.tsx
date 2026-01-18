@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 interface GenreDisplayProps {
-  genre: string;
+  genre?: string;
   className?: string;
 }
 
@@ -12,10 +12,18 @@ interface GenreDisplayProps {
 export default function GenreDisplay({ genre, className = '' }: GenreDisplayProps) {
   const [expanded, setExpanded] = useState(false);
 
+  if (!genre) {
+    return null;
+  }
+
   const genres = genre.split(/[,\/]/).map(g => g.trim()).filter(Boolean);
 
-  if (genres.length <= 1) {
-    return <span className={className}>{genre}</span>;
+  if (genres.length === 0) {
+    return null;
+  }
+
+  if (genres.length === 1) {
+    return <span className={className}>{genres[0]}</span>;
   }
 
   if (expanded) {

@@ -55,28 +55,63 @@ export interface Post {
   id: string;
   userId: string;
   user?: User; // Included when fetching posts
-  book: BookInfo;
+  book: Book;  // Full book entity with id
   type: 'giveaway' | 'exchange' | 'loan';
   notes?: string;
   createdAt: number;
   status: 'active' | 'agreed_upon' | 'archived';
-  pendingExchange?: PendingExchange;
+  agreedExchange?: AgreedExchange;
   archivedAt?: number;
   givenTo?: string; // userId
   loanDuration?: number; // in days: 30, 60, or 90 (only for loan posts)
 }
 
+// BookInfo - used for embedded book data (e.g., ReadingPreferences)
 export interface BookInfo {
   title: string;
   author: string;
   coverImage?: string;
-  genre: string;
+  genre?: string;
   isbn?: string;
 }
 
-export interface PendingExchange {
-  otherUserId: string;   // The trading partner's user ID
-  otherPostId: string;   // The trading partner's post ID
+// Book - full book entity with id and tracking (used in Post)
+export interface Book {
+  id: string;
+  googleBooksId?: string;
+  title: string;
+  author: string;
+  coverImage?: string;
+  genre?: string;
+  isbn?: string;
+  timesGifted: number;
+  timesTraded: number;
+  timesLoaned: number;
+}
+
+// For creating posts (book data without id)
+export interface BookInput {
+  googleBooksId?: string;
+  title: string;
+  author: string;
+  coverImage?: string;
+  genre?: string;
+  isbn?: string;
+}
+
+// Input type for creating a post (book without id)
+export interface CreatePostInput {
+  book: BookInput;
+  type: 'giveaway' | 'exchange' | 'loan';
+  notes?: string;
+  loanDuration?: number;
+}
+
+export interface AgreedExchange {
+  responderUserId: string;   // User who responded to the share and proposed the exchange
+  sharerUserId: string;      // Original post owner who accepted
+  responderPostId: string;   // Responder's post (what they're offering in a trade)
+  sharerPostId: string;      // Sharer's post (the original share)
   timestamp?: number;
 }
 

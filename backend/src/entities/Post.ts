@@ -11,6 +11,7 @@ import {
   Relation,
 } from 'typeorm';
 import type { User } from './User.js';
+import type { Book } from './Book.js';
 import type { MessageThread } from './MessageThread.js';
 
 export type PostType = 'giveaway' | 'exchange' | 'loan';
@@ -21,7 +22,7 @@ export class Post {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: "varchar" })
+  @Column({ type: 'varchar' })
   @Index()
   userId: string;
 
@@ -29,15 +30,13 @@ export class Post {
   @JoinColumn({ name: 'userId' })
   user: Relation<User>;
 
-  // Book info stored as JSON
-  @Column({ type: 'jsonb' })
-  book: {
-    title: string;
-    author: string;
-    coverImage?: string;
-    genre: string;
-    isbn?: string;
-  };
+  @Column({ type: 'varchar' })
+  @Index()
+  bookId: string;
+
+  @ManyToOne('Book', 'posts', { eager: true })
+  @JoinColumn({ name: 'bookId' })
+  book: Relation<Book>;
 
   @Column({ type: 'varchar' })
   @Index()
@@ -51,9 +50,11 @@ export class Post {
   status: PostStatus;
 
   @Column({ type: 'jsonb', nullable: true })
-  pendingExchange: {
-    otherUserId: string;   // The trading partner's user ID
-    otherPostId: string;   // The trading partner's post ID
+  agreedExchange: {
+    responderUserId: string;
+    sharerUserId: string;
+    responderPostId: string;
+    sharerPostId: string;
     timestamp?: number;
   } | null;
 
@@ -64,7 +65,7 @@ export class Post {
   givenTo: string | null;
 
   @Column({ type: 'int', nullable: true })
-  loanDuration: number | null; // in days: 30, 60, or 90
+  loanDuration: number | null;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -72,7 +73,6 @@ export class Post {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  // Relations
   @OneToMany('MessageThread', 'post')
   messageThreads: Relation<MessageThread[]>;
 
@@ -80,12 +80,12 @@ export class Post {
     return {
       id: this.id,
       userId: this.userId,
-      book: this.book,
+      book: this.book?.toJSON?.() || this.book,
       type: this.type,
       notes: this.notes || undefined,
       createdAt: this.createdAt.getTime(),
       status: this.status,
-      pendingExchange: this.pendingExchange || undefined,
+      agreedExchange: this.agreedExchange || undefined,
       archivedAt: this.archivedAt?.getTime(),
       givenTo: this.givenTo || undefined,
       loanDuration: this.loanDuration || undefined,

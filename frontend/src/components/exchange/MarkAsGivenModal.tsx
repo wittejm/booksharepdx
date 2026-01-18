@@ -120,11 +120,11 @@ export default function MarkAsGivenModal({ open, onClose, post, currentUserId }:
         // Update this post to agreed_upon
         await postService.update(post.id, {
           status: 'agreed_upon',
-          pendingExchange: {
-            initiatorUserId: currentUserId,
-            recipientUserId: selectedRecipient.id,
-            givingPostId: post.id,
-            receivingPostId: receivingPost.id,
+          agreedExchange: {
+            responderUserId: currentUserId,
+            sharerUserId: selectedRecipient.id,
+            responderPostId: post.id,
+            sharerPostId: receivingPost.id,
             timestamp: Date.now(),
           },
         });
@@ -132,11 +132,11 @@ export default function MarkAsGivenModal({ open, onClose, post, currentUserId }:
         // Update recipient's post to agreed_upon
         await postService.update(receivingPost.id, {
           status: 'agreed_upon',
-          pendingExchange: {
-            initiatorUserId: currentUserId,
-            recipientUserId: selectedRecipient.id,
-            givingPostId: post.id,
-            receivingPostId: receivingPost.id,
+          agreedExchange: {
+            responderUserId: currentUserId,
+            sharerUserId: selectedRecipient.id,
+            responderPostId: post.id,
+            sharerPostId: receivingPost.id,
             timestamp: Date.now(),
           },
         });

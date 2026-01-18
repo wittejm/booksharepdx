@@ -133,6 +133,19 @@ export default function SharePage() {
     return <Navigate to="/login" replace />;
   }
 
+  // Helpers to get trading partner info from agreedExchange (depends on which side of trade we're on)
+  const getTradingPartnerId = (post: Post): string | undefined => {
+    if (!post.agreedExchange || !currentUser) return undefined;
+    const isResponder = currentUser.id === post.agreedExchange.responderUserId;
+    return isResponder ? post.agreedExchange.sharerUserId : post.agreedExchange.responderUserId;
+  };
+
+  const getTradingPartnerPostId = (post: Post): string | undefined => {
+    if (!post.agreedExchange || !currentUser) return undefined;
+    const isResponder = currentUser.id === post.agreedExchange.responderUserId;
+    return isResponder ? post.agreedExchange.sharerPostId : post.agreedExchange.responderPostId;
+  };
+
   // Helper to check if owner has completed a post (via its accepted thread)
   // For trades, the thread may be on the OTHER post in the exchange, so check both
   const isOwnerCompleted = (post: Post): boolean => {
@@ -140,8 +153,9 @@ export default function SharePage() {
     let acceptedThread = threads.find(t => t.postId === post.id && t.status === 'accepted');
 
     // For trades, also check the other post in the exchange
-    if (!acceptedThread && post.pendingExchange?.otherPostId) {
-      acceptedThread = threads.find(t => t.postId === post.pendingExchange!.otherPostId && t.status === 'accepted');
+    const partnerPostId = getTradingPartnerPostId(post);
+    if (!acceptedThread && partnerPostId) {
+      acceptedThread = threads.find(t => t.postId === partnerPostId && t.status === 'accepted');
     }
 
     return acceptedThread?.ownerCompleted ?? false;

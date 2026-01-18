@@ -16,6 +16,7 @@ import type {
   Notification,
   Interest,
   InterestSummary,
+  CreatePostInput,
 } from '@booksharepdx/shared';
 import { apiClient } from './apiClient';
 import { neighborhoods } from '../data/neighborhoods';
@@ -146,7 +147,7 @@ export const postService = {
     return response.data;
   },
 
-  create: async (post: Omit<Post, 'id' | 'createdAt' | 'userId'>): Promise<Post> => {
+  create: async (post: CreatePostInput): Promise<Post> => {
     const response = await apiClient.post<{ data: Post }>('/posts', post);
     return response.data;
   },
@@ -477,6 +478,34 @@ export const interestService = {
   // Resolve interest (when exchange is completed or declined)
   resolve: async (interestId: string): Promise<Interest> => {
     const response = await apiClient.patch<{ data: Interest }>(`/interests/${interestId}`, { status: 'resolved' });
+    return response.data;
+  },
+};
+
+// Book Service - for book matching/deduplication
+export const bookService = {
+  // Find similar books for manual entry confirmation
+  match: async (title: string, author: string): Promise<Array<{
+    id: string;
+    googleBooksId?: string;
+    title: string;
+    author: string;
+    coverImage?: string;
+    genre?: string;
+    isbn?: string;
+  }>> => {
+    const params = new URLSearchParams();
+    if (title) params.set('title', title);
+    if (author) params.set('author', author);
+    const response = await apiClient.get<{ data: Array<{
+      id: string;
+      googleBooksId?: string;
+      title: string;
+      author: string;
+      coverImage?: string;
+      genre?: string;
+      isbn?: string;
+    }> }>(`/books/match?${params.toString()}`);
     return response.data;
   },
 };

@@ -16,7 +16,7 @@ export default function ExchangeCancelModal({ open, onClose, post, currentUserId
   const { showToast } = useToast();
 
   const handleCancel = async () => {
-    if (!post.pendingExchange) return;
+    if (!post.agreedExchange) return;
 
     setLoading(true);
     try {
@@ -26,27 +26,27 @@ export default function ExchangeCancelModal({ open, onClose, post, currentUserId
       // Return both posts to active status
       await postService.update(post.id, {
         status: 'active',
-        pendingExchange: undefined,
+        agreedExchange: undefined,
       });
 
-      const otherPostId = post.id === post.pendingExchange.givingPostId
-        ? post.pendingExchange.receivingPostId
-        : post.pendingExchange.givingPostId;
+      const otherPostId = post.id === post.agreedExchange.responderPostId
+        ? post.agreedExchange.sharerPostId
+        : post.agreedExchange.responderPostId;
 
       await postService.update(otherPostId, {
         status: 'active',
-        pendingExchange: undefined,
+        agreedExchange: undefined,
       });
 
       // Send cancellation message
-      const otherUserId = post.pendingExchange.initiatorUserId === currentUserId
-        ? post.pendingExchange.recipientUserId
-        : post.pendingExchange.initiatorUserId;
+      const otherUserId = post.agreedExchange.responderUserId === currentUserId
+        ? post.agreedExchange.sharerUserId
+        : post.agreedExchange.responderUserId;
 
       const thread = await messageService.getOrCreateThread(
         currentUserId,
         otherUserId,
-        post.pendingExchange.givingPostId
+        post.agreedExchange.responderPostId
       );
 
       await messageService.sendMessage({
@@ -66,7 +66,7 @@ export default function ExchangeCancelModal({ open, onClose, post, currentUserId
     }
   };
 
-  if (!post.pendingExchange) return null;
+  if (!post.agreedExchange) return null;
 
   return (
     <Modal open={open} onClose={onClose} title="Cancel Exchange?" size="sm">

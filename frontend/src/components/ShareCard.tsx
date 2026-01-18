@@ -23,6 +23,19 @@ interface ShareCardProps {
  */
 export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFocusComplete }: ShareCardProps) {
   const { currentUser } = useUser();
+
+  // Helpers to get trading partner info from agreedExchange (depends on which side of trade we're on)
+  const getTradingPartnerId = (): string | undefined => {
+    if (!post.agreedExchange || !currentUser) return undefined;
+    const isResponder = currentUser.id === post.agreedExchange.responderUserId;
+    return isResponder ? post.agreedExchange.sharerUserId : post.agreedExchange.responderUserId;
+  };
+
+  const getTradingPartnerPostId = (): string | undefined => {
+    if (!post.agreedExchange || !currentUser) return undefined;
+    const isResponder = currentUser.id === post.agreedExchange.responderUserId;
+    return isResponder ? post.agreedExchange.sharerPostId : post.agreedExchange.responderPostId;
+  };
   const { summary: interestSummary } = useInterest();
   const { confirm, alert, ConfirmDialogComponent } = useConfirm();
   const { showToast } = useToast();
@@ -69,7 +82,7 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
   // State for recipient user (who the book was given to)
   const [recipientUser, setRecipientUser] = useState<User | null>(null);
 
-  // State for trading partner (for exchange posts with pendingExchange)
+  // State for trading partner (for exchange posts with agreedExchange)
   const [tradingPartner, setTradingPartner] = useState<User | null>(null);
 
   // State for traded book (the book received in exchange)
@@ -84,17 +97,19 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
 
   // Load trading partner for exchange posts
   useEffect(() => {
-    if (post.type === 'exchange' && post.pendingExchange?.otherUserId && currentUser) {
+    const partnerId = getTradingPartnerId();
+    if (post.type === 'exchange' && partnerId && currentUser) {
       loadTradingPartner();
     }
-  }, [post.id, post.type, post.pendingExchange, currentUser]);
+  }, [post.id, post.type, post.agreedExchange, currentUser]);
 
   // Load traded book for exchange posts (to show what book was received)
   useEffect(() => {
-    if (post.type === 'exchange' && post.pendingExchange?.otherPostId && currentUser) {
+    const partnerPostId = getTradingPartnerPostId();
+    if (post.type === 'exchange' && partnerPostId && currentUser) {
       loadTradedBook();
     }
-  }, [post.id, post.type, post.pendingExchange, currentUser]);
+  }, [post.id, post.type, post.agreedExchange, currentUser]);
 
   const loadRecipientUser = async () => {
     if (!post.givenTo) return;
@@ -107,9 +122,10 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
   };
 
   const loadTradingPartner = async () => {
-    if (!post.pendingExchange?.otherUserId) return;
+    const partnerId = getTradingPartnerId();
+    if (!partnerId) return;
     try {
-      const user = await userService.getById(post.pendingExchange.otherUserId);
+      const user = await userService.getById(partnerId);
       setTradingPartner(user);
     } catch (error) {
       console.error('Failed to load trading partner:', error);
@@ -117,9 +133,10 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
   };
 
   const loadTradedBook = async () => {
-    if (!post.pendingExchange?.otherPostId) return;
+    const partnerPostId = getTradingPartnerPostId();
+    if (!partnerPostId) return;
     try {
-      const otherPost = await postService.getById(post.pendingExchange.otherPostId);
+      const otherPost = await postService.getById(partnerPostId);
       setTradedBook(otherPost);
     } catch (error) {
       console.error('Failed to load traded book:', error);
@@ -172,9 +189,10 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
       );
 
       // For trades, also check the other post in the exchange
-      if (!accepted && post.pendingExchange?.otherPostId) {
+      const partnerPostId = getTradingPartnerPostId();
+      if (!accepted && partnerPostId) {
         accepted = threads.find(
-          t => t.postId === post.pendingExchange!.otherPostId && t.status === 'accepted'
+          t => t.postId === partnerPostId && t.status === 'accepted'
         );
       }
 
@@ -446,7 +464,7 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
 
   const handleDelete = async () => {
     // Check if post is part of an uncompleted trade
-    if (post.status === 'agreed_upon' || post.pendingExchange) {
+    if (post.status === 'agreed_upon' || post.agreedExchange) {
       await alert({
         title: 'Cannot Delete',
         message: 'You cannot delete this post while it is part of an uncompleted trade.',
@@ -638,7 +656,7 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
 
         <div className="p-4">
           <BookDisplay book={post.book} type={post.type} status={post.status}>
-            {/* Trading partner badge for exchange posts with pendingExchange */}
+            {/* Trading partner badge for exchange posts with agreedExchange */}
             {post.type === 'exchange' && tradingPartner && post.status !== 'archived' && (
               <div className="mt-2">
                 <button
@@ -650,7 +668,8 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
                       );
                     } else {
                       // Thread is on the other post - navigate to Activity
-                      navigate(`/activity?postId=${post.pendingExchange?.otherPostId}`);
+                      const partnerPostId = getTradingPartnerPostId();
+                      navigate(`/activity?postId=${partnerPostId}`);
                     }
                   }}
                   className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors"

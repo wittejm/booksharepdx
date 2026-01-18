@@ -352,21 +352,24 @@ router.post('/threads/:threadId/accept-trade', requireAuth, validateBody(acceptT
       throw new AppError('Their post not found', 404, 'POST_NOT_FOUND');
     }
 
-    // Update both posts to agreed_upon with simplified pendingExchange
+    // Update both posts to agreed_upon with agreedExchange
+    // The current user is responding to the other user's share
+    const exchangeDetails = {
+      responderUserId: userId,
+      sharerUserId: theirPost.userId,
+      responderPostId: myPostId,
+      sharerPostId: theirPostId,
+      timestamp: Date.now(),
+    };
+
     await postRepo.update(myPostId, {
       status: 'agreed_upon',
-      pendingExchange: {
-        otherUserId: theirPost.userId,
-        otherPostId: theirPost.id,
-      },
+      agreedExchange: exchangeDetails,
     });
 
     await postRepo.update(theirPostId, {
       status: 'agreed_upon',
-      pendingExchange: {
-        otherUserId: userId,
-        otherPostId: myPostId,
-      },
+      agreedExchange: exchangeDetails,
     });
 
     // Update thread to accepted
@@ -479,23 +482,25 @@ router.post('/threads/:threadId/respond-proposal', requireAuth, validateBody(res
     }
 
     // Update both posts to agreed_upon with trade info
-    // offeredPost is owned by the proposer, requestedPost is owned by the accepter (current user)
+    // offeredPost is owned by the proposer (responder), requestedPost is owned by the accepter (sharer)
     const proposerId = thread.participants.find(p => p !== userId)!;
+
+    const exchangeDetails = {
+      responderUserId: proposerId,
+      sharerUserId: userId,
+      responderPostId: offeredPostId,
+      sharerPostId: requestedPostId,
+      timestamp: Date.now(),
+    };
 
     await postRepo.update(offeredPostId, {
       status: 'agreed_upon',
-      pendingExchange: {
-        otherPostId: requestedPostId,
-        otherUserId: userId,  // The accepter (who owns the requested post)
-      },
+      agreedExchange: exchangeDetails,
     });
     await postRepo.update(requestedPostId, {
       status: 'agreed_upon',
       type: 'exchange',  // Ensure it's marked as exchange since it's part of a trade
-      pendingExchange: {
-        otherPostId: offeredPostId,
-        otherUserId: proposerId,  // The proposer (who owns the offered post)
-      },
+      agreedExchange: exchangeDetails,
     });
 
     // Update thread to accepted

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import LoadingSpinner from './LoadingSpinner';
+import { bookService } from '../services';
 
 interface GoogleBook {
   id: string;
@@ -20,6 +21,7 @@ interface GoogleBook {
 }
 
 export interface BookSelection {
+  googleBooksId?: string;
   title: string;
   author: string;
   coverImage?: string;
@@ -47,6 +49,19 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
   const [manualAuthor, setManualAuthor] = useState('');
   const [manualCoverUrl, setManualCoverUrl] = useState('');
 
+  // Manual entry matching
+  const [manualMatches, setManualMatches] = useState<Array<{
+    id: string;
+    googleBooksId?: string;
+    title: string;
+    author: string;
+    coverImage?: string;
+    genre?: string;
+    isbn?: string;
+  }>>([]);
+  const [isMatchingLoading, setIsMatchingLoading] = useState(false);
+  const matchDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -59,6 +74,42 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
       inputRef.current.focus({ preventScroll: true });
     }
   }, [autoFocus, showManualEntry]);
+
+  // Fetch matches for manual entry (debounced)
+  useEffect(() => {
+    if (!showManualEntry) {
+      setManualMatches([]);
+      return;
+    }
+
+    if (matchDebounceRef.current) {
+      clearTimeout(matchDebounceRef.current);
+    }
+
+    if (manualTitle.length < 2 && manualAuthor.length < 2) {
+      setManualMatches([]);
+      return;
+    }
+
+    matchDebounceRef.current = setTimeout(async () => {
+      setIsMatchingLoading(true);
+      try {
+        const matches = await bookService.match(manualTitle, manualAuthor);
+        setManualMatches(matches);
+      } catch (error) {
+        console.error('Failed to fetch book matches:', error);
+        setManualMatches([]);
+      } finally {
+        setIsMatchingLoading(false);
+      }
+    }, 500);
+
+    return () => {
+      if (matchDebounceRef.current) {
+        clearTimeout(matchDebounceRef.current);
+      }
+    };
+  }, [showManualEntry, manualTitle, manualAuthor]);
 
   // Debounced search function
   const searchBooks = useCallback(async (searchQuery: string) => {
@@ -133,6 +184,7 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
   // Handle book selection
   const handleSelect = (book: GoogleBook) => {
     onSelect({
+      googleBooksId: book.id,
       title: book.volumeInfo.title,
       author: book.volumeInfo.authors?.[0] || 'Unknown Author',
       coverImage: getCoverImage(book),
@@ -144,6 +196,25 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
     setIsOpen(false);
     setResults([]);
     setSearchPerformed(false);
+  };
+
+  // Handle selecting an existing book match
+  const handleSelectMatch = (match: typeof manualMatches[0]) => {
+    onSelect({
+      googleBooksId: match.googleBooksId,
+      title: match.title,
+      author: match.author,
+      coverImage: match.coverImage,
+      isbn: match.isbn,
+    });
+
+    // Reset form
+    setManualTitle('');
+    setManualAuthor('');
+    setManualCoverUrl('');
+    setManualMatches([]);
+    setShowManualEntry(false);
+    setQuery('');
   };
 
   // Handle manual entry submission
@@ -160,6 +231,7 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
     setManualTitle('');
     setManualAuthor('');
     setManualCoverUrl('');
+    setManualMatches([]);
     setShowManualEntry(false);
     setQuery('');
   };
@@ -258,13 +330,58 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
           />
         </div>
 
+        {/* Show existing book matches */}
+        {(isMatchingLoading || manualMatches.length > 0) && (
+          <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+            <p className="text-sm font-medium text-gray-700 mb-2">
+              {isMatchingLoading ? 'Searching for matches...' : 'Existing books that match:'}
+            </p>
+            {isMatchingLoading ? (
+              <div className="flex justify-center py-2">
+                <LoadingSpinner size="sm" />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {manualMatches.map((match) => (
+                  <button
+                    key={match.id}
+                    type="button"
+                    onClick={() => handleSelectMatch(match)}
+                    className="w-full text-left p-2 flex gap-3 bg-white border border-gray-200 rounded hover:border-primary-400 hover:bg-primary-50 transition-colors"
+                  >
+                    {match.coverImage ? (
+                      <img
+                        src={match.coverImage}
+                        alt={match.title}
+                        className="w-10 h-14 object-cover rounded flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-14 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
+                        <span className="text-gray-400 text-xs">?</span>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 text-sm truncate">{match.title}</p>
+                      <p className="text-xs text-gray-600 truncate">{match.author}</p>
+                      {match.genre && (
+                        <p className="text-xs text-gray-500">{match.genre}</p>
+                      )}
+                    </div>
+                    <span className="text-xs text-primary-600 self-center">Use this</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <button
           type="button"
           onClick={handleManualSubmit}
           disabled={!manualTitle.trim()}
           className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Use This Book
+          {manualMatches.length > 0 ? 'Create New Book Entry' : 'Use This Book'}
         </button>
       </div>
     );

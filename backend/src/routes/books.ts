@@ -1,17 +1,11 @@
 import { Router } from 'express';
-import { z } from 'zod';
 import { AppDataSource } from '../config/database.js';
 import { Book } from '../entities/Book.js';
 import { env } from '../config/env.js';
-import { validateQuery } from '../middleware/validation.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { findSimilarBooks, getBookById } from '../services/bookService.js';
 
 const router = Router();
-
-const searchSchema = z.object({
-  q: z.string().min(1),
-  limit: z.string().optional(),
-});
 
 interface BookSearchResult {
   title: string;
@@ -19,9 +13,7 @@ interface BookSearchResult {
   isbn?: string;
   coverImage?: string;
   genre?: string;
-  description?: string;
-  externalId?: string;
-  externalSource?: string;
+  googleBooksId?: string;
 }
 
 // Search Google Books API
@@ -54,9 +46,7 @@ async function searchGoogleBooks(query: string, limit: number): Promise<BookSear
               (info.industryIdentifiers || []).find((id: any) => id.type === 'ISBN_10')?.identifier,
         coverImage: info.imageLinks?.thumbnail?.replace('http:', 'https:'),
         genre: (info.categories || [])[0],
-        description: info.description,
-        externalId: item.id,
-        externalSource: 'google',
+        googleBooksId: item.id,
       };
     });
   } catch (error) {
@@ -65,40 +55,7 @@ async function searchGoogleBooks(query: string, limit: number): Promise<BookSear
   }
 }
 
-// Search OpenLibrary API
-async function searchOpenLibrary(query: string, limit: number): Promise<BookSearchResult[]> {
-  try {
-    const url = new URL('https://openlibrary.org/search.json');
-    url.searchParams.set('q', query);
-    url.searchParams.set('limit', String(limit));
-    url.searchParams.set('fields', 'key,title,author_name,isbn,cover_i,subject,first_sentence');
-
-    const response = await fetch(url.toString());
-    if (!response.ok) {
-      console.error('OpenLibrary API error:', response.status);
-      return [];
-    }
-
-    const data = await response.json() as { docs?: any[] };
-    if (!data.docs) return [];
-
-    return data.docs.map((doc: any) => ({
-      title: doc.title || 'Unknown Title',
-      author: (doc.author_name || []).join(', ') || 'Unknown Author',
-      isbn: (doc.isbn || [])[0],
-      coverImage: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : undefined,
-      genre: (doc.subject || [])[0],
-      description: Array.isArray(doc.first_sentence) ? doc.first_sentence[0] : doc.first_sentence,
-      externalId: doc.key,
-      externalSource: 'openlibrary',
-    }));
-  } catch (error) {
-    console.error('OpenLibrary search error:', error);
-    return [];
-  }
-}
-
-// GET /api/books/search - Search books
+// GET /api/books/search - Search books (Google Books API)
 router.get('/search', async (req, res, next) => {
   try {
     const query = req.query.q as string;
@@ -107,6 +64,7 @@ router.get('/search', async (req, res, next) => {
     if (!query) {
       throw new AppError('Search query required', 400, 'VALIDATION_ERROR');
     }
+
     const bookRepo = AppDataSource.getRepository(Book);
 
     // 1. Search local database first
@@ -122,48 +80,22 @@ router.get('/search', async (req, res, next) => {
       isbn: b.isbn || undefined,
       coverImage: b.coverImage || undefined,
       genre: b.genre || undefined,
-      description: b.description || undefined,
-      externalId: b.externalId || undefined,
-      externalSource: b.externalSource || undefined,
+      googleBooksId: b.googleBooksId || undefined,
     }));
 
-    // 2. If not enough results, search external APIs
+    // 2. If not enough local results, search Google Books
     if (results.length < limit) {
       const remaining = limit - results.length;
-
-      // Try Google Books first
       const googleResults = await searchGoogleBooks(query, remaining);
-      results.push(...googleResults);
 
-      // If still not enough, try OpenLibrary
-      if (results.length < limit) {
-        const stillRemaining = limit - results.length;
-        const openLibraryResults = await searchOpenLibrary(query, stillRemaining);
-        results.push(...openLibraryResults);
-      }
-
-      // Cache new results
-      for (const result of googleResults.concat(await searchOpenLibrary(query, remaining))) {
-        // Check if already cached
-        const existing = await bookRepo.findOne({
-          where: [
-            { externalId: result.externalId },
-            { isbn: result.isbn },
-          ],
-        });
-
-        if (!existing && result.externalId) {
-          const book = bookRepo.create({
-            title: result.title,
-            author: result.author,
-            isbn: result.isbn || null,
-            coverImage: result.coverImage || null,
-            genre: result.genre || null,
-            description: result.description || null,
-            externalId: result.externalId,
-            externalSource: result.externalSource || null,
-          });
-          await bookRepo.save(book).catch(() => {}); // Ignore duplicate errors
+      // Add Google results, avoiding duplicates
+      for (const result of googleResults) {
+        const isDupe = results.some(r =>
+          r.googleBooksId === result.googleBooksId ||
+          (r.isbn && r.isbn === result.isbn)
+        );
+        if (!isDupe) {
+          results.push(result);
         }
       }
     }
@@ -183,18 +115,34 @@ router.get('/search', async (req, res, next) => {
   }
 });
 
+// GET /api/books/match - Find similar books for manual entry confirmation
+router.get('/match', async (req, res, next) => {
+  try {
+    const title = req.query.title as string || '';
+    const author = req.query.author as string || '';
+
+    if (!title && !author) {
+      return res.json({ data: [] });
+    }
+
+    const matches = await findSimilarBooks(title, author);
+    res.json({ data: matches });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/books/:id - Get book by ID
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const bookRepo = AppDataSource.getRepository(Book);
 
-    const book = await bookRepo.findOne({ where: { id } });
+    const book = await getBookById(id);
     if (!book) {
       throw new AppError('Book not found', 404, 'NOT_FOUND');
     }
 
-    res.json({ data: book.toJSON() });
+    res.json({ data: book });
   } catch (error) {
     next(error);
   }

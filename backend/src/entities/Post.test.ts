@@ -1,5 +1,24 @@
 import { describe, it, expect } from 'vitest';
 import { Post } from './Post.js';
+import { Book } from './Book.js';
+
+function createMockBook(overrides: Partial<Book> = {}): Book {
+  const book = new Book();
+  book.id = 'book-uuid';
+  book.googleBooksId = null;
+  book.title = 'Test';
+  book.author = 'Author';
+  book.isbn = null;
+  book.coverImage = null;
+  book.genre = 'fiction';
+  book.timesGifted = 0;
+  book.timesTraded = 0;
+  book.timesLoaned = 0;
+  book.createdAt = new Date();
+  book.updatedAt = new Date();
+  Object.assign(book, overrides);
+  return book;
+}
 
 describe('Post entity', () => {
   describe('toJSON', () => {
@@ -7,17 +26,18 @@ describe('Post entity', () => {
       const post = new Post();
       post.id = 'post-uuid';
       post.userId = 'user-uuid';
-      post.book = {
+      post.bookId = 'book-uuid';
+      post.book = createMockBook({
         title: 'The Great Gatsby',
         author: 'F. Scott Fitzgerald',
         coverImage: 'https://example.com/cover.jpg',
         genre: 'fiction',
         isbn: '9780743273565',
-      };
+      });
       post.type = 'giveaway';
       post.notes = 'Great condition, slight wear on cover';
       post.status = 'active';
-      post.pendingExchange = null;
+      post.agreedExchange = null;
       post.archivedAt = null;
       post.givenTo = null;
       post.createdAt = new Date('2024-01-15T10:00:00Z');
@@ -39,11 +59,12 @@ describe('Post entity', () => {
       const post = new Post();
       post.id = 'post-uuid';
       post.userId = 'user-uuid';
-      post.book = { title: 'Test', author: 'Author', genre: 'fiction' };
+      post.bookId = 'book-uuid';
+      post.book = createMockBook();
       post.type = 'giveaway';
       post.notes = null;
       post.status = 'active';
-      post.pendingExchange = null;
+      post.agreedExchange = null;
       post.archivedAt = null;
       post.givenTo = null;
       post.createdAt = new Date('2024-06-15T12:00:00Z');
@@ -59,11 +80,12 @@ describe('Post entity', () => {
       const post = new Post();
       post.id = 'post-uuid';
       post.userId = 'user-uuid';
-      post.book = { title: 'Test', author: 'Author', genre: 'fiction' };
+      post.bookId = 'book-uuid';
+      post.book = createMockBook();
       post.type = 'exchange';
       post.notes = 'Looking for sci-fi books';
       post.status = 'active';
-      post.pendingExchange = null;
+      post.agreedExchange = null;
       post.archivedAt = null;
       post.givenTo = null;
       post.createdAt = new Date();
@@ -78,13 +100,16 @@ describe('Post entity', () => {
       const post = new Post();
       post.id = 'post-uuid';
       post.userId = 'user-uuid';
-      post.book = { title: 'Test', author: 'Author', genre: 'fiction' };
+      post.bookId = 'book-uuid';
+      post.book = createMockBook();
       post.type = 'exchange';
       post.notes = null;
       post.status = 'agreed_upon';
-      post.pendingExchange = {
-        otherUserId: 'other-user-uuid',
-        otherPostId: 'other-post-uuid',
+      post.agreedExchange = {
+        responderUserId: 'other-user-uuid',
+        sharerUserId: 'user-uuid',
+        responderPostId: 'other-post-uuid',
+        sharerPostId: 'post-uuid',
       };
       post.archivedAt = null;
       post.givenTo = null;
@@ -94,8 +119,8 @@ describe('Post entity', () => {
       const json = post.toJSON();
 
       expect(json.status).toBe('agreed_upon');
-      expect(json.pendingExchange).toBeDefined();
-      expect(json.pendingExchange?.otherUserId).toBe('other-user-uuid');
+      expect(json.agreedExchange).toBeDefined();
+      expect(json.agreedExchange?.sharerUserId).toBe('user-uuid');
     });
 
     it('should handle archived posts', () => {
@@ -104,11 +129,12 @@ describe('Post entity', () => {
       const post = new Post();
       post.id = 'post-uuid';
       post.userId = 'user-uuid';
-      post.book = { title: 'Test', author: 'Author', genre: 'fiction' };
+      post.bookId = 'book-uuid';
+      post.book = createMockBook();
       post.type = 'giveaway';
       post.notes = null;
       post.status = 'archived';
-      post.pendingExchange = null;
+      post.agreedExchange = null;
       post.archivedAt = archivedDate;
       post.givenTo = 'recipient-uuid';
       post.createdAt = new Date('2024-01-01T10:00:00Z');
@@ -125,11 +151,12 @@ describe('Post entity', () => {
       const post = new Post();
       post.id = 'post-uuid';
       post.userId = 'user-uuid';
-      post.book = { title: 'Test', author: 'Author', genre: 'fiction' };
+      post.bookId = 'book-uuid';
+      post.book = createMockBook();
       post.type = 'giveaway';
       post.notes = null;
       post.status = 'active';
-      post.pendingExchange = null;
+      post.agreedExchange = null;
       post.archivedAt = null;
       post.givenTo = null;
       post.createdAt = new Date();
@@ -144,11 +171,12 @@ describe('Post entity', () => {
       const post = new Post();
       post.id = 'post-uuid';
       post.userId = 'user-uuid';
-      post.book = { title: 'Test', author: 'Author', genre: 'fiction' };
+      post.bookId = 'book-uuid';
+      post.book = createMockBook();
       post.type = 'giveaway';
       post.notes = 'Some notes about the book';
       post.status = 'active';
-      post.pendingExchange = null;
+      post.agreedExchange = null;
       post.archivedAt = null;
       post.givenTo = null;
       post.createdAt = new Date();

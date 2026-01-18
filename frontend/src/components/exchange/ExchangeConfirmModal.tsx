@@ -25,16 +25,16 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
   const { showToast } = useToast();
 
   useEffect(() => {
-    if (!open || !post.pendingExchange) return;
+    if (!open || !post.agreedExchange) return;
 
     async function loadExchangeDetails() {
       try {
-        // Load the giving post
-        const givingPostData = await postService.getById(post.pendingExchange!.givingPostId);
+        // Load the giving post (responder's post)
+        const givingPostData = await postService.getById(post.agreedExchange!.responderPostId);
         setGivingPost(givingPostData);
 
-        // Load initiator user
-        const initiator = await userService.getById(post.pendingExchange!.initiatorUserId);
+        // Load responder user (the one who proposed the trade)
+        const initiator = await userService.getById(post.agreedExchange!.responderUserId);
         setInitiatorUser(initiator);
 
         // Check if the selected book (current post) is still available
@@ -58,7 +58,7 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
   }, [open, post, currentUserId]);
 
   const handleConfirm = async () => {
-    if (!post.pendingExchange || !givingPost || !initiatorUser) return;
+    if (!post.agreedExchange || !givingPost || !initiatorUser) return;
 
     setLoading(true);
     try {
@@ -69,25 +69,25 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
       await postService.update(post.id, {
         status: 'archived',
         archivedAt: Date.now(),
-        givenTo: post.pendingExchange.initiatorUserId,
-        pendingExchange: undefined,
+        givenTo: post.agreedExchange.responderUserId,
+        agreedExchange: undefined,
       });
 
       await postService.update(givingPost.id, {
         status: 'archived',
         archivedAt: Date.now(),
         givenTo: currentUserId,
-        pendingExchange: undefined,
+        agreedExchange: undefined,
       });
 
       // Update stats for both users (trade = increment booksTraded)
-      await userService.incrementBooksTraded(post.pendingExchange.initiatorUserId);
+      await userService.incrementBooksTraded(post.agreedExchange.responderUserId);
       await userService.incrementBooksTraded(currentUserId);
 
       // Send completion message
       const thread = await messageService.getOrCreateThread(
         currentUserId,
-        post.pendingExchange!.initiatorUserId,
+        post.agreedExchange!.responderUserId,
         givingPost.id
       );
 
@@ -109,7 +109,7 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
   };
 
   const handleDecline = async () => {
-    if (!post.pendingExchange || !givingPost || !initiatorUser || !declineReason) return;
+    if (!post.agreedExchange || !givingPost || !initiatorUser || !declineReason) return;
 
     setLoading(true);
     try {
@@ -119,18 +119,18 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
       // Return both posts to active status
       await postService.update(post.id, {
         status: 'active',
-        pendingExchange: undefined,
+        agreedExchange: undefined,
       });
 
       await postService.update(givingPost.id, {
         status: 'active',
-        pendingExchange: undefined,
+        agreedExchange: undefined,
       });
 
       // Send decline message
       const thread = await messageService.getOrCreateThread(
         currentUserId,
-        post.pendingExchange!.initiatorUserId,
+        post.agreedExchange!.responderUserId,
         givingPost.id
       );
 
@@ -159,7 +159,7 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
   };
 
   const handleOfferDifferentBook = async () => {
-    if (!selectedAlternativePostId || !post.pendingExchange || !givingPost) return;
+    if (!selectedAlternativePostId || !post.agreedExchange || !givingPost) return;
 
     setLoading(true);
     try {
@@ -169,31 +169,31 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
       const currentUser = await userService.getById(currentUserId);
       if (!currentUser) throw new Error('Current user not found');
 
-      // Cancel current pending exchange
+      // Cancel current exchange
       await postService.update(post.id, {
         status: 'active',
-        pendingExchange: undefined,
+        agreedExchange: undefined,
       });
 
-      // Set up new pending exchange with alternative book
+      // Set up new exchange with alternative book
       await postService.update(alternativePost.id, {
         status: 'agreed_upon',
-        pendingExchange: {
-          initiatorUserId: currentUserId, // Now recipient becomes initiator
-          recipientUserId: post.pendingExchange.initiatorUserId,
-          givingPostId: alternativePost.id,
-          receivingPostId: givingPost.id,
+        agreedExchange: {
+          responderUserId: currentUserId, // Now sharer becomes responder
+          sharerUserId: post.agreedExchange.responderUserId,
+          responderPostId: alternativePost.id,
+          sharerPostId: givingPost.id,
           timestamp: Date.now(),
         },
       });
 
       await postService.update(givingPost.id, {
         status: 'agreed_upon',
-        pendingExchange: {
-          initiatorUserId: currentUserId,
-          recipientUserId: post.pendingExchange.initiatorUserId,
-          givingPostId: alternativePost.id,
-          receivingPostId: givingPost.id,
+        agreedExchange: {
+          responderUserId: currentUserId,
+          sharerUserId: post.agreedExchange.responderUserId,
+          responderPostId: alternativePost.id,
+          sharerPostId: givingPost.id,
           timestamp: Date.now(),
         },
       });
@@ -201,7 +201,7 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
       // Send system message
       const thread = await messageService.getOrCreateThread(
         currentUserId,
-        post.pendingExchange!.initiatorUserId,
+        post.agreedExchange!.responderUserId,
         givingPost.id
       );
 
@@ -223,7 +223,7 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
   };
 
   const handleAcceptAsGift = async () => {
-    if (!post.pendingExchange || !givingPost || !initiatorUser) return;
+    if (!post.agreedExchange || !givingPost || !initiatorUser) return;
 
     setLoading(true);
     try {
@@ -233,18 +233,18 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
       // Archive giving post, return receiving post to active
       await postService.update(post.id, {
         status: 'active',
-        pendingExchange: undefined,
+        agreedExchange: undefined,
       });
 
       await postService.update(givingPost.id, {
         status: 'archived',
         archivedAt: Date.now(),
         givenTo: currentUserId,
-        pendingExchange: undefined,
+        agreedExchange: undefined,
       });
 
       // Update stats (only for giving)
-      await userService.incrementBooksGiven(post.pendingExchange.initiatorUserId);
+      await userService.incrementBooksGiven(post.agreedExchange.responderUserId);
 
       await userService.update(currentUserId, {
         stats: {
@@ -256,7 +256,7 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
       // Send completion message
       const thread = await messageService.getOrCreateThread(
         currentUserId,
-        post.pendingExchange!.initiatorUserId,
+        post.agreedExchange!.responderUserId,
         givingPost.id
       );
 
@@ -277,7 +277,7 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
     }
   };
 
-  if (!post.pendingExchange || !givingPost || !initiatorUser) {
+  if (!post.agreedExchange || !givingPost || !initiatorUser) {
     return null;
   }
 

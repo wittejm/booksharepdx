@@ -128,24 +128,58 @@ async function loginAs(identifier: string) {
   await page.goto(`${BASE_URL}/login`);
   await waitForNavigation();
 
-  // If redirected away from login (already logged in), we're done
+  // If redirected away from login (already logged in), verify and return
   if (!page.url().includes('/login')) {
+    await verifyLoggedIn(identifier);
     return;
   }
 
   const identifierInput = await page.$('input[id="identifier"]');
   if (!identifierInput) {
-    // No login form - might already be logged in
+    // No login form - might already be logged in, verify
+    await verifyLoggedIn(identifier);
     return;
   }
 
   await page.fill('input[id="identifier"]', identifier);
   await page.click('button[type="submit"]');
-  // Wait for navigation away from login page or feedback message
-  await Promise.race([
-    page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 5000 }),
-    page.waitForSelector(':has-text("Check your email"), :has-text("sign-in link"), [class*="error"], [role="alert"]', { timeout: 5000 }),
-  ]);
+
+  // Wait for navigation away from login page
+  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 5000 }).catch(async () => {
+    // If still on login page, check for error
+    const errorEl = await page.$('[class*="error"]:not(input), .text-red-500');
+    const errorText = await errorEl?.textContent();
+    await screenshot('login-failed');
+    throw new Error(`Login failed: ${errorText || 'did not navigate away from login page'}`);
+  });
+
+  // Verify we're actually logged in
+  await verifyLoggedIn(identifier);
+}
+
+// Helper: Verify user is logged in by checking for auth indicators
+async function verifyLoggedIn(expectedUsername?: string) {
+  step('Verifying login status');
+
+  // Wait a moment for React context to update
+  await page.waitForTimeout(500);
+
+  // Check for logged-in indicators: profile link, logout button, or username display
+  const loggedInIndicator = await page.$('button:has-text("Logout"), a[href="/share"], a[href*="/profile/"], [data-testid="user-menu"]');
+
+  if (!loggedInIndicator) {
+    await screenshot('verify-login-failed');
+    throw new Error('Login verification failed: no logged-in indicators found');
+  }
+
+  // Optionally verify the username matches
+  if (expectedUsername) {
+    const usernameVisible = await page.$(`text="${expectedUsername}"`);
+    // Username might not always be visible, so just log if not found
+    if (!usernameVisible) {
+      log(`    (username "${expectedUsername}" not visible on page, but logged-in indicators present)`);
+    }
+  }
 }
 
 // Helper: Logout
@@ -689,17 +723,20 @@ async function createExchangePost(bookTitle: string, bookAuthor: string): Promis
 
   step('Clicking Share a Book button');
   const shareButton = await page.$('button:has-text("Share a Book")');
-  if (shareButton) {
-    await shareButton.click();
-    await page.waitForTimeout(500);
+  if (!shareButton) {
+    await screenshot('exchange-share-button-not-found');
+    throw new Error('Share a Book button not found - user may not be logged in');
   }
+  await shareButton.click();
+  await page.waitForTimeout(500);
 
   step('Waiting for book search input');
   await page.waitForSelector('input[placeholder*="Search for a book" i]', { timeout: 5000 }).catch(() => {});
 
   const bookSearchInput = await page.$('input[placeholder*="Search for a book" i]');
   if (!bookSearchInput) {
-    throw new Error('Book search input not found');
+    await screenshot('exchange-book-search-not-found');
+    throw new Error('Book search input not found - form may not have expanded');
   }
 
   step(`Searching for book: ${bookTitle}`);
@@ -1092,17 +1129,20 @@ async function createGiveawayPost(bookTitle: string, bookAuthor: string): Promis
 
   step('Clicking Share a Book button');
   const shareButton = await page.$('button:has-text("Share a Book")');
-  if (shareButton) {
-    await shareButton.click();
-    await page.waitForTimeout(500);
+  if (!shareButton) {
+    await screenshot('share-button-not-found');
+    throw new Error('Share a Book button not found - user may not be logged in');
   }
+  await shareButton.click();
+  await page.waitForTimeout(500);
 
   step('Waiting for book search input');
   await page.waitForSelector('input[placeholder*="Search for a book" i]', { timeout: 5000 }).catch(() => {});
 
   const bookSearchInput = await page.$('input[placeholder*="Search for a book" i]');
   if (!bookSearchInput) {
-    throw new Error('Book search input not found');
+    await screenshot('book-search-not-found');
+    throw new Error('Book search input not found - form may not have expanded');
   }
 
   step(`Searching for book: ${bookTitle}`);

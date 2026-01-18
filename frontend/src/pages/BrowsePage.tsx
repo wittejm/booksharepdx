@@ -105,7 +105,7 @@ export default function BrowsePage() {
         p =>
           p.book.title.toLowerCase().includes(searchLower) ||
           p.book.author.toLowerCase().includes(searchLower) ||
-          p.book.genre.toLowerCase().includes(searchLower) ||
+          p.book.genre?.toLowerCase().includes(searchLower) ||
           p.notes?.toLowerCase().includes(searchLower)
       );
     }
@@ -113,7 +113,7 @@ export default function BrowsePage() {
     // Filter by genres (if any selected)
     if (selectedGenres.length > 0) {
       filtered = filtered.filter(p => {
-        const postGenres = mapToCanonicalGenres(p.book.genre);
+        const postGenres = mapToCanonicalGenres(p.book.genre || '');
         return postGenres.some(g => selectedGenres.includes(g));
       });
     }

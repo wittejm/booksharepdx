@@ -10,30 +10,34 @@ import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validation.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { findByIdOrThrow, requireOwnership } from '../utils/db.js';
+import { findOrCreateBook, incrementBookCounter, getBookById } from '../services/bookService.js';
 
 const router = Router();
 
 // Validation schemas
 const createPostSchema = z.object({
   book: z.object({
+    googleBooksId: z.string().optional(),
     title: z.string().min(1),
     author: z.string().min(1),
     coverImage: z.string().optional(),
-    genre: z.string(),
+    genre: z.string().optional(),
     isbn: z.string().optional(),
   }),
-  type: z.enum(['giveaway', 'exchange']),
+  bookId: z.string().optional(),
+  type: z.enum(['giveaway', 'exchange', 'loan']),
   notes: z.string().optional(),
+  loanDuration: z.number().optional(),
 });
 
 const updatePostSchema = z.object({
   notes: z.string().optional(),
   status: z.enum(['active', 'agreed_upon', 'archived']).optional(),
-  pendingExchange: z.object({
-    initiatorUserId: z.string(),
-    recipientUserId: z.string(),
-    givingPostId: z.string(),
-    receivingPostId: z.string(),
+  agreedExchange: z.object({
+    responderUserId: z.string(),
+    sharerUserId: z.string(),
+    responderPostId: z.string(),
+    sharerPostId: z.string(),
     timestamp: z.number(),
   }).optional().nullable(),
   givenTo: z.string().optional().nullable(),
@@ -61,6 +65,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
     // Build query
     let query = postRepo.createQueryBuilder('post')
       .leftJoinAndSelect('post.user', 'user')
+      .leftJoinAndSelect('post.book', 'book')
       .orderBy('post.createdAt', 'DESC');
 
     // Filter by status (default to active)
@@ -80,17 +85,17 @@ router.get('/', optionalAuth, async (req, res, next) => {
       query = query.andWhere('post.userId = :userId', { userId });
     }
 
-    // Search by title/author
+    // Search by title/author (using book relation)
     if (search) {
       query = query.andWhere(
-        "(post.book->>'title' ILIKE :search OR post.book->>'author' ILIKE :search)",
+        '(book.title ILIKE :search OR book.author ILIKE :search)',
         { search: `%${search}%` }
       );
     }
 
     // Filter by genre
     if (genre) {
-      query = query.andWhere("post.book->>'genre' = :genre", { genre });
+      query = query.andWhere('book.genre = :genre', { genre });
     }
 
     // Filter out blocked users if authenticated
@@ -177,6 +182,7 @@ router.get('/active', optionalAuth, async (req, res, next) => {
 
     const posts = await postRepo.createQueryBuilder('post')
       .leftJoinAndSelect('post.user', 'user')
+      .leftJoinAndSelect('post.book', 'book')
       .where('post.status = :status', { status: 'active' })
       .orderBy('post.createdAt', 'DESC')
       .getMany();
@@ -200,6 +206,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
 
     const post = await postRepo.createQueryBuilder('post')
       .leftJoinAndSelect('post.user', 'user')
+      .leftJoinAndSelect('post.book', 'book')
       .where('post.id = :id', { id })
       .getOne();
 
@@ -230,6 +237,7 @@ router.get('/user/:userId', optionalAuth, async (req, res, next) => {
 
     const posts = await postRepo.createQueryBuilder('post')
       .leftJoinAndSelect('post.user', 'user')
+      .leftJoinAndSelect('post.book', 'book')
       .where('post.userId = :userId', { userId })
       .orderBy('post.createdAt', 'DESC')
       .getMany();
@@ -250,17 +258,27 @@ router.post('/', requireAuth, validateBody(createPostSchema), async (req, res, n
   try {
     const postRepo = AppDataSource.getRepository(Post);
 
+    // Find or create the book entity
+    const book = await findOrCreateBook(req.body.book);
+
     const post = postRepo.create({
       userId: req.user!.id,
-      book: req.body.book,
+      bookId: book.id,
       type: req.body.type,
       notes: req.body.notes,
       status: 'active',
+      loanDuration: req.body.loanDuration,
     });
 
     await postRepo.save(post);
 
-    res.status(201).json({ data: post.toJSON() });
+    // Reload with relations for response
+    const savedPost = await postRepo.findOne({
+      where: { id: post.id },
+      relations: ['book', 'user'],
+    });
+
+    res.status(201).json({ data: savedPost!.toJSON() });
   } catch (error) {
     next(error);
   }
@@ -293,7 +311,7 @@ router.put('/:id', requireAuth, validateBody(updatePostSchema), async (req, res,
     // Apply updates
     if (req.body.notes !== undefined) post.notes = req.body.notes;
     if (req.body.status !== undefined) post.status = req.body.status;
-    if (req.body.pendingExchange !== undefined) post.pendingExchange = req.body.pendingExchange;
+    if (req.body.agreedExchange !== undefined) post.agreedExchange = req.body.agreedExchange;
     if (req.body.givenTo !== undefined) post.givenTo = req.body.givenTo;
 
     if (req.body.status === 'archived') {
@@ -315,9 +333,21 @@ router.put('/:id', requireAuth, validateBody(updatePostSchema), async (req, res,
         receiver.booksReceived += 1;
         await userRepo.save(receiver);
       }
+
+      // Increment book sharing counter
+      const book = await getBookById(post.bookId);
+      if (book) {
+        await incrementBookCounter(book, post.type);
+      }
     }
 
-    res.json({ data: post.toJSON() });
+    // Reload with book relation for response
+    const updatedPost = await postRepo.findOne({
+      where: { id: post.id },
+      relations: ['book', 'user'],
+    });
+
+    res.json({ data: updatedPost!.toJSON() });
   } catch (error) {
     next(error);
   }

@@ -15,4 +15,5 @@ export {
   neighborhoodService,
   moderationActionService,
   interestService,
+  bookService,
 } from './apiService';

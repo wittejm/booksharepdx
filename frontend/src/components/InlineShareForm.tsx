@@ -4,17 +4,9 @@ import { useUser } from '../contexts/UserContext';
 import { useToast } from './useToast';
 import ToastContainer from './ToastContainer';
 import LoadingSpinner from './LoadingSpinner';
-import BookSearch from './BookSearch';
+import BookSearch, { type BookSelection } from './BookSearch';
 import MultiSelectTagInput from './MultiSelectTagInput';
 import { GENRES, mapSubjectsToGenres } from '../utils/genres';
-
-interface BookSelection {
-  title: string;
-  author: string;
-  coverImage?: string;
-  isbn?: string;
-  subjects?: string[];
-}
 
 interface InlineShareFormProps {
   onSuccess?: () => void;
@@ -60,14 +52,14 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
 
       await postService.create({
         book: {
+          googleBooksId: selectedBook.googleBooksId,
           title: selectedBook.title,
           author: selectedBook.author,
-          genre: selectedGenres.length > 0 ? selectedGenres.join(', ') : '',
+          genre: selectedGenres.length > 0 ? selectedGenres.join(', ') : undefined,
           isbn: selectedBook.isbn,
           coverImage: selectedBook.coverImage,
         },
         type: shareType,
-        status: 'active',
         ...(shareType === 'loan' && { loanDuration }),
       });
 

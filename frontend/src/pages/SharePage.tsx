@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Navigate } from 'react-router-dom';
 import type { Post, MessageThread } from '@booksharepdx/shared';
-import { postService, savedPostService, messageService } from '../services';
+import { postService, messageService } from '../services';
 import { useUser } from '../contexts/UserContext';
 import { useInterest } from '../contexts/InterestContext';
 import ShareCard from '../components/ShareCard';
-import PostCard from '../components/PostCard';
 import InlineShareForm from '../components/InlineShareForm';
 
-type TabType = 'active' | 'archive' | 'saved';
+type TabType = 'active' | 'archive';
 
 export default function SharePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -17,7 +16,6 @@ export default function SharePage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('active');
   const [posts, setPosts] = useState<Post[]>([]);
-  const [savedPosts, setSavedPosts] = useState<Post[]>([]);
   const [threads, setThreads] = useState<MessageThread[]>([]);
   const postRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const hasScrolledToInterest = useRef(false);
@@ -62,15 +60,6 @@ export default function SharePage() {
         ]);
         setPosts([...activePosts, ...agreedPosts, ...archivedPosts]);
         setThreads(allThreads);
-
-        const saved = await savedPostService.getByUserId(currentUser.id);
-        const savedPostsData = await Promise.all(
-          saved.map(async (s) => {
-            const post = await postService.getById(s.postId);
-            return post;
-          })
-        );
-        setSavedPosts(savedPostsData.filter((p): p is Post => p !== null));
       } catch (error) {
         console.error('Failed to load shares:', error);
       } finally {
@@ -195,12 +184,7 @@ export default function SharePage() {
     });
   };
 
-  const tabPosts =
-    activeTab === 'active'
-      ? getActivePosts()
-      : activeTab === 'archive'
-      ? getArchivedPosts()
-      : savedPosts;
+  const tabPosts = activeTab === 'active' ? getActivePosts() : getArchivedPosts();
 
   if (loading) {
     return (
@@ -245,16 +229,6 @@ export default function SharePage() {
               >
                 Archive ({getArchivedPosts().length})
               </button>
-              <button
-                onClick={() => setActiveTab('saved')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'saved'
-                    ? 'border-primary-600 text-primary-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                }`}
-              >
-                Saved ({savedPosts.length})
-              </button>
             </nav>
           </div>
         </div>
@@ -264,9 +238,9 @@ export default function SharePage() {
           {tabPosts.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-600">
-                {activeTab === 'active' && 'No active shares yet. Use the form above to share a book!'}
-                {activeTab === 'archive' && 'No archived shares yet.'}
-                {activeTab === 'saved' && 'No saved shares yet.'}
+                {activeTab === 'active'
+                  ? 'No active shares yet. Use the form above to share a book!'
+                  : 'No archived shares yet.'}
               </p>
             </div>
           ) : (
@@ -279,21 +253,17 @@ export default function SharePage() {
                 }}
                 className="transition-all duration-300"
               >
-                {activeTab === 'saved' ? (
-                  <PostCard post={post} />
-                ) : (
-                  <ShareCard
-                    post={post}
-                    onUpdate={reloadPosts}
-                    autoFocusThreadId={post.id === focusPostId ? showThreadId : undefined}
-                    onAutoFocusComplete={() => {
-                      // Clear the URL params after focusing
-                      if (focusPostId || showThreadId) {
-                        setSearchParams({});
-                      }
-                    }}
-                  />
-                )}
+                <ShareCard
+                  post={post}
+                  onUpdate={reloadPosts}
+                  autoFocusThreadId={post.id === focusPostId ? showThreadId : undefined}
+                  onAutoFocusComplete={() => {
+                    // Clear the URL params after focusing
+                    if (focusPostId || showThreadId) {
+                      setSearchParams({});
+                    }
+                  }}
+                />
               </div>
             ))
           )}

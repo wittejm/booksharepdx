@@ -12,7 +12,6 @@ import { ModerationAction } from '../entities/ModerationAction.js';
 import { ModeratorNote } from '../entities/ModeratorNote.js';
 import { Vouch } from '../entities/Vouch.js';
 import { Notification } from '../entities/Notification.js';
-import { SavedPost } from '../entities/SavedPost.js';
 import { Book } from '../entities/Book.js';
 
 export const AppDataSource = new DataSource({
@@ -31,7 +30,6 @@ export const AppDataSource = new DataSource({
     ModeratorNote,
     Vouch,
     Notification,
-    SavedPost,
     Book,
   ],
   migrations: ['src/database/migrations/*.ts'],

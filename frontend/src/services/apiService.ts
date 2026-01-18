@@ -9,7 +9,6 @@ import type {
   Message,
   Vouch,
   Neighborhood,
-  SavedPost,
   Block,
   Notification,
   Interest,
@@ -346,27 +345,6 @@ export const notificationService = {
 
   markAllAsRead: async (userId: string): Promise<void> => {
     await apiClient.post(`/notifications/mark-all-read`, { userId });
-  },
-};
-
-// Saved Post Service
-export const savedPostService = {
-  save: async (userId: string, postId: string, expressedInterest: boolean = false): Promise<SavedPost> => {
-    const response = await apiClient.post<{ data: SavedPost }>('/saved-posts', {
-      userId,
-      postId,
-      expressedInterest,
-    });
-    return response.data;
-  },
-
-  unsave: async (userId: string, postId: string): Promise<void> => {
-    await apiClient.delete(`/saved-posts/${userId}/${postId}`);
-  },
-
-  getByUserId: async (userId: string): Promise<SavedPost[]> => {
-    const response = await apiClient.get<{ data: SavedPost[] }>(`/saved-posts?userId=${userId}`);
-    return response.data;
   },
 };
 

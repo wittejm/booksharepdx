@@ -10,7 +10,6 @@ export {
   blockService,
   vouchService,
   notificationService,
-  savedPostService,
   neighborhoodService,
   interestService,
   bookService,

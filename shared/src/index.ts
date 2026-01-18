@@ -223,14 +223,6 @@ export interface Notification {
   relatedId?: string; // post, message, or report id
 }
 
-// Saved/Wishlist Types
-export interface SavedPost {
-  userId: string;
-  postId: string;
-  timestamp: number;
-  expressedInterest: boolean; // true if they messaged about the post
-}
-
 // Interest Types - tracks when someone expresses interest in a share
 export interface Interest {
   id: string;

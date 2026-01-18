@@ -665,9 +665,7 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
                 <span>
-                  {interests.length > 0
-                    ? `${interests.length} ${interests.length === 1 ? 'person' : 'people'} interested`
-                    : 'View requests'}
+                  {`${interests.length} ${interests.length === 1 ? 'person' : 'people'} interested`}
                 </span>
               </button>
 

@@ -1,0 +1,49 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - navigation [ref=e5]:
+      - generic [ref=e6]:
+        - link "BookSharePDX Logo BookSharePDX" [ref=e7] [cursor=pointer]:
+          - /url: /
+          - img "BookSharePDX Logo" [ref=e8]
+          - generic [ref=e9]: BookSharePDX
+        - generic [ref=e10]:
+          - link "Browse" [ref=e11] [cursor=pointer]:
+            - /url: /browse
+          - link "Share" [ref=e12] [cursor=pointer]:
+            - /url: /share
+          - link "My Activity" [ref=e13] [cursor=pointer]:
+            - /url: /activity
+          - link "Join our Discord" [ref=e14] [cursor=pointer]:
+            - /url: https://discord.gg/KsN2rapS
+            - img [ref=e15]
+          - button "R requester1768777330715" [ref=e18] [cursor=pointer]:
+            - generic [ref=e19]: R
+            - generic [ref=e20]: requester1768777330715
+            - img [ref=e21]
+  - main [ref=e23]:
+    - generic [ref=e25]:
+      - heading "My Activity" [level=1] [ref=e26]
+      - generic [ref=e27]:
+        - button "To Kill a Mockingbird 40th To Kill a Mockingbird 40th Gift owner1768777330715 just now" [ref=e31] [cursor=pointer]:
+          - img "To Kill a Mockingbird 40th" [ref=e33]
+          - generic [ref=e34]:
+            - generic [ref=e36]:
+              - heading "To Kill a Mockingbird 40th" [level=3] [ref=e37]
+              - generic [ref=e38]: Gift
+            - paragraph [ref=e39]: owner1768777330715
+            - paragraph [ref=e40]: just now
+        - generic [ref=e43]:
+          - img [ref=e44]
+          - paragraph [ref=e46]: Select a conversation to view messages
+  - contentinfo [ref=e47]:
+    - generic [ref=e49]:
+      - paragraph [ref=e50]: © 2026 BookSharePDX
+      - generic [ref=e51]:
+        - link "About" [ref=e52] [cursor=pointer]:
+          - /url: /about
+        - link "GitHub" [ref=e53] [cursor=pointer]:
+          - /url: https://github.com/pdxbookshare
+```

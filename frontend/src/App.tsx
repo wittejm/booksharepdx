@@ -16,7 +16,6 @@ import BrowsePage from './pages/BrowsePage';
 import LoginPage from './pages/LoginPage';
 import SignUpPage from './pages/SignUpPage';
 import LocationSelectionPage from './pages/LocationSelectionPage';
-import ShareDetailPage from './pages/ShareDetailPage';
 import ActivityPage from './pages/ActivityPage';
 import SharePage from './pages/SharePage';
 import ProfilePage from './pages/ProfilePage';
@@ -94,11 +93,6 @@ function AppRoutes() {
 
             {/* Browse page - accessible to all */}
             <Route path="/browse" element={<BrowsePage />} />
-
-            {/* Share detail - accessible to all */}
-            <Route path="/share/:shareId" element={<ShareDetailPage />} />
-            {/* Redirect old /post URLs to /share */}
-            <Route path="/post/:postId" element={<Navigate to={window.location.pathname.replace('/post/', '/share/')} replace />} />
 
             {/* Protected routes */}
             <Route path="/activity" element={

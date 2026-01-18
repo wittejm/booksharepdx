@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { Post, User, MessageThread } from '@booksharepdx/shared';
-import { userService, messageService } from '../services';
+import { messageService } from '../services';
 import { useUser } from '../contexts/UserContext';
+import { useUser as useFetchUser } from '../hooks/useDataLoader';
 import { useToast } from './useToast';
 import { useConfirm } from './useConfirm';
 import { setPendingAction } from '../utils/pendingAuth';
@@ -34,18 +35,16 @@ export default function PostCard({ post, distance, autoOpenRequest, exchangeInfo
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { confirm, ConfirmDialogComponent } = useConfirm();
-  const [postUser, setPostUser] = useState<User | null>(null);
   const [showContactForm, setShowContactForm] = useState(false);
   const [showExchangeDropdown, setShowExchangeDropdown] = useState(false);
   const [proposingExchange, setProposingExchange] = useState(false);
   const [existingThread, setExistingThread] = useState<MessageThread | null>(null);
 
+  // Load post owner using data loader hook
+  const { user: postUser } = useFetchUser(post.userId);
+
   // Determine if we're in exchange mode (can't exchange for loans)
   const canExchange = exchangeInfo && exchangeInfo.myPosts.length > 0 && post.type !== 'loan';
-
-  useEffect(() => {
-    userService.getById(post.userId).then(setPostUser);
-  }, [post.userId]);
 
   // Check if user has already requested this book
   useEffect(() => {

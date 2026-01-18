@@ -25,8 +25,6 @@ import ProfilePage from './pages/ProfilePage';
 // Lazy-loaded pages (code splitting)
 const MyProfilePage = lazy(() => import('./pages/MyProfilePage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
-// ModerationPage not lazy-loaded yet - has dependencies being refactored
-import ModerationPage from './pages/ModerationPage';
 import VerifyMagicLinkPage from './pages/VerifyMagicLinkPage';
 
 // Context for current user
@@ -39,17 +37,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!currentUser) {
     return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
-}
-
-// Moderator/Admin only route
-function ModeratorRoute({ children }: { children: React.ReactNode }) {
-  const { currentUser } = useUser();
-
-  if (!currentUser || (currentUser.role !== 'moderator' && currentUser.role !== 'admin')) {
-    return <Navigate to="/browse" replace />;
   }
 
   return <>{children}</>;
@@ -129,11 +116,6 @@ function AppRoutes() {
             <Route path="/profile/:username" element={<ProfilePage />} />
             {/* Redirect old settings route to my-profile */}
             <Route path="/settings" element={<Navigate to="/my-profile" replace />} />
-
-            {/* Moderator-only routes */}
-            <Route path="/moderation" element={
-              <ModeratorRoute><ModerationPage /></ModeratorRoute>
-            } />
 
             {/* 404 */}
             <Route path="*" element={<Navigate to="/" replace />} />

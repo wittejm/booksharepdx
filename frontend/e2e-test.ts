@@ -19,6 +19,10 @@ const API_URL = process.env.API_URL || 'http://localhost:3000';
 const LOG_PATH = path.join(__dirname, '..', 'TEST_LOG.md');
 const SCREENSHOT_DIR = path.join(__dirname, '..', 'test-screenshots');
 
+// Keep timeouts short - tests run against local dev server which should be fast.
+// If tests are flaky due to timeouts, fix the app, not the timeout.
+const LOAD_TIMEOUT = 2000;
+
 // Track if we have a working backend
 let backendHealthy = false;
 
@@ -91,7 +95,7 @@ async function runTest(
   }
 }
 
-async function waitForNavigation(timeout = 5000) {
+async function waitForNavigation(timeout = LOAD_TIMEOUT) {
   // Wait for React to render - look for any meaningful content
   await page.waitForLoadState('domcontentloaded', { timeout });
   // Wait for React app to mount (look for common elements)
@@ -117,8 +121,8 @@ async function createUser(user: typeof testOwner) {
   await page.click('button[type="submit"]');
   // Wait for navigation away from signup page (success) or error message (failure)
   await Promise.race([
-    page.waitForURL((url) => !url.pathname.includes('/signup'), { timeout: 5000 }),
-    page.waitForSelector('[class*="error"]:not(input), [role="alert"], .text-red-500', { timeout: 5000 }),
+    page.waitForURL((url) => !url.pathname.includes('/signup'), { timeout: LOAD_TIMEOUT }),
+    page.waitForSelector('[class*="error"]:not(input), [role="alert"], .text-red-500', { timeout: LOAD_TIMEOUT }),
   ]);
 }
 
@@ -145,7 +149,7 @@ async function loginAs(identifier: string) {
   await page.click('button[type="submit"]');
 
   // Wait for navigation away from login page
-  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 5000 }).catch(async () => {
+  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: LOAD_TIMEOUT }).catch(async () => {
     // If still on login page, check for error
     const errorEl = await page.$('[class*="error"]:not(input), .text-red-500');
     const errorText = await errorEl?.textContent();
@@ -185,14 +189,20 @@ async function verifyLoggedIn(expectedUsername?: string) {
 // Helper: Logout
 async function logout() {
   step('Logging out');
-  const logoutBtn = await page.$('button:has-text("Logout"), button:has-text("Sign Out")');
-  if (logoutBtn) {
-    await logoutBtn.click();
-    // Wait for logout button to disappear or login link to appear
-    await Promise.race([
-      page.waitForSelector('button:has-text("Logout"), button:has-text("Sign Out")', { state: 'hidden', timeout: 5000 }),
-      page.waitForSelector('a[href="/login"]', { timeout: 5000 }),
-    ]).catch(() => {}); // Ignore timeout if already logged out
+
+  // First, open the profile dropdown (logout is inside it)
+  const profileButton = await page.$('button:has(.rounded-full)');
+  if (profileButton) {
+    await profileButton.click();
+    await page.waitForTimeout(300);
+
+    // Now click the logout button in the dropdown
+    const logoutBtn = await page.$('button:has-text("Logout")');
+    if (logoutBtn) {
+      await logoutBtn.click();
+      // Wait for login link to appear (indicates logged out)
+      await page.waitForSelector('a[href="/login"]', { timeout: LOAD_TIMEOUT }).catch(() => {});
+    }
   }
 }
 
@@ -292,11 +302,21 @@ async function testLoginFlow() {
   await page.goto(`${BASE_URL}/login`);
   await waitForNavigation();
 
-  // Check form exists
+  step('Checking login form exists');
+
+  // If redirected away from login (already logged in), that's a problem for this test
+  if (!page.url().includes('/login')) {
+    await screenshot('login-redirected');
+    throw new Error(`Expected to be on login page but got redirected to: ${page.url()}`);
+  }
+
   const identifierInput = await page.$('input[id="identifier"]');
   const submitBtn = await page.$('button[type="submit"]');
 
-  if (!identifierInput) throw new Error('Identifier input missing');
+  if (!identifierInput) {
+    await screenshot('login-form-missing');
+    throw new Error('Identifier input missing');
+  }
   if (!submitBtn) throw new Error('Submit button missing');
 
   // Login with username
@@ -305,8 +325,8 @@ async function testLoginFlow() {
   await page.click('button[type="submit"]');
   // Wait for navigation away from login page or feedback message
   await Promise.race([
-    page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 5000 }),
-    page.waitForSelector(':has-text("Check your email"), :has-text("sign-in link"), [class*="error"], [role="alert"]', { timeout: 5000 }),
+    page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: LOAD_TIMEOUT }),
+    page.waitForSelector(':has-text("Check your email"), :has-text("sign-in link"), [class*="error"], [role="alert"]', { timeout: LOAD_TIMEOUT }),
   ]);
 
   await screenshot('04-login-result');
@@ -388,7 +408,7 @@ async function testCreateGiveawayPost() {
     if (addBtn) {
       await addBtn.click();
       // Wait for form to appear
-      await page.waitForSelector('input[placeholder*="book" i], input[placeholder*="search" i], form', { timeout: 5000 }).catch(() => {});
+      await page.waitForSelector('input[placeholder*="book" i], input[placeholder*="search" i], form', { timeout: LOAD_TIMEOUT }).catch(() => {});
     }
   }
 
@@ -721,6 +741,10 @@ async function createExchangePost(bookTitle: string, bookAuthor: string): Promis
   await page.goto(`${BASE_URL}/share`);
   await waitForNavigation();
 
+  // Wait for loading to complete
+  step('Waiting for share page to load');
+  await page.waitForSelector('text="loading"', { state: 'hidden', timeout: LOAD_TIMEOUT }).catch(() => {});
+
   step('Clicking Share a Book button');
   const shareButton = await page.$('button:has-text("Share a Book")');
   if (!shareButton) {
@@ -731,7 +755,7 @@ async function createExchangePost(bookTitle: string, bookAuthor: string): Promis
   await page.waitForTimeout(500);
 
   step('Waiting for book search input');
-  await page.waitForSelector('input[placeholder*="Search for a book" i]', { timeout: 5000 }).catch(() => {});
+  await page.waitForSelector('input[placeholder*="Search for a book" i]', { timeout: LOAD_TIMEOUT }).catch(() => {});
 
   const bookSearchInput = await page.$('input[placeholder*="Search for a book" i]');
   if (!bookSearchInput) {
@@ -741,7 +765,7 @@ async function createExchangePost(bookTitle: string, bookAuthor: string): Promis
 
   step(`Searching for book: ${bookTitle}`);
   await bookSearchInput.fill(bookTitle);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   step('Selecting search result');
   const searchResult = await page.$('[role="option"], [class*="search-result"], .cursor-pointer');
@@ -778,7 +802,7 @@ async function createExchangePost(bookTitle: string, bookAuthor: string): Promis
     await submitBtn.click();
   }
 
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   step('Verifying post was created');
   const bookCard = await page.$(`text="${bookTitle}"`);
@@ -794,7 +818,7 @@ async function sendRequestForBook(ownerUsername: string, bookTitle: string): Pro
   step(`Sending request for "${bookTitle}" from ${ownerUsername}`);
   await page.goto(`${BASE_URL}/profile/${ownerUsername}`);
   await waitForNavigation();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   step(`Finding book "${bookTitle}" on profile`);
   const bookCard = await page.locator(`text="${bookTitle}"`).first();
@@ -828,7 +852,7 @@ async function sendRequestForBook(ownerUsername: string, bookTitle: string): Pro
     throw new Error('Send button not found');
   }
 
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 }
 
 async function testCompleteTradeFlow() {
@@ -859,7 +883,7 @@ async function testCompleteTradeFlow() {
   await loginAs(testOwner.username);
   await page.goto(`${BASE_URL}/share`);
   await waitForNavigation();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   // Look for interest indicator - ShareCard shows "Someone is interested!" or "X people are interested!"
   const interestIndicator = await page.$(
@@ -887,7 +911,7 @@ async function testCompleteTradeFlow() {
     await page.goto(`${BASE_URL}/profile/${testRequester.username}`);
     await waitForNavigation();
   }
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
   await screenshot('trade-05-owner-views-requester-profile');
 
   // Step 6: Owner proposes exchange
@@ -913,20 +937,20 @@ async function testCompleteTradeFlow() {
   if (confirmExchangeBtn) {
     await confirmExchangeBtn.click();
   }
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(LOAD_TIMEOUT);
   await screenshot('trade-06-exchange-proposed');
 
   // Step 7: Verify trade proposal appears in owner's Share page
   log('Step 7: Verify trade proposal appears in owner\'s Share page thread');
 
   // After proposing, we should be redirected to /share?focusPost=...&showThread=...
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
   const currentUrl = page.url();
   if (!currentUrl.includes('/share')) {
     await page.goto(`${BASE_URL}/share`);
     await waitForNavigation();
   }
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   // The thread should be auto-expanded after proposal
   // Look for the trade proposal card in the message thread
@@ -941,13 +965,13 @@ async function testCompleteTradeFlow() {
   // Requester goes to Activity page (messages page shows their requests)
   await page.goto(`${BASE_URL}/activity`);
   await waitForNavigation();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   // Find and click on the thread for owner's book
   const threadItem = await page.$(`button:has-text("${tradeTestOwnerBook.title}")`);
   if (threadItem) {
     await threadItem.click();
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(LOAD_TIMEOUT);
   }
 
   await screenshot('trade-08-requester-views-proposal');
@@ -960,7 +984,7 @@ async function testCompleteTradeFlow() {
   }
 
   await acceptBtn.click();
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(LOAD_TIMEOUT);
   await screenshot('trade-09-proposal-accepted');
 
   // Step 9: Verify both users see confirm buttons
@@ -973,7 +997,7 @@ async function testCompleteTradeFlow() {
   if (!requesterConfirmBtn) {
     // Try reloading once to see updated status
     await page.reload();
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(LOAD_TIMEOUT);
     requesterConfirmBtn = await page.$('button:has-text("Trade Completed")');
   }
   await screenshot('trade-10-requester-confirm-button');
@@ -986,7 +1010,7 @@ async function testCompleteTradeFlow() {
   await loginAs(testOwner.username);
   await page.goto(`${BASE_URL}/share`);
   await waitForNavigation();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   // Owner sees "Gift Completed" button on agreed_upon posts
   const ownerConfirmBtn = await page.$('button:has-text("Gift Completed")');
@@ -999,13 +1023,13 @@ async function testCompleteTradeFlow() {
   log('Step 10: Verify book no longer appears in browse feed');
   await page.goto(`${BASE_URL}/browse`);
   await waitForNavigation();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   // Search for the owner's book
   const searchInput = await page.$('input[placeholder*="Title" i], input[placeholder*="search" i]');
   if (searchInput) {
     await searchInput.fill(tradeTestOwnerBook.title);
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(LOAD_TIMEOUT);
   }
 
   // Check if book is visible in browse results
@@ -1022,7 +1046,7 @@ async function testCompleteTradeFlow() {
   log('Step 11: Owner confirms the trade is complete');
   await page.goto(`${BASE_URL}/share`);
   await waitForNavigation();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   const ownerCompleteBtn = await page.$('button:has-text("Gift Completed")');
   if (!ownerCompleteBtn) {
@@ -1036,7 +1060,7 @@ async function testCompleteTradeFlow() {
   if (confirmDialogBtn) {
     await confirmDialogBtn.click();
   }
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(LOAD_TIMEOUT);
   await screenshot('trade-13-owner-confirmed');
 
   // Step 12: Requester confirms completion
@@ -1045,7 +1069,7 @@ async function testCompleteTradeFlow() {
   await loginAs(testRequester.username);
   await page.goto(`${BASE_URL}/activity`);
   await waitForNavigation();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   // Select the thread if needed
   const requesterThread = await page.$(`button:has-text("${tradeTestOwnerBook.title}")`);
@@ -1067,7 +1091,7 @@ async function testCompleteTradeFlow() {
   if (confirmReceiptBtn) {
     await confirmReceiptBtn.click();
   }
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(LOAD_TIMEOUT);
   await screenshot('trade-14-requester-confirmed');
 
   // Step 13: Verify book moved to owner's archive
@@ -1076,7 +1100,7 @@ async function testCompleteTradeFlow() {
   await loginAs(testOwner.username);
   await page.goto(`${BASE_URL}/share`);
   await waitForNavigation();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   // Click Active tab - book should NOT be there anymore
   const activeTab = await page.$('button:has-text("Active")');
@@ -1127,6 +1151,10 @@ async function createGiveawayPost(bookTitle: string, bookAuthor: string): Promis
   await page.goto(`${BASE_URL}/share`);
   await waitForNavigation();
 
+  // Wait for loading to complete
+  step('Waiting for share page to load');
+  await page.waitForSelector('text="loading"', { state: 'hidden', timeout: LOAD_TIMEOUT }).catch(() => {});
+
   step('Clicking Share a Book button');
   const shareButton = await page.$('button:has-text("Share a Book")');
   if (!shareButton) {
@@ -1137,7 +1165,7 @@ async function createGiveawayPost(bookTitle: string, bookAuthor: string): Promis
   await page.waitForTimeout(500);
 
   step('Waiting for book search input');
-  await page.waitForSelector('input[placeholder*="Search for a book" i]', { timeout: 5000 }).catch(() => {});
+  await page.waitForSelector('input[placeholder*="Search for a book" i]', { timeout: LOAD_TIMEOUT }).catch(() => {});
 
   const bookSearchInput = await page.$('input[placeholder*="Search for a book" i]');
   if (!bookSearchInput) {
@@ -1147,7 +1175,7 @@ async function createGiveawayPost(bookTitle: string, bookAuthor: string): Promis
 
   step(`Searching for book: ${bookTitle}`);
   await bookSearchInput.fill(bookTitle);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   step('Selecting search result');
   const searchResult = await page.$('[role="option"], [class*="search-result"], .cursor-pointer');
@@ -1162,7 +1190,7 @@ async function createGiveawayPost(bookTitle: string, bookAuthor: string): Promis
     await submitBtn.click();
   }
 
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 }
 
 // Helper: Cancel a request from Activity page
@@ -1170,7 +1198,7 @@ async function cancelRequest(bookTitle: string): Promise<void> {
   step(`Cancelling request for: ${bookTitle}`);
   await page.goto(`${BASE_URL}/activity`);
   await waitForNavigation();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   step('Selecting thread');
   const threadItem = await page.$(`button:has-text("${bookTitle}")`);
@@ -1193,7 +1221,7 @@ async function cancelRequest(bookTitle: string): Promise<void> {
   if (confirmBtn) {
     await confirmBtn.click();
   }
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 }
 
 // Helper: Decline a request from Share page
@@ -1201,7 +1229,7 @@ async function declineRequest(bookTitle: string, requesterUsername: string): Pro
   step(`Declining request for: ${bookTitle}`);
   await page.goto(`${BASE_URL}/share`);
   await waitForNavigation();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   step('Expanding interest list');
   const interestIndicator = await page.$('text="is interested", text="are interested"');
@@ -1224,7 +1252,7 @@ async function declineRequest(bookTitle: string, requesterUsername: string): Pro
   if (confirmBtn) {
     await confirmBtn.click();
   }
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 }
 
 // Helper: Dismiss a declined notification from Activity page
@@ -1232,7 +1260,7 @@ async function dismissDeclinedRequest(bookTitle: string): Promise<void> {
   step(`Dismissing declined request for: ${bookTitle}`);
   await page.goto(`${BASE_URL}/activity`);
   await waitForNavigation();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   step('Selecting thread');
   const threadItem = await page.$(`button:has-text("${bookTitle}")`);
@@ -1248,7 +1276,7 @@ async function dismissDeclinedRequest(bookTitle: string): Promise<void> {
   }
 
   await dismissBtn.click();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 }
 
 // Helper: Accept a request from Share page
@@ -1256,7 +1284,7 @@ async function acceptRequest(bookTitle: string): Promise<void> {
   step(`Accepting request for: ${bookTitle}`);
   await page.goto(`${BASE_URL}/share`);
   await waitForNavigation();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   step('Expanding interest list');
   const interestIndicator = await page.$('text="is interested", text="are interested"');
@@ -1279,7 +1307,7 @@ async function acceptRequest(bookTitle: string): Promise<void> {
   if (confirmBtn) {
     await confirmBtn.click();
   }
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 }
 
 // Helper: Get thread status from Activity page
@@ -1287,7 +1315,7 @@ async function getThreadStatus(bookTitle: string): Promise<string | null> {
   step(`Checking thread status for: ${bookTitle}`);
   await page.goto(`${BASE_URL}/activity`);
   await waitForNavigation();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   step('Selecting thread');
   const threadItem = await page.$(`button:has-text("${bookTitle}")`);
@@ -1628,7 +1656,7 @@ async function testGiftFlow_MultipleRequesters() {
   await loginAs(thirdUser.username);
   await page.goto(`${BASE_URL}/activity`);
   await waitForNavigation();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   const givenToOtherText = await page.$('text="given to someone else", text="Given to another"');
   await screenshot('gift-multi-04-given-to-other');
@@ -1684,7 +1712,7 @@ async function testGiftFlow_CantRerequestAfterDecline() {
       const sendBtn = await page.$('button:has-text("Send")');
       if (sendBtn) {
         await sendBtn.click();
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(LOAD_TIMEOUT);
       }
     }
   }
@@ -1742,7 +1770,7 @@ async function testGiftFlow_PostDeleted() {
   await loginAs(testRequester.username);
   await page.goto(`${BASE_URL}/activity`);
   await waitForNavigation();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(LOAD_TIMEOUT);
 
   const postRemovedText = await page.$('text="removed", text="deleted", text="no longer available"');
   await screenshot('gift-deleted-03-requester-sees');

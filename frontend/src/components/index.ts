@@ -6,7 +6,3 @@ export type { ToastMessage } from './useToast';
 
 // Modal component
 export { default as Modal } from './Modal';
-
-// Report and block components
-export { default as BlockReportMenu } from './BlockReportMenu';
-export { default as ReportModal } from './ReportModal';

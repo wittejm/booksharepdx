@@ -6,6 +6,7 @@ import { useConfirm } from './useConfirm';
 import { useToast } from './useToast';
 import { useUser } from '../contexts/UserContext';
 import { useInterest } from '../contexts/InterestContext';
+import { useUser as useFetchUser, usePost as useFetchPost } from '../hooks/useDataLoader';
 import BookDisplay from './BookDisplay';
 import Avatar from './Avatar';
 import ThreadMessages from './ThreadMessages';
@@ -79,69 +80,10 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
   const [archivedThreads, setArchivedThreads] = useState<MessageThread[]>([]);
   const [archivedUsers, setArchivedUsers] = useState<{ [threadId: string]: User }>({});
 
-  // State for recipient user (who the book was given to)
-  const [recipientUser, setRecipientUser] = useState<User | null>(null);
-
-  // State for trading partner (for exchange posts with agreedExchange)
-  const [tradingPartner, setTradingPartner] = useState<User | null>(null);
-
-  // State for traded book (the book received in exchange)
-  const [tradedBook, setTradedBook] = useState<Post | null>(null);
-
-  // Load recipient user for archived posts
-  useEffect(() => {
-    if (post.status === 'archived' && post.givenTo && currentUser) {
-      loadRecipientUser();
-    }
-  }, [post.id, post.status, post.givenTo, currentUser]);
-
-  // Load trading partner for exchange posts
-  useEffect(() => {
-    const partnerId = getTradingPartnerId();
-    if (post.type === 'exchange' && partnerId && currentUser) {
-      loadTradingPartner();
-    }
-  }, [post.id, post.type, post.agreedExchange, currentUser]);
-
-  // Load traded book for exchange posts (to show what book was received)
-  useEffect(() => {
-    const partnerPostId = getTradingPartnerPostId();
-    if (post.type === 'exchange' && partnerPostId && currentUser) {
-      loadTradedBook();
-    }
-  }, [post.id, post.type, post.agreedExchange, currentUser]);
-
-  const loadRecipientUser = async () => {
-    if (!post.givenTo) return;
-    try {
-      const user = await userService.getById(post.givenTo);
-      setRecipientUser(user);
-    } catch (error) {
-      console.error('Failed to load recipient user:', error);
-    }
-  };
-
-  const loadTradingPartner = async () => {
-    const partnerId = getTradingPartnerId();
-    if (!partnerId) return;
-    try {
-      const user = await userService.getById(partnerId);
-      setTradingPartner(user);
-    } catch (error) {
-      console.error('Failed to load trading partner:', error);
-    }
-  };
-
-  const loadTradedBook = async () => {
-    const partnerPostId = getTradingPartnerPostId();
-    if (!partnerPostId) return;
-    try {
-      const otherPost = await postService.getById(partnerPostId);
-      setTradedBook(otherPost);
-    } catch (error) {
-      console.error('Failed to load traded book:', error);
-    }
-  };
+  // Load recipient user, trading partner, and traded book using data loader hooks
+  const { user: recipientUser } = useFetchUser(post.status === 'archived' ? post.givenTo : undefined);
+  const { user: tradingPartner } = useFetchUser(post.type === 'exchange' ? getTradingPartnerId() : undefined);
+  const { post: tradedBook } = useFetchPost(post.type === 'exchange' ? getTradingPartnerPostId() : undefined);
 
   // Load on_loan thread for loan posts
   useEffect(() => {

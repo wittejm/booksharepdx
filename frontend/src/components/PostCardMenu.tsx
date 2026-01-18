@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { blockService, reportService } from '../services';
+import { blockService } from '../services';
 import { useUser } from '../contexts/UserContext';
 import { useConfirm } from './useConfirm';
-import ReportModal from './ReportModal';
 
 interface PostCardMenuProps {
   postId: string;
@@ -13,14 +12,13 @@ interface PostCardMenuProps {
 
 /**
  * PostCardMenu - Three-dot menu for viewer actions on a post
- * Shows Report and Block options for posts owned by other users
+ * Shows Block option for posts owned by other users
  */
 export default function PostCardMenu({ postId, postUserId, postUserUsername }: PostCardMenuProps) {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const { confirm, ConfirmDialogComponent } = useConfirm();
   const [showMenu, setShowMenu] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
 
   const handleBlock = async () => {
     if (!currentUser) return;
@@ -36,21 +34,6 @@ export default function PostCardMenu({ postId, postUserId, postUserUsername }: P
     await blockService.block(currentUser.id, postUserId);
     setShowMenu(false);
     navigate(0);
-  };
-
-  const handleReport = async (reasons: string[], details?: string) => {
-    if (!currentUser) return;
-
-    await reportService.create({
-      reporterId: currentUser.id,
-      reportedPostId: postId,
-      reportedUserId: postUserId,
-      reasons: reasons as any,
-      details,
-    });
-
-    setShowReportModal(false);
-    setShowMenu(false);
   };
 
   return (
@@ -82,16 +65,6 @@ export default function PostCardMenu({ postId, postUserId, postUserUsername }: P
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setShowReportModal(true);
-                  setShowMenu(false);
-                }}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                Report Post
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
                   handleBlock();
                 }}
                 className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
@@ -102,14 +75,6 @@ export default function PostCardMenu({ postId, postUserId, postUserUsername }: P
           </>
         )}
       </div>
-
-      <ReportModal
-        open={showReportModal}
-        onClose={() => setShowReportModal(false)}
-        targetUserId={postUserId}
-        targetPostId={postId}
-        onSubmit={handleReport}
-      />
     </>
   );
 }

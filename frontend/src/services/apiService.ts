@@ -7,12 +7,10 @@ import type {
   Post,
   MessageThread,
   Message,
-  Report,
   Vouch,
   Neighborhood,
   SavedPost,
   Block,
-  ModerationAction,
   Notification,
   Interest,
   InterestSummary,
@@ -305,37 +303,6 @@ export const blockService = {
   },
 };
 
-// Report Service
-export const reportService = {
-  create: async (report: Omit<Report, 'id' | 'timestamp' | 'status'>): Promise<Report> => {
-    const response = await apiClient.post<{ data: Report }>('/reports', report);
-    return response.data;
-  },
-
-  getAll: async (): Promise<Report[]> => {
-    const response = await apiClient.get<{ data: Report[] }>('/reports');
-    return response.data;
-  },
-
-  getById: async (id: string): Promise<Report | null> => {
-    try {
-      const response = await apiClient.get<{ data: Report }>(`/reports/${id}`);
-      return response.data;
-    } catch (error) {
-      return null;
-    }
-  },
-
-  update: async (id: string, updates: Partial<Report>): Promise<Report | null> => {
-    try {
-      const response = await apiClient.patch<{ data: Report }>(`/reports/${id}`, updates);
-      return response.data;
-    } catch (error) {
-      return null;
-    }
-  },
-};
-
 // Vouch Service - Vouch is a non-MVP feature
 export const vouchService = {
   getForUser: async (userId: string): Promise<Vouch[]> => {
@@ -421,29 +388,6 @@ export const neighborhoodService = {
       // Return empty counts if API fails
       return {};
     }
-  },
-};
-
-// Moderation Action Service
-export const moderationActionService = {
-  getAll: async (): Promise<ModerationAction[]> => {
-    const response = await apiClient.get<{ data: ModerationAction[] }>('/moderation/actions');
-    return response.data;
-  },
-
-  create: async (action: Omit<ModerationAction, 'id' | 'timestamp'>): Promise<ModerationAction> => {
-    const response = await apiClient.post<{ data: ModerationAction }>('/moderation/actions', action);
-    return response.data;
-  },
-
-  getByUserId: async (userId: string): Promise<ModerationAction[]> => {
-    const response = await apiClient.get<{ data: ModerationAction[] }>(`/moderation/actions?targetUserId=${userId}`);
-    return response.data;
-  },
-
-  getByModeratorId: async (moderatorId: string): Promise<ModerationAction[]> => {
-    const response = await apiClient.get<{ data: ModerationAction[] }>(`/moderation/actions?moderatorId=${moderatorId}`);
-    return response.data;
   },
 };
 

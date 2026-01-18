@@ -3,6 +3,7 @@ import type { Post, User } from '@booksharepdx/shared';
 import Modal from '../Modal';
 import { postService, userService, messageService } from '../../services';
 import { useToast } from '../useToast';
+import { useUser, usePost } from '../../hooks/useDataLoader';
 
 interface ExchangeConfirmModalProps {
   open: boolean;
@@ -13,8 +14,6 @@ interface ExchangeConfirmModalProps {
 
 export default function ExchangeConfirmModal({ open, onClose, post, currentUserId }: ExchangeConfirmModalProps) {
   const [view, setView] = useState<'confirm' | 'decline' | 'offer-different'>('confirm');
-  const [givingPost, setGivingPost] = useState<Post | null>(null);
-  const [initiatorUser, setInitiatorUser] = useState<User | null>(null);
   const [declineReason, setDeclineReason] = useState<string>('');
   const [declineMessage, setDeclineMessage] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -24,19 +23,19 @@ export default function ExchangeConfirmModal({ open, onClose, post, currentUserI
   const [selectedAlternativePostId, setSelectedAlternativePostId] = useState<string | null>(null);
   const { showToast } = useToast();
 
+  // Load giving post and initiator user via hooks
+  const { post: givingPost } = usePost(
+    open && post.agreedExchange ? post.agreedExchange.responderPostId : undefined
+  );
+  const { user: initiatorUser } = useUser(
+    open && post.agreedExchange ? post.agreedExchange.responderUserId : undefined
+  );
+
   useEffect(() => {
     if (!open || !post.agreedExchange) return;
 
     async function loadExchangeDetails() {
       try {
-        // Load the giving post (responder's post)
-        const givingPostData = await postService.getById(post.agreedExchange!.responderPostId);
-        setGivingPost(givingPostData);
-
-        // Load responder user (the one who proposed the trade)
-        const initiator = await userService.getById(post.agreedExchange!.responderUserId);
-        setInitiatorUser(initiator);
-
         // Check if the selected book (current post) is still available
         const currentPostData = await postService.getById(post.id);
         if (currentPostData?.status !== 'agreed_upon') {

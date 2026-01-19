@@ -395,10 +395,13 @@ test.describe('Gift Flow: Multiple Requesters', () => {
     await page.goto('/share');
     await waitForReact(page);
 
-    await page.getByText(/interested/i).first().click();
-    // Wait for interest panel to load
-    await expect(page.getByRole('button', { name: 'Accept' }).first()).toBeVisible();
-    await page.getByRole('button', { name: 'Accept' }).first().click();
+    // Click the interest button on the card (not the banner)
+    await page.getByRole('button', { name: /people are interested/i }).first().click();
+    // Wait for interest panel to load and find req1's row
+    await expect(page.getByText(requester1.username)).toBeVisible();
+    // Click Accept on the row containing req1
+    const req1Row = page.locator('div').filter({ hasText: requester1.username }).first();
+    await req1Row.getByRole('button', { name: 'Accept' }).first().click();
     await page.getByRole('dialog').getByRole('button', { name: /yes, give/i }).click();
     // Wait for dialog to close and status to update
     await expect(page.getByRole('dialog')).not.toBeVisible();

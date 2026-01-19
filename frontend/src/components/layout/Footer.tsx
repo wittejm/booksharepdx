@@ -18,7 +18,7 @@ export default function Footer() {
                 About
               </Link>
               <a
-                href="https://github.com/pdxbookshare"
+                href="https://github.com/wittejm/booksharepdx"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-600 hover:text-blue-600 transition-colors text-sm"

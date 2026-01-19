@@ -163,7 +163,7 @@ export default function AboutPage() {
 
           <div className="bg-gradient-to-br from-primary-50 to-warm-50 rounded-lg p-8">
             <p className="text-lg text-gray-700 mb-6 leading-relaxed">
-              We don't sell your data.
+              We don't sell your data!
             </p>
             <p className="text-lg text-gray-700 mb-6 leading-relaxed">
               You can delete any of your posts or messages and they are gone forever.

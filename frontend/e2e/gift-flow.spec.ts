@@ -58,13 +58,21 @@ async function cancelRequest(page: Page, bookTitle: string): Promise<void> {
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel Request' }).click();
 }
 
-async function declineRequest(page: Page): Promise<void> {
+async function declineRequest(page: Page, bookTitle: string): Promise<void> {
   await page.goto('/share');
   await waitForReact(page);
 
-  await page.getByText('Someone is interested!').click();
-  await page.getByRole('button', { name: 'Decline' }).first().click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Decline' }).click();
+  // Verify the right book is shown
+  await expect(page.getByText(bookTitle).first()).toBeVisible();
+  // Click on the "Someone is interested!" button
+  await page.getByText('Someone is interested!').first().click();
+  // Wait for the interest row with Accept button to be visible (indicates data is loaded)
+  await expect(page.getByRole('button', { name: 'Accept', exact: true })).toBeVisible();
+  // Click the inline Decline button (in the interest list, not a dialog)
+  await page.getByRole('button', { name: 'Decline', exact: true }).click();
+  // Wait for confirmation dialog and click Decline
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Decline', exact: true }).click();
 }
 
 async function dismissDeclinedRequest(page: Page, bookTitle: string): Promise<void> {
@@ -247,13 +255,13 @@ test.describe('Gift Flow: Decline and Dismiss', () => {
 
   const testBook = { title: 'Brave New World', author: 'Aldous Huxley' };
   const ownerUser = {
-    email: `owner_decline${giftTimestamp}@example.com`,
-    username: `owner_decline${giftTimestamp}`,
+    email: `dd_owner${giftTimestamp}@example.com`,
+    username: `dd_owner${giftTimestamp}`,
     bio: 'Test owner',
   };
   const requesterUser = {
-    email: `req_decline${giftTimestamp}@example.com`,
-    username: `req_decline${giftTimestamp}`,
+    email: `dd_req${giftTimestamp}@example.com`,
+    username: `dd_req${giftTimestamp}`,
     bio: 'Test requester',
   };
 
@@ -273,7 +281,7 @@ test.describe('Gift Flow: Decline and Dismiss', () => {
     await sendRequestForBook(page, ownerUser.username, testBook.title);
 
     await loginAs(page, ownerUser.username);
-    await declineRequest(page);
+    await declineRequest(page, testBook.title);
   });
 
   test('Requester sees decline and dismisses', async ({ page }) => {
@@ -281,8 +289,10 @@ test.describe('Gift Flow: Decline and Dismiss', () => {
     await page.goto('/activity');
     await waitForReact(page);
 
-    await expect(page.locator('text="Your request was declined"')).toBeVisible();
-    await dismissDeclinedRequest(page, testBook.title);
+    // Click on the thread to see the status message
+    await page.getByRole('button', { name: new RegExp(testBook.title) }).click();
+    await expect(page.getByText('Your request was declined')).toBeVisible();
+    await page.getByRole('button', { name: 'Dismiss', exact: true }).click();
   });
 });
 
@@ -317,7 +327,7 @@ test.describe('Gift Flow: Decline Without Dismiss', () => {
     await sendRequestForBook(page, ownerUser.username, testBook.title);
 
     await loginAs(page, ownerUser.username);
-    await declineRequest(page);
+    await declineRequest(page, testBook.title);
 
     await loginAs(page, requesterUser.username);
     await openThread(page, testBook.title);
@@ -381,7 +391,9 @@ test.describe('Gift Flow: Multiple Requesters', () => {
     await page.goto('/activity');
     await waitForReact(page);
 
-    await expect(page.getByText(/given to someone else|given to another/i).first()).toBeVisible();
+    // Click on the thread to see the status message
+    await page.getByRole('button', { name: new RegExp(testBook.title) }).click();
+    await expect(page.getByText('This book was given to someone else')).toBeVisible();
   });
 });
 
@@ -416,14 +428,17 @@ test.describe('Gift Flow: Cannot Re-request After Decline', () => {
     await sendRequestForBook(page, ownerUser.username, testBook.title);
 
     await loginAs(page, ownerUser.username);
-    await declineRequest(page);
+    await declineRequest(page, testBook.title);
 
     await loginAs(page, requesterUser.username);
     await dismissDeclinedRequest(page, testBook.title);
 
-    // After dismissing, thread should still show declined status
+    // After dismissing, thread is viewable but can't send messages (no input field)
     await openThread(page, testBook.title);
-    await expect(page.getByText('Your request was declined')).toBeVisible();
+    // Verify the thread is selected (conversation panel shows)
+    await expect(page.getByText('Conversation with')).toBeVisible();
+    // Verify no message input (dismissed threads don't allow messaging)
+    await expect(page.locator('input[placeholder*="message" i]')).not.toBeVisible();
   });
 });
 

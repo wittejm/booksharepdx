@@ -30,7 +30,7 @@ const tradeTestOwnerBook = {
 };
 
 const tradeTestRequesterBook = {
-  title: '1984',
+  title: 'Nineteen Eighty-Four',
   author: 'George Orwell',
 };
 

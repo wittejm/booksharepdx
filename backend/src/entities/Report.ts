@@ -37,9 +37,6 @@ export class Report {
   @Column({ type: "varchar", nullable: true })
   reportedPostId: string | null;
 
-  @Column({ type: "varchar", nullable: true })
-  reportedCommentId: string | null;
-
   @Column({ type: 'jsonb' })
   reasons: ReportReason[];
 
@@ -73,7 +70,6 @@ export class Report {
       reporterId: this.reporterId,
       reportedUserId: this.reportedUserId || undefined,
       reportedPostId: this.reportedPostId || undefined,
-      reportedCommentId: this.reportedCommentId || undefined,
       reasons: this.reasons,
       details: this.details || undefined,
       includeMessageHistory: this.includeMessageHistory || undefined,

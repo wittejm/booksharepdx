@@ -14,7 +14,6 @@ export type NotificationType =
   | 'exchange_confirmed'
   | 'exchange_declined'
   | 'message'
-  | 'comment'
   | 'moderator_action';
 
 @Entity('notifications')

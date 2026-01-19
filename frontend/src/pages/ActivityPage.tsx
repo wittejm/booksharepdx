@@ -456,7 +456,7 @@ export default function ActivityPage() {
               {threads.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   <p>No activity yet</p>
-                  <p className="text-sm mt-2">Start a conversation by commenting on a post</p>
+                  <p className="text-sm mt-2">Start a conversation by responding to a post</p>
                 </div>
               ) : (
                 <div className="flex-1 overflow-y-auto">

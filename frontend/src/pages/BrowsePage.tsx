@@ -280,7 +280,7 @@ export default function BrowsePage() {
                   </label>
                   <input
                     type="text"
-                    placeholder="Title, author, comments..."
+                    placeholder="Title or author"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="input text-sm"

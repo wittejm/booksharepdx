@@ -17,7 +17,8 @@ export type SystemMessageType =
   | 'exchange_completed'
   | 'exchange_declined'
   | 'exchange_cancelled'
-  | 'gift_completed';
+  | 'gift_completed'
+  | 'request_cancelled';
 export type ProposalStatus = 'pending' | 'accepted' | 'declined';
 
 @Entity('messages')

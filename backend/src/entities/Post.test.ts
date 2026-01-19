@@ -35,7 +35,6 @@ describe('Post entity', () => {
         isbn: '9780743273565',
       });
       post.type = 'giveaway';
-      post.notes = 'Great condition, slight wear on cover';
       post.status = 'active';
       post.agreedExchange = null;
       post.archivedAt = null;
@@ -51,7 +50,6 @@ describe('Post entity', () => {
       expect(json.book.author).toBe('F. Scott Fitzgerald');
       expect(json.book.genre).toBe('fiction');
       expect(json.type).toBe('giveaway');
-      expect(json.notes).toBe('Great condition, slight wear on cover');
       expect(json.status).toBe('active');
     });
 
@@ -62,7 +60,6 @@ describe('Post entity', () => {
       post.bookId = 'book-uuid';
       post.book = createMockBook();
       post.type = 'giveaway';
-      post.notes = null;
       post.status = 'active';
       post.agreedExchange = null;
       post.archivedAt = null;
@@ -83,7 +80,6 @@ describe('Post entity', () => {
       post.bookId = 'book-uuid';
       post.book = createMockBook();
       post.type = 'exchange';
-      post.notes = 'Looking for sci-fi books';
       post.status = 'active';
       post.agreedExchange = null;
       post.archivedAt = null;
@@ -103,7 +99,6 @@ describe('Post entity', () => {
       post.bookId = 'book-uuid';
       post.book = createMockBook();
       post.type = 'exchange';
-      post.notes = null;
       post.status = 'agreed_upon';
       post.agreedExchange = {
         responderUserId: 'other-user-uuid',
@@ -132,7 +127,6 @@ describe('Post entity', () => {
       post.bookId = 'book-uuid';
       post.book = createMockBook();
       post.type = 'giveaway';
-      post.notes = null;
       post.status = 'archived';
       post.agreedExchange = null;
       post.archivedAt = archivedDate;
@@ -147,45 +141,6 @@ describe('Post entity', () => {
       expect(json.givenTo).toBe('recipient-uuid');
     });
 
-    it('should exclude undefined notes', () => {
-      const post = new Post();
-      post.id = 'post-uuid';
-      post.userId = 'user-uuid';
-      post.bookId = 'book-uuid';
-      post.book = createMockBook();
-      post.type = 'giveaway';
-      post.notes = null;
-      post.status = 'active';
-      post.agreedExchange = null;
-      post.archivedAt = null;
-      post.givenTo = null;
-      post.createdAt = new Date();
-      post.updatedAt = new Date();
-
-      const json = post.toJSON();
-
-      expect(json.notes).toBeUndefined();
-    });
-
-    it('should include notes when present', () => {
-      const post = new Post();
-      post.id = 'post-uuid';
-      post.userId = 'user-uuid';
-      post.bookId = 'book-uuid';
-      post.book = createMockBook();
-      post.type = 'giveaway';
-      post.notes = 'Some notes about the book';
-      post.status = 'active';
-      post.agreedExchange = null;
-      post.archivedAt = null;
-      post.givenTo = null;
-      post.createdAt = new Date();
-      post.updatedAt = new Date();
-
-      const json = post.toJSON();
-
-      expect(json.notes).toBe('Some notes about the book');
-    });
   });
 
   describe('PostType', () => {

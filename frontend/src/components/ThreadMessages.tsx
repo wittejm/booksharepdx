@@ -29,8 +29,9 @@ export default function ThreadMessages({ threadId, otherUsername, highlightBanne
   }, [threadId]);
 
   useEffect(() => {
-    // Scroll to bottom when messages change
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Scroll to bottom when messages change, but only within the visible area
+    // Using 'nearest' prevents scrolling the whole page when embedded in ShareCard
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages]);
 
   // Load posts for trade proposals
@@ -190,8 +191,12 @@ export default function ThreadMessages({ threadId, otherUsername, highlightBanne
               const isPending = message.proposalStatus === 'pending';
 
               return (
-                <div key={message.id} className="flex justify-center my-2">
+                <div key={message.id} className={`flex ${isMyProposal ? 'justify-end' : 'justify-start'} my-2`}>
                   <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+                    {/* Label */}
+                    <p className="text-xs font-medium mb-2 text-gray-500">
+                      Proposed trade
+                    </p>
                     {/* Book cover and title - shows the book the poster selected */}
                     <div className="flex flex-col items-center">
                       <div className="w-16 h-24 bg-gray-100 rounded overflow-hidden flex items-center justify-center mb-2">
@@ -205,7 +210,7 @@ export default function ThreadMessages({ threadId, otherUsername, highlightBanne
                           <span className="text-gray-400 text-xs">No cover</span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-700 font-medium text-center max-w-[120px] truncate" title={selectedPost?.book.title}>
+                      <p className="text-xs font-medium text-center max-w-[120px] truncate text-gray-700" title={selectedPost?.book.title}>
                         {selectedPost?.book.title || 'Loading...'}
                       </p>
                     </div>
@@ -231,7 +236,7 @@ export default function ThreadMessages({ threadId, otherUsername, highlightBanne
                     )}
 
                     {/* Timestamp */}
-                    <p className="text-xs text-gray-400 text-center mt-2">
+                    <p className="text-xs text-center mt-2 text-gray-400">
                       {formatTimestamp(message.timestamp)}
                     </p>
                   </div>

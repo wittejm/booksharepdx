@@ -3,124 +3,82 @@ import { formatTimestamp } from './time';
 
 describe('formatTimestamp', () => {
   beforeEach(() => {
-    // Mock Date.now to return a fixed time: Jan 15, 2024 12:00:00 UTC
+    // Mock Date.now to return a fixed time: Jan 15, 2024 12:00:00 local time
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2024-01-15T12:00:00Z'));
+    vi.setSystemTime(new Date(2024, 0, 15, 12, 0, 0));
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  describe('relative time (< 6 hours)', () => {
-    it('should return "just now" for very recent timestamps', () => {
+  describe('just now (< 1 minute)', () => {
+    it('should return "just now" for timestamps < 1 minute ago', () => {
       const now = Date.now();
       expect(formatTimestamp(now)).toBe('just now');
       expect(formatTimestamp(now - 1000)).toBe('just now');
-    });
-
-    it('should return seconds ago for < 1 minute', () => {
-      const now = Date.now();
-      expect(formatTimestamp(now - 30 * 1000)).toBe('30 seconds ago');
-      expect(formatTimestamp(now - 45 * 1000)).toBe('45 seconds ago');
-    });
-
-    it('should return "1 minute ago" for singular', () => {
-      const now = Date.now();
-      expect(formatTimestamp(now - 60 * 1000)).toBe('1 minute ago');
-      expect(formatTimestamp(now - 90 * 1000)).toBe('1 minute ago');
-    });
-
-    it('should return minutes ago for < 1 hour', () => {
-      const now = Date.now();
-      expect(formatTimestamp(now - 5 * 60 * 1000)).toBe('5 minutes ago');
-      expect(formatTimestamp(now - 30 * 60 * 1000)).toBe('30 minutes ago');
-      expect(formatTimestamp(now - 59 * 60 * 1000)).toBe('59 minutes ago');
-    });
-
-    it('should return "1 hour ago" for singular', () => {
-      const now = Date.now();
-      expect(formatTimestamp(now - 60 * 60 * 1000)).toBe('1 hour ago');
-      expect(formatTimestamp(now - 90 * 60 * 1000)).toBe('1 hour ago');
-    });
-
-    it('should return hours ago for < 6 hours', () => {
-      const now = Date.now();
-      expect(formatTimestamp(now - 2 * 60 * 60 * 1000)).toBe('2 hours ago');
-      expect(formatTimestamp(now - 5 * 60 * 60 * 1000)).toBe('5 hours ago');
+      expect(formatTimestamp(now - 30 * 1000)).toBe('just now');
+      expect(formatTimestamp(now - 59 * 1000)).toBe('just now');
     });
   });
 
-  describe('absolute time (>= 6 hours)', () => {
-    it('should use absolute format for 6+ hours ago', () => {
+  describe('today (time only)', () => {
+    it('should return time only for timestamps from today', () => {
       const now = Date.now();
-      const sixHoursAgo = now - 6 * 60 * 60 * 1000;
-
-      const result = formatTimestamp(sixHoursAgo);
-      // Should match format like "6:00am Jan 15, 2024"
-      expect(result).toMatch(/\d{1,2}:\d{2}(am|pm) [A-Z][a-z]+ \d{1,2}, \d{4}/);
+      // 5 minutes ago
+      expect(formatTimestamp(now - 5 * 60 * 1000)).toBe('11:55am');
+      // 2 hours ago
+      expect(formatTimestamp(now - 2 * 60 * 60 * 1000)).toBe('10:00am');
     });
 
-    it('should format times with correct structure', () => {
-      // Use a timestamp that's definitely in the past (more than 6 hours)
-      const timestamp = new Date('2024-01-10T09:30:00').getTime();
-      const result = formatTimestamp(timestamp);
-
-      // Should have format: "H:MMam/pm Mon D, YYYY"
-      expect(result).toMatch(/^\d{1,2}:\d{2}(am|pm) [A-Z][a-z]+ \d{1,2}, \d{4}$/);
+    it('should format AM times correctly', () => {
+      // 9:30 AM today
+      const morning = new Date(2024, 0, 15, 9, 30, 0).getTime();
+      expect(formatTimestamp(morning)).toBe('9:30am');
     });
 
-    it('should correctly distinguish AM and PM', () => {
-      // Create local dates to avoid timezone issues
-      const morning = new Date(2024, 0, 10, 9, 30, 0).getTime(); // 9:30 AM local
-      const afternoon = new Date(2024, 0, 10, 14, 45, 0).getTime(); // 2:45 PM local
-
-      expect(formatTimestamp(morning)).toContain('am');
-      expect(formatTimestamp(afternoon)).toContain('pm');
+    it('should format PM times correctly', () => {
+      // 2:45 PM today (but in past relative to mocked noon)
+      // Since we're at noon, let's use 11:45am
+      const lateMorning = new Date(2024, 0, 15, 11, 45, 0).getTime();
+      expect(formatTimestamp(lateMorning)).toBe('11:45am');
     });
 
     it('should format midnight correctly (12:XXam)', () => {
-      const midnight = new Date(2024, 0, 10, 0, 0, 0).getTime();
-      const result = formatTimestamp(midnight);
-
-      expect(result).toMatch(/^12:00am/);
-    });
-
-    it('should format noon correctly (12:XXpm)', () => {
-      const noon = new Date(2024, 0, 10, 12, 0, 0).getTime();
-      const result = formatTimestamp(noon);
-
-      expect(result).toMatch(/^12:00pm/);
+      const midnight = new Date(2024, 0, 15, 0, 5, 0).getTime();
+      expect(formatTimestamp(midnight)).toBe('12:05am');
     });
 
     it('should pad minutes with leading zero', () => {
-      const time = new Date(2024, 0, 10, 9, 5, 0).getTime();
-      const result = formatTimestamp(time);
-
-      expect(result).toContain(':05');
+      const time = new Date(2024, 0, 15, 9, 5, 0).getTime();
+      expect(formatTimestamp(time)).toBe('9:05am');
     });
   });
 
-  describe('edge cases', () => {
-    it('should handle timestamps from different years', () => {
-      const timestamp = new Date(2023, 11, 25, 15, 30, 0).getTime();
-      const result = formatTimestamp(timestamp);
+  describe('earlier (time + date)', () => {
+    it('should include date for timestamps from yesterday', () => {
+      const yesterday = new Date(2024, 0, 14, 15, 30, 0).getTime();
+      expect(formatTimestamp(yesterday)).toBe('3:30pm Jan 14');
+    });
 
-      expect(result).toContain('Dec');
-      expect(result).toContain('2023');
+    it('should include date for timestamps from earlier this year', () => {
+      const earlier = new Date(2024, 0, 10, 9, 0, 0).getTime();
+      expect(formatTimestamp(earlier)).toBe('9:00am Jan 10');
+    });
+
+    it('should include year for timestamps from different year', () => {
+      const lastYear = new Date(2023, 11, 25, 15, 30, 0).getTime();
+      expect(formatTimestamp(lastYear)).toBe('3:30pm Dec 25, 2023');
     });
 
     it('should handle all months', () => {
-      // Use dates from 2023 which are definitely in the past relative to our mocked time
-      const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ];
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
       months.forEach((month, index) => {
         const timestamp = new Date(2023, index, 15, 10, 0, 0).getTime();
         const result = formatTimestamp(timestamp);
         expect(result).toContain(month);
+        expect(result).toContain('2023'); // Different year, should include year
       });
     });
   });

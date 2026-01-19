@@ -59,6 +59,7 @@ export default function ProfilePage() {
   }, [username, currentUser]);
 
   // Load exchange info: find my exchange posts where this user has expressed interest
+  // but exclude threads where I've already proposed a trade
   const loadExchangeInfo = async (profileUserId: string) => {
     if (!currentUser) return;
 
@@ -70,6 +71,7 @@ export default function ProfilePage() {
       // - The other participant is the profile user
       // - The thread is active (they expressed interest)
       // - The post is my exchange post
+      // - I haven't already proposed a trade
       const myExchangePosts: Post[] = [];
       const threadIds: { [postId: string]: string } = {};
 
@@ -85,8 +87,16 @@ export default function ProfilePage() {
 
         // Check if it's MY exchange post (I'm the owner)
         if (post.userId === currentUser.id && post.type === 'exchange') {
-          myExchangePosts.push(post);
-          threadIds[post.id] = thread.id;
+          // Check if there's already a pending trade proposal in this thread
+          const messages = await messageService.getMessages(thread.id);
+          const hasPendingProposal = messages.some(
+            m => m.type === 'trade_proposal' && m.proposalStatus === 'pending'
+          );
+
+          if (!hasPendingProposal) {
+            myExchangePosts.push(post);
+            threadIds[post.id] = thread.id;
+          }
         }
       }
 

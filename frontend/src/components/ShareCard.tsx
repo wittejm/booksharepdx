@@ -622,10 +622,6 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
                 </button>
               </div>
             )}
-            {/* Notes */}
-            {post.notes && (
-              <p className="text-sm text-gray-600 mt-2 line-clamp-2">{post.notes}</p>
-            )}
           </BookDisplay>
 
           {/* Interest Alert - attention grabber for posts with interest */}
@@ -708,23 +704,32 @@ export default function ShareCard({ post, onUpdate, autoFocusThreadId, onAutoFoc
                               </button>
                               {post.status === 'active' && (
                                 post.type === 'exchange' ? (
-                                  <>
-                                    <Link
-                                      to={`/profile/${user.username}?tradeFor=${post.id}&threadId=${interest.id}`}
-                                      className="px-3 py-1 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded transition-colors"
-                                    >
-                                      View Books
-                                    </Link>
-                                    <button
-                                      onClick={() => handleAccept(interest)}
-                                      disabled={actionLoading === interest.id}
-                                      className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-200 rounded transition-colors disabled:opacity-50"
-                                      title="Give without exchange"
-                                    >
-                                      Gift
-                                    </button>
-                                  </>
+                                  interest.hasPendingProposal ? (
+                                    // Sharer proposed a trade, waiting for response
+                                    <span className="px-3 py-1 text-sm text-gray-500 italic">
+                                      Awaiting response
+                                    </span>
+                                  ) : (
+                                    // No proposal yet - show View Books + Gift options
+                                    <>
+                                      <Link
+                                        to={`/profile/${user.username}?tradeFor=${post.id}&threadId=${interest.id}`}
+                                        className="px-3 py-1 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded transition-colors"
+                                      >
+                                        View Books
+                                      </Link>
+                                      <button
+                                        onClick={() => handleAccept(interest)}
+                                        disabled={actionLoading === interest.id}
+                                        className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-200 rounded transition-colors disabled:opacity-50"
+                                        title="Give without exchange"
+                                      >
+                                        Gift
+                                      </button>
+                                    </>
+                                  )
                                 ) : (
+                                  // Giveaway or loan - show Decline + Accept
                                   <>
                                     <button
                                       onClick={() => handleDecline(interest)}

@@ -26,12 +26,10 @@ const createPostSchema = z.object({
   }),
   bookId: z.string().optional(),
   type: z.enum(['giveaway', 'exchange', 'loan']),
-  notes: z.string().optional(),
   loanDuration: z.number().optional(),
 });
 
 const updatePostSchema = z.object({
-  notes: z.string().optional(),
   status: z.enum(['active', 'agreed_upon', 'archived']).optional(),
   agreedExchange: z.object({
     responderUserId: z.string(),
@@ -265,7 +263,6 @@ router.post('/', requireAuth, validateBody(createPostSchema), async (req, res, n
       userId: req.user!.id,
       bookId: book.id,
       type: req.body.type,
-      notes: req.body.notes,
       status: 'active',
       loanDuration: req.body.loanDuration,
     });
@@ -309,7 +306,6 @@ router.put('/:id', requireAuth, validateBody(updatePostSchema), async (req, res,
     const becomingArchived = req.body.status === 'archived' && wasActive;
 
     // Apply updates
-    if (req.body.notes !== undefined) post.notes = req.body.notes;
     if (req.body.status !== undefined) post.status = req.body.status;
     if (req.body.agreedExchange !== undefined) post.agreedExchange = req.body.agreedExchange;
     if (req.body.givenTo !== undefined) post.givenTo = req.body.givenTo;

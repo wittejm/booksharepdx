@@ -1,56 +1,48 @@
 /**
- * Formats a timestamp as either relative time (for < 6 hours ago) or absolute time (for >= 6 hours ago).
- * Relative format: "2 minutes ago", "1 hour ago"
- * Absolute format: "11:45am Dec 28, 2025"
+ * Formats a timestamp for display.
+ * - "just now" if < 1 minute ago
+ * - Time only (e.g. "2:30pm") if today
+ * - Time + date (e.g. "2:30pm Jan 18") if earlier
  * @param timestamp - Unix timestamp in milliseconds
  * @returns Formatted timestamp string
  */
 export function formatTimestamp(timestamp: number): string {
-  const now = Date.now();
-  const diffMs = now - timestamp;
+  const now = new Date();
+  const date = new Date(timestamp);
+  const diffMs = now.getTime() - timestamp;
   const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
 
-  // Use relative format for times within the last 6 hours
-  if (diffHours < 6) {
-    if (diffSeconds < 60) {
-      return diffSeconds <= 1 ? 'just now' : `${diffSeconds} seconds ago`;
-    }
-
-    if (diffMinutes < 60) {
-      return diffMinutes === 1 ? '1 minute ago' : `${diffMinutes} minutes ago`;
-    }
-
-    return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+  // "just now" for < 1 minute
+  if (diffSeconds < 60) {
+    return 'just now';
   }
 
-  // Use absolute format for times >= 6 hours ago
-  const date = new Date(timestamp);
-
-  // Format: "11:45am Dec 28, 2025"
+  // Format time component
   const hours = date.getHours();
   const minutes = String(date.getMinutes()).padStart(2, '0');
   const ampm = hours >= 12 ? 'pm' : 'am';
-  const displayHours = hours % 12 || 12; // Convert to 12-hour format
+  const displayHours = hours % 12 || 12;
+  const timeStr = `${displayHours}:${minutes}${ampm}`;
 
-  const monthNames = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
+  // Check if same calendar day
+  const isToday =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  if (isToday) {
+    return timeStr;
+  }
+
+  // Earlier than today: include date
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const month = monthNames[date.getMonth()];
   const dayOfMonth = date.getDate();
-  const year = date.getFullYear();
 
-  return `${displayHours}:${minutes}${ampm} ${month} ${dayOfMonth}, ${year}`;
+  // Include year if not current year
+  if (date.getFullYear() !== now.getFullYear()) {
+    return `${timeStr} ${month} ${dayOfMonth}, ${date.getFullYear()}`;
+  }
+
+  return `${timeStr} ${month} ${dayOfMonth}`;
 }

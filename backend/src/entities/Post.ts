@@ -42,9 +42,6 @@ export class Post {
   @Index()
   type: PostType;
 
-  @Column({ type: 'text', nullable: true })
-  notes: string | null;
-
   @Column({ type: 'varchar', default: 'active' })
   @Index()
   status: PostStatus;
@@ -82,7 +79,6 @@ export class Post {
       userId: this.userId,
       book: this.book?.toJSON?.() || this.book,
       type: this.type,
-      notes: this.notes || undefined,
       createdAt: this.createdAt.getTime(),
       status: this.status,
       agreedExchange: this.agreedExchange || undefined,

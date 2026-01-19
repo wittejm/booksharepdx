@@ -140,7 +140,7 @@ export const postService = {
   },
 
   getActive: async (): Promise<Post[]> => {
-    const response = await apiClient.get<{ data: Post[] }>('/posts?status=active');
+    const response = await apiClient.get<{ data: Post[] }>('/posts?status=active&limit=500');
     return response.data;
   },
 

@@ -573,14 +573,15 @@ export default function ActivityPage() {
     }
   };
 
-  const getSystemMessageDisplay = (type: Message['systemMessageType']) => {
+  const getSystemMessageDisplay = (type: Message['systemMessageType'], content?: string) => {
     switch (type) {
       case 'exchange_proposed': return { icon: '📦', text: 'Exchange Proposed' };
       case 'exchange_completed': return { icon: '✅', text: 'Exchange Completed' };
       case 'exchange_declined': return { icon: '❌', text: 'Exchange Declined' };
       case 'exchange_cancelled': return { icon: '🚫', text: 'Exchange Cancelled' };
       case 'gift_completed': return { icon: '🎁', text: 'Gift Completed' };
-      default: return { icon: 'ℹ️', text: 'System Message' };
+      case 'request_cancelled': return { icon: '🚫', text: 'Request cancelled' };
+      default: return { icon: 'ℹ️', text: content || 'System Message' };
     }
   };
 
@@ -816,7 +817,7 @@ export default function ActivityPage() {
                   ) : (
                     messages.map(message => {
                       if (message.type === 'system') {
-                        const { icon, text } = getSystemMessageDisplay(message.systemMessageType);
+                        const { icon, text } = getSystemMessageDisplay(message.systemMessageType, message.content);
                         return (
                           <div key={message.id} className="flex justify-center">
                             <div className="bg-gray-100 px-4 py-2 rounded-full text-sm text-gray-700 flex items-center gap-2">

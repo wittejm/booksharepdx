@@ -36,31 +36,36 @@ export async function createUser(page: Page, user: typeof testOwner) {
 }
 
 export async function loginAs(page: Page, identifier: string) {
-  await page.goto('/login');
+  // Always logout first to ensure we switch users
+  await page.goto('/');
   await waitForReact(page);
 
-  // If redirected away from login (already logged in), return
-  if (!page.url().includes('/login')) {
-    return;
+  const profileButton = page.locator('button:has(.rounded-full)');
+  const isLoggedIn = await profileButton.isVisible({ timeout: 500 }).catch(() => false);
+
+  if (isLoggedIn) {
+    await profileButton.click();
+    await page.locator('button:has-text("Logout")').click();
+    await expect(page.locator('a[href="/login"]')).toBeVisible();
   }
 
-  const identifierInput = page.locator('input[id="identifier"]');
-  if (!(await identifierInput.isVisible())) {
-    return; // Already logged in
-  }
-
-  await identifierInput.fill(identifier);
+  await page.goto('/login');
+  await waitForReact(page);
+  await page.locator('input[id="identifier"]').fill(identifier);
   await page.click('button[type="submit"]');
   await expect(page).not.toHaveURL(/\/login/, { timeout: LOAD_TIMEOUT });
 }
 
 export async function logout(page: Page) {
-  const profileButton = page.locator('button:has(.rounded-full)');
-  if (await profileButton.isVisible()) {
-    await profileButton.click();
+  await page.goto('/');
+  await waitForReact(page);
 
-    const logoutBtn = page.locator('button:has-text("Logout")');
-    await logoutBtn.click();
+  const profileButton = page.locator('button:has(.rounded-full)');
+  const isLoggedIn = await profileButton.isVisible({ timeout: 500 }).catch(() => false);
+
+  if (isLoggedIn) {
+    await profileButton.click();
+    await page.locator('button:has-text("Logout")').click();
     await expect(page.locator('a[href="/login"]')).toBeVisible();
   }
 }

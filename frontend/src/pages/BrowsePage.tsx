@@ -105,8 +105,7 @@ export default function BrowsePage() {
         p =>
           p.book.title.toLowerCase().includes(searchLower) ||
           p.book.author.toLowerCase().includes(searchLower) ||
-          p.book.genre?.toLowerCase().includes(searchLower) ||
-          p.notes?.toLowerCase().includes(searchLower)
+          p.book.genre?.toLowerCase().includes(searchLower)
       );
     }
 

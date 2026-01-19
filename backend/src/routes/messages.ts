@@ -24,6 +24,7 @@ const sendMessageSchema = z.object({
     'exchange_declined',
     'exchange_cancelled',
     'gift_completed',
+    'request_cancelled',
   ]).optional(),
   // Trade proposal fields (required when type is 'trade_proposal')
   offeredPostId: z.string().uuid().optional(),
@@ -261,6 +262,19 @@ router.patch('/threads/:threadId/status', requireAuth, validateBody(updateStatus
     }
 
     await threadRepo.save(thread);
+
+    // Send system message for cancellation (so it persists in history even after re-requesting)
+    if (status === 'cancelled_by_requester') {
+      const messageRepo = AppDataSource.getRepository(Message);
+      const cancelMessage = messageRepo.create({
+        threadId,
+        senderId: userId,
+        content: 'Request cancelled',
+        type: 'system',
+        systemMessageType: 'request_cancelled',
+      });
+      await messageRepo.save(cancelMessage);
+    }
 
     // If owner accepts this requester, mark other threads as given_to_other
     if (status === 'accepted' && thread.post) {

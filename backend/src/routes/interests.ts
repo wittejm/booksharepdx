@@ -1,6 +1,8 @@
 import { Router } from 'express';
+import { In } from 'typeorm';
 import { AppDataSource } from '../config/database.js';
 import { MessageThread } from '../entities/MessageThread.js';
+import { Message } from '../entities/Message.js';
 import { Post } from '../entities/Post.js';
 import { requireAuth } from '../middleware/auth.js';
 import type { Interest, InterestSummary } from '@booksharepdx/shared';
@@ -90,6 +92,21 @@ router.get('/post/:postId', requireAuth, async (req, res, next) => {
       where: { postId, status: 'active' },
     });
 
+    // Check which threads have pending trade proposals
+    const threadIds = threads.map(t => t.id);
+    const messageRepo = AppDataSource.getRepository(Message);
+    const pendingProposals = threadIds.length > 0
+      ? await messageRepo.find({
+          where: {
+            threadId: In(threadIds),
+            type: 'trade_proposal',
+            proposalStatus: 'pending',
+          },
+          select: ['threadId'],
+        })
+      : [];
+    const threadsWithPendingProposal = new Set(pendingProposals.map(m => m.threadId));
+
     const interests: Interest[] = threads.map(thread => {
       const interestedUserId = thread.participants.find(p => p !== userId) || '';
       return {
@@ -99,6 +116,7 @@ router.get('/post/:postId', requireAuth, async (req, res, next) => {
         ownerId: userId,
         status: 'active' as const,
         createdAt: thread.createdAt.getTime(),
+        hasPendingProposal: threadsWithPendingProposal.has(thread.id),
       };
     });
 

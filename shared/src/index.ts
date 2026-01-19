@@ -57,7 +57,6 @@ export interface Post {
   user?: User; // Included when fetching posts
   book: Book;  // Full book entity with id
   type: 'giveaway' | 'exchange' | 'loan';
-  notes?: string;
   createdAt: number;
   status: 'active' | 'agreed_upon' | 'archived';
   agreedExchange?: AgreedExchange;
@@ -103,7 +102,6 @@ export interface BookInput {
 export interface CreatePostInput {
   book: BookInput;
   type: 'giveaway' | 'exchange' | 'loan';
-  notes?: string;
   loanDuration?: number;
 }
 
@@ -137,7 +135,7 @@ export interface Message {
   content: string;
   timestamp: number;
   type: 'user' | 'system' | 'trade_proposal';
-  systemMessageType?: 'exchange_proposed' | 'exchange_completed' | 'exchange_declined' | 'exchange_cancelled' | 'gift_completed';
+  systemMessageType?: 'exchange_proposed' | 'exchange_completed' | 'exchange_declined' | 'exchange_cancelled' | 'gift_completed' | 'request_cancelled';
   // Trade proposal fields (only for type: 'trade_proposal')
   offeredPostId?: string;    // The proposer's book
   requestedPostId?: string;  // The book they want
@@ -232,6 +230,7 @@ export interface Interest {
   status: 'active' | 'resolved';
   createdAt: number;
   resolvedAt?: number;
+  hasPendingProposal?: boolean; // true if owner has proposed a trade to this person
 }
 
 // Summary of active interest for a user's shares

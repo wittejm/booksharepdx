@@ -11,6 +11,8 @@ SAVE_STATE.txt
 coverage/
 TEST_LOG.md
 test-screenshots/
+frontend/playwright-report/
+frontend/test-results/
 
 # Production
 dist/

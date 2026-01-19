@@ -243,14 +243,6 @@ export const messageService = {
     return response.data;
   },
 
-  acceptTrade: async (threadId: string, myPostId: string, theirPostId: string): Promise<MessageThread> => {
-    const response = await apiClient.post<{ data: MessageThread }>(
-      `/messages/threads/${threadId}/accept-trade`,
-      { myPostId, theirPostId }
-    );
-    return response.data;
-  },
-
   confirmReturn: async (threadId: string, relistPost?: boolean): Promise<MessageThread & { bothConfirmedReturn: boolean }> => {
     const response = await apiClient.post<{ data: MessageThread & { bothConfirmedReturn: boolean } }>(
       `/messages/threads/${threadId}/confirm-return`,

@@ -42,24 +42,10 @@ export default function ActivityPage() {
   const [hasVouched, setHasVouched] = useState(false);
   const [vouchLoading, setVouchLoading] = useState(false);
 
-  // Trade proposal state
-  const [myPosts, setMyPosts] = useState<Post[]>([]);
-  const [selectedMyPostForTrade, setSelectedMyPostForTrade] = useState<string | null>(null);
-
   // Load threads on mount
   useEffect(() => {
     loadThreads();
   }, [currentUser]);
-
-  // Load user's posts when messages change (for trade proposals)
-  useEffect(() => {
-    if (selectedThread && messages.length > 0) {
-      const hasProposal = messages.some(m => m.systemMessageType === 'exchange_proposed');
-      if (hasProposal && myPosts.length === 0) {
-        loadMyPostsForTrade();
-      }
-    }
-  }, [selectedThread, messages]);
 
   // Load posts for trade_proposal messages (to render proposal cards)
   // IMPORTANT - Trade proposal field semantics:
@@ -371,83 +357,6 @@ export default function ActivityPage() {
     }
   };
 
-  const loadMyPostsForTrade = async () => {
-    if (!currentUser) return;
-    try {
-      const posts = await postService.getByUserId(currentUser.id);
-      setMyPosts(posts.filter(p => p.status === 'active' && p.type !== 'loan'));
-    } catch (error) {
-      console.error('Failed to load posts:', error);
-    }
-  };
-
-  const handleAcceptTrade = async () => {
-    if (!currentUser || !selectedThread || !selectedMyPostForTrade) return;
-
-    const post = threadPosts[selectedThread.id];
-    const myPost = myPosts.find(p => p.id === selectedMyPostForTrade);
-    if (!myPost) return;
-
-    const confirmed = await confirm({
-      title: 'Accept Trade',
-      message: `Trade your "${myPost.book.title}" for their "${post?.book.title}"?`,
-      confirmText: 'Accept Trade',
-      variant: 'info'
-    });
-    if (!confirmed) return;
-
-    setStatusLoading(true);
-    try {
-      await messageService.acceptTrade(selectedThread.id, selectedMyPostForTrade, post.id);
-      showToast('Trade accepted!', 'success');
-      await loadThreads();
-      // Reload thread
-      const updatedThreads = await messageService.getThreads();
-      const updatedThread = updatedThreads.find(t => t.id === selectedThread.id);
-      if (updatedThread) {
-        setSelectedThread(updatedThread);
-      }
-      // Reload messages
-      const threadMessages = await messageService.getMessages(selectedThread.id);
-      setMessages(threadMessages);
-    } catch (error) {
-      showToast('Failed to accept trade:' + error, 'error');
-    } finally {
-      setStatusLoading(false);
-    }
-  };
-
-  const handleDeclineTrade = async () => {
-    if (!currentUser || !selectedThread) return;
-
-    const confirmed = await confirm({
-      title: 'Decline Trade',
-      message: 'Decline this trade proposal? You can continue messaging about other options.',
-      confirmText: 'Decline',
-      variant: 'danger'
-    });
-    if (!confirmed) return;
-
-    setStatusLoading(true);
-    try {
-      // Send decline message
-      await messageService.sendMessage({
-        threadId: selectedThread.id,
-        content: 'Trade Declined\n\nI\'ve declined this trade proposal. Feel free to propose a different trade or continue the conversation.',
-        type: 'system',
-        systemMessageType: 'exchange_declined',
-      });
-      showToast('Trade declined', 'info');
-      // Reload messages
-      const threadMessages = await messageService.getMessages(selectedThread.id);
-      setMessages(threadMessages);
-    } catch (error) {
-      showToast('Failed to decline trade:' + error, 'error');
-    } finally {
-      setStatusLoading(false);
-    }
-  };
-
   const handleAcceptProposal = async (messageId: string) => {
     if (!selectedThread) return;
 
@@ -533,20 +442,6 @@ export default function ActivityPage() {
     } finally {
       setStatusLoading(false);
     }
-  };
-
-  // Check if there's a pending trade proposal
-  const hasPendingTradeProposal = (): boolean => {
-    if (!selectedThread || selectedThread.status !== 'active') return false;
-    // Look for exchange_proposed message that hasn't been responded to
-    const proposalMessages = messages.filter(m => m.systemMessageType === 'exchange_proposed');
-    const declineMessages = messages.filter(m => m.systemMessageType === 'exchange_declined');
-    // If there's a proposal after the last decline (or no decline), it's pending
-    if (proposalMessages.length === 0) return false;
-    const lastProposal = proposalMessages[proposalMessages.length - 1];
-    const lastDecline = declineMessages[declineMessages.length - 1];
-    if (!lastDecline) return true;
-    return lastProposal.timestamp > lastDecline.timestamp;
   };
 
   // Check if current user is the requester (not the post owner)
@@ -1017,58 +912,6 @@ export default function ActivityPage() {
                       </button>
                     </div>
                   )}
-
-                  {/* Trade proposal section - show to requester when owner proposes */}
-                  {hasPendingTradeProposal() && (() => {
-                    const lastProposal = messages.filter(m => m.systemMessageType === 'exchange_proposed').pop();
-                    const isRecipient = lastProposal && lastProposal.senderId !== currentUser.id;
-                    if (!isRecipient) return null;
-
-                    return (
-                      <div className="mb-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm font-medium text-blue-800 mb-3">
-                          Trade Proposal Received
-                        </p>
-                        <p className="text-sm text-blue-700 mb-3">
-                          Select one of your books to trade:
-                        </p>
-                        {myPosts.length === 0 ? (
-                          <p className="text-sm text-gray-600 mb-3">
-                            You don't have any active books to trade.
-                          </p>
-                        ) : (
-                          <select
-                            value={selectedMyPostForTrade || ''}
-                            onChange={(e) => setSelectedMyPostForTrade(e.target.value || null)}
-                            className="input w-full mb-3"
-                          >
-                            <option value="">Select a book...</option>
-                            {myPosts.map(post => (
-                              <option key={post.id} value={post.id}>
-                                {post.book.title} by {post.book.author}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                        <div className="flex gap-2 justify-end">
-                          <button
-                            onClick={handleDeclineTrade}
-                            disabled={statusLoading}
-                            className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                          >
-                            Decline
-                          </button>
-                          <button
-                            onClick={handleAcceptTrade}
-                            disabled={statusLoading || !selectedMyPostForTrade}
-                            className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
-                          >
-                            {statusLoading ? 'Processing...' : 'Accept Trade'}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })()}
 
                   {canVouch && (
                     <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">

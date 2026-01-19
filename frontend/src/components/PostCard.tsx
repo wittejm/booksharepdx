@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { Post, User, MessageThread } from '@booksharepdx/shared';
+import type { Post, MessageThread } from '@booksharepdx/shared';
 import { messageService } from '../services';
 import { useUser } from '../contexts/UserContext';
 import { useUser as useFetchUser } from '../hooks/useDataLoader';

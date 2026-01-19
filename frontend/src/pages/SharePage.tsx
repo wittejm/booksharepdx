@@ -29,8 +29,9 @@ export default function SharePage() {
     reloadPosts();
   };
 
-  const reloadPosts = async () => {
+  const reloadPosts = async (showLoading = false) => {
     if (!currentUser) return;
+    if (showLoading) setLoading(true);
     try {
       const [activePosts, agreedPosts, archivedPosts, allThreads] = await Promise.all([
         postService.getByUserId(currentUser.id, 'active'),
@@ -41,33 +42,15 @@ export default function SharePage() {
       setPosts([...activePosts, ...agreedPosts, ...archivedPosts]);
       setThreads(allThreads);
     } catch (error) {
-      console.error('Failed to reload posts:', error);
+      console.error('Failed to load shares:', error);
+    } finally {
+      if (showLoading) setLoading(false);
     }
   };
 
   useEffect(() => {
-    const loadData = async () => {
-      if (!currentUser) return;
-
-      setLoading(true);
-      try {
-        // Fetch all post statuses for user's shares and their threads
-        const [activePosts, agreedPosts, archivedPosts, allThreads] = await Promise.all([
-          postService.getByUserId(currentUser.id, 'active'),
-          postService.getByUserId(currentUser.id, 'agreed_upon'),
-          postService.getByUserId(currentUser.id, 'archived'),
-          messageService.getThreads(),
-        ]);
-        setPosts([...activePosts, ...agreedPosts, ...archivedPosts]);
-        setThreads(allThreads);
-      } catch (error) {
-        console.error('Failed to load shares:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
+    reloadPosts(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
   // Scroll to first post with interest when requested
@@ -121,13 +104,6 @@ export default function SharePage() {
   if (!currentUser) {
     return <Navigate to="/login" replace />;
   }
-
-  // Helpers to get trading partner info from agreedExchange (depends on which side of trade we're on)
-  const getTradingPartnerId = (post: Post): string | undefined => {
-    if (!post.agreedExchange || !currentUser) return undefined;
-    const isResponder = currentUser.id === post.agreedExchange.responderUserId;
-    return isResponder ? post.agreedExchange.sharerUserId : post.agreedExchange.responderUserId;
-  };
 
   const getTradingPartnerPostId = (post: Post): string | undefined => {
     if (!post.agreedExchange || !currentUser) return undefined;

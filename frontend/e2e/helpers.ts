@@ -1,6 +1,6 @@
 import { Page, expect } from '@playwright/test';
 
-const API_URL = process.env.API_URL || 'http://localhost:3000';
+const API_URL = process.env.API_URL || 'http://localhost:3001';
 
 // NOTE TO CLAUDE: KEEP LOW TIMEOUTS BECAUSE THIS APP IS SUPPOSED TO BE FAST
 const LOAD_TIMEOUT = 2000;
@@ -73,4 +73,23 @@ export async function logout(page: Page) {
 export async function checkBackendHealth(page: Page) {
   const response = await page.request.get(`${API_URL}/api/posts`);
   expect(response.ok()).toBe(true);
+}
+
+export async function deleteAllPostsForCurrentUser(page: Page) {
+  // Get current user
+  const meResponse = await page.request.get(`${API_URL}/api/auth/me`);
+  if (!meResponse.ok()) return;
+
+  const { data: user } = await meResponse.json();
+
+  // Get all their posts
+  const postsResponse = await page.request.get(`${API_URL}/api/posts?userId=${user.id}`);
+  if (!postsResponse.ok()) return;
+
+  const { data: posts } = await postsResponse.json();
+
+  // Delete each post
+  for (const post of posts) {
+    await page.request.delete(`${API_URL}/api/posts/${post.id}`);
+  }
 }

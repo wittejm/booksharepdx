@@ -127,7 +127,7 @@ class ApiClient {
     return text ? JSON.parse(text) : (null as unknown as T);
   }
 
-  async get<T>(endpoint: string, _includeCredentials?: boolean): Promise<T> {
+  async get<T>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, { method: 'GET' });
   }
 

@@ -5,6 +5,7 @@ import {
   loginAs,
   logout,
   checkBackendHealth,
+  deleteAllPostsForCurrentUser,
 } from './helpers';
 
 // NOTE TO CLAUDE: KEEP LOW TIMEOUTS BECAUSE THIS APP IS SUPPOSED TO BE FAST
@@ -159,6 +160,13 @@ test.describe('Gift Flow: Happy Path', () => {
 
     await page.getByRole('button', { name: 'Archive' }).click();
     await expect(page.getByText(giftTestBook.title, { exact: false }).first()).toBeVisible();
+  });
+
+  test.afterAll(async ({ browser }) => {
+    const page = await browser.newPage();
+    await loginAs(page, giftTestSharer.username);
+    await deleteAllPostsForCurrentUser(page);
+    await page.close();
   });
 });
 
@@ -476,9 +484,9 @@ test.describe('Gift Flow: Post Deleted Mid-Conversation', () => {
     await page.goto('/share');
     await waitForReact(page);
 
-    await page.locator('button[aria-label*="menu" i], button:has([class*="ellipsis"]), .post-menu-btn').first().click();
-    await page.getByRole('menuitem', { name: 'Delete' }).click();
-    await page.getByRole('button', { name: /delete|confirm/i }).click();
+    await page.getByLabel('Post menu').first().click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();
 
     await loginAs(page, requesterUser.username);
     await page.goto('/activity');

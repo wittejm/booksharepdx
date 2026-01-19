@@ -14,7 +14,7 @@ import type {
   InterestSummary,
   CreatePostInput,
 } from '@booksharepdx/shared';
-import { apiClient } from './apiClient';
+import { apiClient, ApiError } from './apiClient';
 import { neighborhoods } from '../data/neighborhoods';
 
 // Authentication Service
@@ -45,7 +45,8 @@ export const authService = {
       const response = await apiClient.get<{ data: User }>('/auth/me');
       return response.data;
     } catch (error) {
-      return null;
+      if (error instanceof ApiError && error.statusCode === 401) return null;
+      throw error;
     }
   },
 
@@ -71,8 +72,8 @@ export const userService = {
     try {
       const response = await apiClient.get<{ data: User }>(`/users/${id}`);
       return response.data;
-    } catch (error: any) {
-      if (error.statusCode === 404) return null;
+    } catch (error) {
+      if (error instanceof ApiError && error.statusCode === 404) return null;
       throw error;
     }
   },
@@ -81,8 +82,8 @@ export const userService = {
     try {
       const response = await apiClient.get<{ data: User }>(`/users/username/${username}`);
       return response.data;
-    } catch (error: any) {
-      if (error.statusCode === 404) return null;
+    } catch (error) {
+      if (error instanceof ApiError && error.statusCode === 404) return null;
       throw error;
     }
   },
@@ -125,8 +126,8 @@ export const postService = {
     try {
       const response = await apiClient.get<{ data: Post }>(`/posts/${id}`);
       return response.data;
-    } catch (error: any) {
-      if (error.statusCode === 404) return null;
+    } catch (error) {
+      if (error instanceof ApiError && error.statusCode === 404) return null;
       throw error;
     }
   },

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { Post, User } from '@booksharepdx/shared';
-import { postService, userService, neighborhoodService } from '../services';
+import { postService, neighborhoodService } from '../services';
 import { useUser } from '../contexts/UserContext';
 import PostCard from '../components/PostCard';
 import MultiSelectTagInput from '../components/MultiSelectTagInput';
@@ -26,7 +26,6 @@ export default function BrowsePage() {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [selectedNeighborhood, setSelectedNeighborhood] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | 'giveaway' | 'exchange'>('all');
   const [maxDistance, setMaxDistance] = useState(10);
   const [showFilters, setShowFilters] = useState(false);
@@ -34,13 +33,6 @@ export default function BrowsePage() {
   // Handle URL parameters
   const targetPostId = searchParams.get('postId');
   const openRequest = searchParams.get('openRequest') === 'true';
-
-  useEffect(() => {
-    const neighborhoodParam = searchParams.get('neighborhood');
-    if (neighborhoodParam) {
-      setSelectedNeighborhood(neighborhoodParam);
-    }
-  }, [searchParams]);
 
   // Infinite scroll
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -117,22 +109,6 @@ export default function BrowsePage() {
       });
     }
 
-    // Filter by neighborhood
-    if (selectedNeighborhood) {
-      filtered = filtered.filter(p => {
-        const postUser = users.get(p.userId);
-        if (!postUser) return false;
-
-        // Get neighborhood name from user's location
-        const neighborhoods = neighborhoodService.getAll();
-        if (postUser.location.type === 'neighborhood') {
-          const neighborhood = neighborhoods.find(n => n.id === postUser.location.neighborhoodId);
-          return neighborhood?.name === selectedNeighborhood;
-        }
-        return false;
-      });
-    }
-
     // Filter by type
     if (selectedType !== 'all') {
       filtered = filtered.filter(p => p.type === selectedType);
@@ -158,7 +134,7 @@ export default function BrowsePage() {
     setFilteredPosts(filtered);
     setPage(1); // Reset to first page when filters change
     setInfiniteScrollEnabled(false); // Reset infinite scroll when filters change
-  }, [posts, searchTerm, selectedGenres, selectedNeighborhood, selectedType, maxDistance, currentUser, getPostDistance, users]);
+  }, [posts, searchTerm, selectedGenres, selectedType, maxDistance, currentUser, getPostDistance, users]);
 
   // Update displayed posts based on page
   useEffect(() => {
@@ -203,7 +179,6 @@ export default function BrowsePage() {
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedGenres([]);
-    setSelectedNeighborhood('');
     setSelectedType('all');
     setMaxDistance(10);
   };
@@ -262,7 +237,7 @@ export default function BrowsePage() {
             <div className="card p-4 sticky top-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold text-gray-900">Filters</h2>
-                {(searchTerm || selectedGenres.length > 0 || selectedNeighborhood || selectedType !== 'all' || maxDistance !== 10) && (
+                {(searchTerm || selectedGenres.length > 0 || selectedType !== 'all' || maxDistance !== 10) && (
                   <button
                     onClick={clearFilters}
                     className="text-sm text-primary-600 hover:text-primary-700 font-medium"
@@ -286,34 +261,6 @@ export default function BrowsePage() {
                     className="input text-sm"
                   />
                 </div>
-
-                {/* Neighborhood (if filtered from map) */}
-                {selectedNeighborhood && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Neighborhood
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-sm bg-primary-100 text-primary-700 flex-1">
-                        {selectedNeighborhood}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedNeighborhood('')}
-                        className="text-gray-500 hover:text-gray-700"
-                        title="Clear neighborhood filter"
-                      >
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path
-                            fillRule="evenodd"
-                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                )}
 
                 {/* Genre */}
                 <div>
@@ -421,7 +368,7 @@ export default function BrowsePage() {
                     ? "No books found nearby matching your filters."
                     : "Try adjusting your filters or clearing them."}
                 </p>
-                {(searchTerm || selectedGenres.length > 0 || selectedNeighborhood || selectedType !== 'all' || maxDistance !== 10) && (
+                {(searchTerm || selectedGenres.length > 0 || selectedType !== 'all' || maxDistance !== 10) && (
                   <button onClick={clearFilters} className="btn-primary">
                     Clear Filters
                   </button>

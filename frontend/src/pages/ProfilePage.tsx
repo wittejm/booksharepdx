@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
-import type { User, Post, MessageThread } from '@booksharepdx/shared';
+import type { User, Post } from '@booksharepdx/shared';
 import { userService, postService, neighborhoodService, messageService } from '../services';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../components/useToast';
@@ -12,7 +12,7 @@ type TabType = 'shares' | 'loves' | 'lookingFor';
 export default function ProfilePage() {
   const { username } = useParams<{ username: string }>();
   const { currentUser } = useUser();
-  const { showToast, toasts, dismiss } = useToast();
+  const { toasts, dismiss } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,11 +24,6 @@ export default function ProfilePage() {
     myPosts: Post[];
     threadIds: { [postId: string]: string };
   } | null>(null);
-
-  // Redirect to my-profile if viewing your own profile
-  if (currentUser?.username === username) {
-    return <Navigate to="/my-profile" replace />;
-  }
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -57,6 +52,12 @@ export default function ProfilePage() {
 
     loadProfile();
   }, [username, currentUser]);
+
+
+  // Redirect to my-profile if viewing your own profile
+  if (currentUser?.username === username) {
+    return <Navigate to="/my-profile" replace />;
+  }
 
   // Load exchange info: find my exchange posts where this user has expressed interest
   // but exclude threads where I've already proposed a trade

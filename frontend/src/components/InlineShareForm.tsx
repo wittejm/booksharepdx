@@ -204,6 +204,7 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
                   <div className="font-medium">Exchange</div>
                   <div className="text-xs text-gray-500">Trade for another book</div>
                 </button>
+                {/*}
                 <button
                   type="button"
                   onClick={() => setShareType('loan')}
@@ -216,6 +217,7 @@ export default function InlineShareForm({ onSuccess, autoFocus }: InlineShareFor
                   <div className="font-medium">Loan</div>
                   <div className="text-xs text-gray-500">Lend temporarily</div>
                 </button>
+                */}
               </div>
 
               {/* Loan duration dropdown */}

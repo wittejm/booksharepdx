@@ -16,12 +16,14 @@ const defaultSummary: InterestSummary = {
   interests: [],
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const InterestContext = createContext<InterestContextType>({
   summary: defaultSummary,
   loading: false,
   refresh: async () => {},
 });
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useInterest = () => useContext(InterestContext);
 
 export function InterestProvider({ children }: { children: React.ReactNode }) {

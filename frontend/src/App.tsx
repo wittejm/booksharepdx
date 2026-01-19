@@ -9,6 +9,9 @@ import Footer from './components/layout/Footer';
 import ScrollToTop from './components/ScrollToTop';
 import VerificationBanner from './components/VerificationBanner';
 import InterestBanner from './components/InterestBanner';
+import ToastContainer from './components/ToastContainer';
+import { useToast } from './components/useToast';
+import { setGlobalToastListener } from './utils/globalToast';
 
 // Page components
 import LandingPage from './pages/LandingPage';
@@ -44,6 +47,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const { toasts, showToast, dismiss } = useToast();
+
+  // Connect global toast listener for apiClient errors
+  useEffect(() => {
+    setGlobalToastListener(showToast);
+    return () => setGlobalToastListener(null);
+  }, [showToast]);
 
   // Restore session from cookies on mount
   useEffect(() => {
@@ -72,6 +82,7 @@ function AppRoutes() {
     <UserContext.Provider value={{ currentUser, updateCurrentUser }}>
       <InterestProvider>
         <ScrollToTop />
+        <ToastContainer toasts={toasts} onDismiss={dismiss} />
         <div className="flex flex-col min-h-screen">
           <Header />
           <VerificationBanner />

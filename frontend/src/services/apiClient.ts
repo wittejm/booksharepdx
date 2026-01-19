@@ -4,6 +4,7 @@
  */
 
 import { ERROR_MESSAGES, getErrorMessage, getErrorMessageFromStatus } from '../utils/errorMessages';
+import { showGlobalToast } from '../utils/globalToast';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -74,11 +75,13 @@ class ApiClient {
       });
     } catch (networkError) {
       // Handle network errors (CORS issues, server unreachable, etc.)
-      throw new ApiError(
+      const error = new ApiError(
         ERROR_MESSAGES.NETWORK_ERROR,
         'NETWORK_ERROR',
         0
       );
+      showGlobalToast(error.getUserMessage(), 'error');
+      throw error;
     }
 
     if (!response.ok) {
@@ -109,6 +112,11 @@ class ApiClient {
         window.location.href = '/login?expired=true';
         // Return a never-resolving promise to prevent further processing
         return new Promise(() => {});
+      }
+
+      // Show toast for server errors (5xx) - these are bugs that need fixing
+      if (response.status >= 500) {
+        showGlobalToast(error.getUserMessage(), 'error');
       }
 
       throw error;

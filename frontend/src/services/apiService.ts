@@ -71,8 +71,9 @@ export const userService = {
     try {
       const response = await apiClient.get<{ data: User }>(`/users/${id}`);
       return response.data;
-    } catch (error) {
-      return null;
+    } catch (error: any) {
+      if (error.statusCode === 404) return null;
+      throw error;
     }
   },
 
@@ -80,18 +81,15 @@ export const userService = {
     try {
       const response = await apiClient.get<{ data: User }>(`/users/username/${username}`);
       return response.data;
-    } catch (error) {
-      return null;
+    } catch (error: any) {
+      if (error.statusCode === 404) return null;
+      throw error;
     }
   },
 
-  update: async (id: string, updates: Partial<User>): Promise<User | null> => {
-    try {
-      const response = await apiClient.patch<{ data: User }>(`/users/${id}`, updates);
-      return response.data;
-    } catch (error) {
-      return null;
-    }
+  update: async (id: string, updates: Partial<User>): Promise<User> => {
+    const response = await apiClient.patch<{ data: User }>(`/users/${id}`, updates);
+    return response.data;
   },
 
   // Generic stat increment - pass stat names to increment
@@ -127,8 +125,9 @@ export const postService = {
     try {
       const response = await apiClient.get<{ data: Post }>(`/posts/${id}`);
       return response.data;
-    } catch (error) {
-      return null;
+    } catch (error: any) {
+      if (error.statusCode === 404) return null;
+      throw error;
     }
   },
 
@@ -148,22 +147,13 @@ export const postService = {
     return response.data;
   },
 
-  update: async (id: string, updates: Partial<Post>): Promise<Post | null> => {
-    try {
-      const response = await apiClient.patch<{ data: Post }>(`/posts/${id}`, updates);
-      return response.data;
-    } catch (error) {
-      return null;
-    }
+  update: async (id: string, updates: Partial<Post>): Promise<Post> => {
+    const response = await apiClient.patch<{ data: Post }>(`/posts/${id}`, updates);
+    return response.data;
   },
 
-  delete: async (id: string): Promise<boolean> => {
-    try {
-      await apiClient.delete(`/posts/${id}`);
-      return true;
-    } catch (error) {
-      return false;
-    }
+  delete: async (id: string): Promise<void> => {
+    await apiClient.delete(`/posts/${id}`);
   },
 };
 

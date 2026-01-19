@@ -10,7 +10,6 @@ import { Block } from '../entities/Block.js';
 import { Report } from '../entities/Report.js';
 import { ModerationAction } from '../entities/ModerationAction.js';
 import { ModeratorNote } from '../entities/ModeratorNote.js';
-import { Vouch } from '../entities/Vouch.js';
 import { Notification } from '../entities/Notification.js';
 import { Book } from '../entities/Book.js';
 
@@ -28,7 +27,6 @@ export const AppDataSource = new DataSource({
     Report,
     ModerationAction,
     ModeratorNote,
-    Vouch,
     Notification,
     Book,
   ],

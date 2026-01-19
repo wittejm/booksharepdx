@@ -7,7 +7,6 @@ import type {
   Post,
   MessageThread,
   Message,
-  Vouch,
   Neighborhood,
   Block,
   Notification,
@@ -290,31 +289,6 @@ export const blockService = {
       return blocked2.includes(userId1);
     } catch (error) {
       return false;
-    }
-  },
-};
-
-// Vouch Service - Vouch is a non-MVP feature
-export const vouchService = {
-  getForUser: async (userId: string): Promise<Vouch[]> => {
-    const response = await apiClient.get<{ data: Vouch[] }>(`/vouches?userId=${userId}`);
-    return response.data;
-  },
-
-  create: async (user1Id: string, user2Id: string): Promise<Vouch> => {
-    const response = await apiClient.post<{ data: Vouch }>('/vouches', {
-      user1Id,
-      user2Id,
-    });
-    return response.data;
-  },
-
-  confirmMutual: async (vouchId: string): Promise<Vouch | null> => {
-    try {
-      const response = await apiClient.patch<{ data: Vouch }>(`/vouches/${vouchId}`, { mutuallyConfirmed: true });
-      return response.data;
-    } catch (error) {
-      return null;
     }
   },
 };

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import type { MessageThread, Message, Post, User, MessageThreadStatus } from '@booksharepdx/shared';
-import { messageService, postService, userService, vouchService } from '../services';
+import { messageService, postService, userService } from '../services';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../components/useToast';
 import { useConfirm } from '../components/useConfirm';
@@ -36,11 +36,6 @@ export default function ActivityPage() {
 
   // Mobile view state
   const [showConversation, setShowConversation] = useState(false);
-
-  // Vouch state - Vouch is a non-MVP feature
-  const [canVouch, setCanVouch] = useState(false);
-  const [hasVouched, setHasVouched] = useState(false);
-  const [vouchLoading, setVouchLoading] = useState(false);
 
   // Load threads on mount
   useEffect(() => {
@@ -178,42 +173,6 @@ export default function ActivityPage() {
         ? { ...t, unreadCount: { ...t.unreadCount, [currentUser.id]: 0 } }
         : t
     ));
-
-    // Check vouch status
-    await checkVouchStatus(thread);
-  };
-
-  const checkVouchStatus = async (thread: MessageThread) => {
-    if (!currentUser) return;
-
-    const otherUserId = thread.participants.find(p => p !== currentUser.id);
-    if (!otherUserId) return;
-
-    // Check if exchange/gift is completed
-    const hasCompletedExchange = messages.some(
-      m => m.type === 'system' &&
-      (m.systemMessageType === 'exchange_completed' || m.systemMessageType === 'gift_completed')
-    );
-
-    if (!hasCompletedExchange) {
-      setCanVouch(false);
-      return;
-    }
-
-    // Check if already vouched
-    const vouches = await vouchService.getForUser(currentUser.id);
-    const existingVouch = vouches.find(
-      v => (v.user1Id === currentUser.id && v.user2Id === otherUserId) ||
-           (v.user2Id === currentUser.id && v.user1Id === otherUserId)
-    );
-
-    if (existingVouch) {
-      setHasVouched(true);
-      setCanVouch(false);
-    } else {
-      setHasVouched(false);
-      setCanVouch(true);
-    }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -250,30 +209,6 @@ export default function ActivityPage() {
       }
     } finally {
       setSending(false);
-    }
-  };
-
-  const handleVouch = async () => {
-    if (!currentUser || !selectedThread) return;
-
-    const otherUserId = selectedThread.participants.find(p => p !== currentUser.id);
-    if (!otherUserId) return;
-
-    setVouchLoading(true);
-    try {
-      await vouchService.create(currentUser.id, otherUserId);
-      setHasVouched(true);
-      setCanVouch(false);
-      showToast('You vouched for this person!', 'success');
-    } catch (error) {
-      const err = error as Error & { code?: string };
-      if (err.code === 'CANNOT_VOUCH_SELF') {
-        showToast('You cannot vouch for yourself.', 'error');
-      } else {
-        showToast('Unable to submit your vouch. Please try again.', 'error');
-      }
-    } finally {
-      setVouchLoading(false);
     }
   };
 
@@ -912,33 +847,6 @@ export default function ActivityPage() {
                       </button>
                     </div>
                   )}
-
-                  {canVouch && (
-                    <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm text-green-800">
-                          Have you met {threadUsers[selectedThread.id].username} in person?
-                        </p>
-                        <button
-                          onClick={handleVouch}
-                          disabled={vouchLoading}
-                          className="btn-primary text-sm py-1 px-3 whitespace-nowrap disabled:opacity-50"
-                        >
-                          {vouchLoading ? 'Vouching...' : 'I met this person'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {hasVouched && (
-                    <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <p className="text-sm text-green-800 flex items-center gap-2">
-                        <span>✓</span>
-                        You vouched for {threadUsers[selectedThread.id].username}
-                      </p>
-                    </div>
-                  )}
-
                   {/* Only show message input for active/accepted/on_loan threads */}
                   {(selectedThread.status === 'active' || selectedThread.status === 'accepted' || selectedThread.status === 'on_loan') && (
                     <form onSubmit={handleSendMessage} className="flex gap-2">

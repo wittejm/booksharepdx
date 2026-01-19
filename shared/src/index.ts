@@ -188,15 +188,6 @@ export interface ModeratorNote {
   timestamp: number;
 }
 
-// Vouching Types - Vouch is a non-MVP feature
-export interface Vouch {
-  id: string;
-  user1Id: string;
-  user2Id: string;
-  timestamp: number;
-  mutuallyConfirmed: boolean;
-}
-
 // Neighborhood Types
 export interface Neighborhood {
   id: string;

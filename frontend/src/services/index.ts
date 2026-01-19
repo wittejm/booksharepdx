@@ -8,7 +8,6 @@ export {
   postService,
   messageService,
   blockService,
-  vouchService,
   notificationService,
   neighborhoodService,
   interestService,

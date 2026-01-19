@@ -396,6 +396,8 @@ test.describe('Gift Flow: Multiple Requesters', () => {
     await waitForReact(page);
 
     await page.getByText(/interested/i).first().click();
+    // Wait for interest panel to load
+    await expect(page.getByRole('button', { name: 'Accept' }).first()).toBeVisible();
     await page.getByRole('button', { name: 'Accept' }).first().click();
     await page.getByRole('dialog').getByRole('button', { name: /yes, give/i }).click();
     // Wait for dialog to close and status to update

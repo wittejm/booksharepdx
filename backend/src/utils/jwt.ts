@@ -38,6 +38,7 @@ export const accessTokenCookieOptions = {
   sameSite: isDeployed ? ('none' as const) : ('lax' as const),
   maxAge: 15 * 60 * 1000, // 15 minutes
   path: '/',
+  ...(env.cookieDomain && { domain: env.cookieDomain }),
 };
 
 export const refreshTokenCookieOptions = {
@@ -46,6 +47,7 @@ export const refreshTokenCookieOptions = {
   sameSite: isDeployed ? ('none' as const) : ('lax' as const),
   maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
   path: '/',
+  ...(env.cookieDomain && { domain: env.cookieDomain }),
 };
 
 // Magic link tokens (short-lived, single-use tokens for email verification)

@@ -25,6 +25,9 @@ export const env = {
   // Frontend
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
 
+  // Cookie domain for cross-subdomain auth (e.g., .booksharepdx.com)
+  cookieDomain: process.env.COOKIE_DOMAIN || undefined,
+
   isDev: process.env.NODE_ENV === 'development',
   isStaging: process.env.NODE_ENV === 'staging',
   isProd: process.env.NODE_ENV === 'production',

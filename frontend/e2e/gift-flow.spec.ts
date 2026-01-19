@@ -57,6 +57,8 @@ async function cancelRequest(page: Page, bookTitle: string): Promise<void> {
   await page.getByRole('button', { name: 'Cancel Request' }).first().click();
   // Click the confirmation button in the dialog
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel Request' }).click();
+  // Wait for dialog to close before continuing
+  await expect(page.getByRole('dialog')).not.toBeVisible();
 }
 
 async function declineRequest(page: Page, bookTitle: string): Promise<void> {
@@ -74,6 +76,8 @@ async function declineRequest(page: Page, bookTitle: string): Promise<void> {
   // Wait for confirmation dialog and click Decline
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Decline', exact: true }).click();
+  // Wait for dialog to close before continuing
+  await expect(page.getByRole('dialog')).not.toBeVisible();
 }
 
 async function dismissDeclinedRequest(page: Page, bookTitle: string): Promise<void> {
@@ -91,6 +95,8 @@ async function acceptRequest(page: Page): Promise<void> {
   await page.getByText('Someone is interested!').click();
   await page.getByRole('button', { name: 'Accept' }).click();
   await page.getByRole('dialog').getByRole('button', { name: /yes, give/i }).click();
+  // Wait for dialog to close before continuing
+  await expect(page.getByRole('dialog')).not.toBeVisible();
 }
 
 async function openThread(page: Page, bookTitle: string): Promise<void> {
@@ -392,6 +398,8 @@ test.describe('Gift Flow: Multiple Requesters', () => {
     await page.getByText(/interested/i).first().click();
     await page.getByRole('button', { name: 'Accept' }).first().click();
     await page.getByRole('dialog').getByRole('button', { name: /yes, give/i }).click();
+    // Wait for dialog to close and status to update
+    await expect(page.getByRole('dialog')).not.toBeVisible();
   });
 
   test('Second requester sees given to someone else', async ({ page }) => {
@@ -487,6 +495,8 @@ test.describe('Gift Flow: Post Deleted Mid-Conversation', () => {
     await page.getByLabel('Post menu').first().click();
     await page.getByRole('button', { name: 'Delete', exact: true }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();
+    // Wait for dialog to close before continuing
+    await expect(page.getByRole('dialog')).not.toBeVisible();
 
     await loginAs(page, requesterUser.username);
     await page.goto('/activity');

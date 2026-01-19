@@ -68,7 +68,7 @@ jobs:
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
-            --set-env-vars="NODE_ENV=staging,FRONTEND_URL=https://staging.booksharepdx.com" \
+            --set-env-vars="NODE_ENV=staging,FRONTEND_URL=https://staging.booksharepdx.com,COOKIE_DOMAIN=.booksharepdx.com" \
             --set-secrets="DATABASE_URL=DATABASE_URL_STAGING:latest,JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
             --min-instances=0 \
             --max-instances=2 \
@@ -132,7 +132,7 @@ jobs:
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
-            --set-env-vars="NODE_ENV=production,FRONTEND_URL=https://booksharepdx.com,EMAIL_VERIFICATION_ENABLED=true" \
+            --set-env-vars="NODE_ENV=production,FRONTEND_URL=https://booksharepdx.com,EMAIL_VERIFICATION_ENABLED=true,COOKIE_DOMAIN=.booksharepdx.com" \
             --set-secrets="DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
             --min-instances=0 \
             --max-instances=5 \

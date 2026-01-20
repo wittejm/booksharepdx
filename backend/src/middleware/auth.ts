@@ -45,7 +45,14 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     // If access token failed, try refresh token
     if (!payload && refreshToken) {
       try {
-        payload = verifyRefreshToken(refreshToken);
+        const refreshPayload = verifyRefreshToken(refreshToken);
+        // Extract only the fields we need (exclude iat, exp from refresh token)
+        payload = {
+          userId: refreshPayload.userId,
+          email: refreshPayload.email,
+          role: refreshPayload.role,
+          username: refreshPayload.username,
+        };
         // Issue new access token
         const newAccessToken = signAccessToken(payload);
         res.cookie('accessToken', newAccessToken, accessTokenCookieOptions);
@@ -118,7 +125,14 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
 
     if (!payload && refreshToken) {
       try {
-        payload = verifyRefreshToken(refreshToken);
+        const refreshPayload = verifyRefreshToken(refreshToken);
+        // Extract only the fields we need (exclude iat, exp from refresh token)
+        payload = {
+          userId: refreshPayload.userId,
+          email: refreshPayload.email,
+          role: refreshPayload.role,
+          username: refreshPayload.username,
+        };
         const newAccessToken = signAccessToken(payload);
         res.cookie('accessToken', newAccessToken, accessTokenCookieOptions);
       } catch {

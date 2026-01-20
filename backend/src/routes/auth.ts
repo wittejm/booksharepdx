@@ -259,33 +259,46 @@ router.get('/me', (req, res) => {
   const refreshToken = req.cookies?.refreshToken;
 
   if (!accessToken && !refreshToken) {
+    console.log('[AUTH /me] 401: No tokens present. Cookie header:', req.headers.cookie ? 'exists' : 'missing');
     return res.status(401).json({ error: { message: 'Not authenticated', code: 'UNAUTHORIZED' } });
   }
 
   let payload = null;
+  let accessTokenError: string | null = null;
 
   // Try access token first
   if (accessToken) {
     try {
       payload = verifyAccessToken(accessToken);
-    } catch {
-      // Access token expired or invalid
+    } catch (err) {
+      accessTokenError = err instanceof Error ? err.message : 'unknown';
     }
   }
 
   // If access token failed, try refresh token
   if (!payload && refreshToken) {
     try {
-      payload = verifyRefreshToken(refreshToken);
+      const refreshPayload = verifyRefreshToken(refreshToken);
+      // Extract only the fields we need (exclude iat, exp from refresh token)
+      payload = {
+        userId: refreshPayload.userId,
+        email: refreshPayload.email,
+        role: refreshPayload.role,
+        username: refreshPayload.username,
+      };
       // Issue new access token
       const newAccessToken = signAccessToken(payload);
       res.cookie('accessToken', newAccessToken, accessTokenCookieOptions);
-    } catch {
+      console.log('[AUTH /me] Refreshed access token for user:', payload.userId);
+    } catch (err) {
+      const refreshError = err instanceof Error ? err.message : 'unknown';
+      console.log('[AUTH /me] 401: Both tokens failed. Access:', accessTokenError, 'Refresh:', refreshError);
       return res.status(401).json({ error: { message: 'Session expired', code: 'SESSION_EXPIRED' } });
     }
   }
 
   if (!payload) {
+    console.log('[AUTH /me] 401: Access token failed, no refresh token. Error:', accessTokenError);
     return res.status(401).json({ error: { message: 'Not authenticated', code: 'UNAUTHORIZED' } });
   }
 

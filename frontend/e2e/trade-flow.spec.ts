@@ -44,6 +44,8 @@ async function createExchangePost(page: Page, bookTitle: string, bookAuthor: str
   await page.getByRole('button', { name: 'Exchange' }).click();
   await page.getByRole('button', { name: 'Share Book' }).click();
 
+  // Wait for the share form to close and post to appear
+  await expect(page.getByPlaceholder(/search for a book/i)).not.toBeVisible();
   await expect(page.getByText(bookTitle, { exact: false }).first()).toBeVisible();
 }
 

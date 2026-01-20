@@ -34,6 +34,8 @@ async function createGiveawayPost(page: Page, bookTitle: string, bookAuthor: str
   await page.getByText(bookAuthor).first().click();
   await page.getByRole('button', { name: 'Share Book' }).click();
 
+  // Wait for the share form to close and post to appear
+  await expect(page.getByPlaceholder(/search for a book/i)).not.toBeVisible();
   await expect(page.getByText(bookTitle, { exact: false }).first()).toBeVisible();
 }
 
@@ -414,7 +416,7 @@ test.describe('Gift Flow: Multiple Requesters', () => {
 
     // Click on the thread to see the status message
     await page.getByRole('button', { name: new RegExp(testBook.title) }).click();
-    await expect(page.getByText('This book was given to someone else')).toBeVisible();
+    await expect(page.getByText('This book was given to someone else')).toBeVisible({ timeout: 5000 });
   });
 });
 

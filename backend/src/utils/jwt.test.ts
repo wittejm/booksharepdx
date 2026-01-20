@@ -28,6 +28,7 @@ describe('JWT utilities', () => {
     userId: 'test-user-123',
     email: 'test@example.com',
     role: 'user',
+    username: 'testuser',
   };
 
   describe('signAccessToken', () => {
@@ -46,6 +47,7 @@ describe('JWT utilities', () => {
       expect(decoded.userId).toBe(testPayload.userId);
       expect(decoded.email).toBe(testPayload.email);
       expect(decoded.role).toBe(testPayload.role);
+      expect(decoded.username).toBe(testPayload.username);
     });
 
     it('should include expiration claim', () => {
@@ -82,6 +84,7 @@ describe('JWT utilities', () => {
       expect(decoded.userId).toBe(testPayload.userId);
       expect(decoded.email).toBe(testPayload.email);
       expect(decoded.role).toBe(testPayload.role);
+      expect(decoded.username).toBe(testPayload.username);
     });
 
     it('should throw for invalid token', () => {
@@ -110,6 +113,7 @@ describe('JWT utilities', () => {
       expect(decoded.userId).toBe(testPayload.userId);
       expect(decoded.email).toBe(testPayload.email);
       expect(decoded.role).toBe(testPayload.role);
+      expect(decoded.username).toBe(testPayload.username);
     });
 
     it('should throw for access token used as refresh token', () => {

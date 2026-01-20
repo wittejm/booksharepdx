@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import type { User } from '@booksharepdx/shared';
 import { authService } from '../services';
 import { useUser } from '../contexts/UserContext';
 import { isValidEmail } from '../utils/validation';
@@ -15,6 +16,7 @@ export default function SignUpPage() {
   const [agreedToGuidelines, setAgreedToGuidelines] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [emailSent, setEmailSent] = useState(false);
 
   const navigate = useNavigate();
   const { updateCurrentUser } = useUser();
@@ -71,8 +73,16 @@ export default function SignUpPage() {
 
     setLoading(true);
     try {
-      const user = await authService.signup(formData);
-      updateCurrentUser(user);
+      const result = await authService.signup(formData);
+
+      // Check if email verification is required
+      if ('requiresVerification' in result) {
+        setEmailSent(true);
+        return;
+      }
+
+      // Direct login (dev mode) - result is a User
+      updateCurrentUser(result as User);
       navigate('/location-selection');
     } catch (error) {
       const err = error as Error & { code?: string };
@@ -90,6 +100,31 @@ export default function SignUpPage() {
       setLoading(false);
     }
   };
+
+  // Show success message when email verification is required
+  if (emailSent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
+          <div className="card p-8 text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Check Your Email</h1>
+            <p className="text-gray-600 mb-6">
+              We sent a sign-in link to <span className="font-medium text-gray-900">{formData.email}</span>.
+              Click the link in the email to complete your registration.
+            </p>
+            <p className="text-sm text-gray-500">
+              The link expires in 30 minutes. If you don't see it, check your spam folder.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">

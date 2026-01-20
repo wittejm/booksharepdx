@@ -18,6 +18,10 @@ export const env = {
   // Book APIs
   googleBooksApiKey: process.env.GOOGLE_BOOKS_API_KEY || '',
 
+  // Email (Resend)
+  resendApiKey: process.env.RESEND_API_KEY || '',
+  emailFrom: process.env.EMAIL_FROM || 'BookSharePDX <noreply@booksharepdx.com>',
+
   // Storage
   storageProvider: process.env.STORAGE_PROVIDER || 'local',
   uploadDir: process.env.UPLOAD_DIR || './uploads',

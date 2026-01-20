@@ -8,6 +8,8 @@ import {
   signRefreshToken,
   signMagicLinkToken,
   verifyMagicLinkToken,
+  verifyAccessToken,
+  verifyRefreshToken,
   accessTokenCookieOptions,
   refreshTokenCookieOptions,
 } from '../utils/jwt.js';
@@ -15,6 +17,7 @@ import { validateBody } from '../middleware/validation.js';
 import { requireAuth } from '../middleware/auth.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { env } from '../config/env.js';
+import { sendMagicLinkEmail, sendWelcomeEmail } from '../services/emailService.js';
 
 const router = Router();
 
@@ -95,16 +98,27 @@ router.post('/signup', validateBody(signupSchema), async (req, res, next) => {
 
     await userRepo.save(user);
 
-    // TODO: Generate magic link token and send verification email
-    // For now, just log that we would send it
-    console.log(`[EMAIL] Verification magic link would be sent to: ${user.email}`);
+    // When email verification is enabled, send welcome email and require click-through
+    if (EMAIL_VERIFICATION_ENABLED) {
+      const magicToken = signMagicLinkToken({ userId: user.id, email: user.email });
+      const verifyUrl = `${env.frontendUrl}/verify-magic-link?token=${magicToken}`;
+      await sendWelcomeEmail(user.email, user.username, verifyUrl);
 
-    // Generate tokens - user is logged in immediately
-    const payload = { userId: user.id, email: user.email, role: user.role };
+      // Don't log user in - they must click the email link
+      return res.status(201).json({
+        data: {
+          success: true,
+          message: 'Account created! Check your email for a sign-in link.',
+          requiresVerification: true,
+        }
+      });
+    }
+
+    // Local dev: log in immediately without email verification
+    const payload = { userId: user.id, email: user.email, role: user.role, username: user.username };
     const accessToken = signAccessToken(payload);
     const refreshToken = signRefreshToken(payload);
 
-    // Set cookies
     res.cookie('accessToken', accessToken, accessTokenCookieOptions);
     res.cookie('refreshToken', refreshToken, refreshTokenCookieOptions);
 
@@ -146,7 +160,7 @@ router.post('/send-magic-link', validateBody(sendMagicLinkSchema), async (req, r
 
     // When email verification is disabled, log in directly (dev mode)
     if (!EMAIL_VERIFICATION_ENABLED) {
-      const payload = { userId: user.id, email: user.email, role: user.role };
+      const payload = { userId: user.id, email: user.email, role: user.role, username: user.username };
       const accessToken = signAccessToken(payload);
       const refreshToken = signRefreshToken(payload);
 
@@ -160,9 +174,8 @@ router.post('/send-magic-link', validateBody(sendMagicLinkSchema), async (req, r
     const magicToken = signMagicLinkToken({ userId: user.id, email: user.email });
     const magicLinkUrl = `${env.frontendUrl}/verify-magic-link?token=${magicToken}`;
 
-    // TODO: Send actual email with magic link
-    console.log(`[EMAIL] Magic sign-in link would be sent to: ${user.email}`);
-    console.log(`[EMAIL] Magic link URL: ${magicLinkUrl}`);
+    // Send magic link email
+    await sendMagicLinkEmail(user.email, magicLinkUrl);
 
     res.json({
       data: {
@@ -219,8 +232,14 @@ router.get('/verify-magic-link', async (req, res, next) => {
       );
     }
 
+    // Mark user as verified (they clicked the email link)
+    if (!user.verified) {
+      user.verified = true;
+      await userRepo.save(user);
+    }
+
     // Generate access and refresh tokens
-    const tokenPayload = { userId: user.id, email: user.email, role: user.role };
+    const tokenPayload = { userId: user.id, email: user.email, role: user.role, username: user.username };
     const accessToken = signAccessToken(tokenPayload);
     const refreshToken = signRefreshToken(tokenPayload);
 
@@ -234,9 +253,58 @@ router.get('/verify-magic-link', async (req, res, next) => {
   }
 });
 
-// GET /api/auth/me
-router.get('/me', requireAuth, (req, res) => {
-  res.json({ data: req.user!.toJSON() });
+// GET /api/auth/me - Returns user data from JWT without DB hit
+router.get('/me', (req, res) => {
+  const accessToken = req.cookies?.accessToken;
+  const refreshToken = req.cookies?.refreshToken;
+
+  if (!accessToken && !refreshToken) {
+    return res.status(401).json({ error: { message: 'Not authenticated', code: 'UNAUTHORIZED' } });
+  }
+
+  let payload = null;
+
+  // Try access token first
+  if (accessToken) {
+    try {
+      payload = verifyAccessToken(accessToken);
+    } catch {
+      // Access token expired or invalid
+    }
+  }
+
+  // If access token failed, try refresh token
+  if (!payload && refreshToken) {
+    try {
+      payload = verifyRefreshToken(refreshToken);
+      // Issue new access token
+      const newAccessToken = signAccessToken(payload);
+      res.cookie('accessToken', newAccessToken, accessTokenCookieOptions);
+    } catch {
+      return res.status(401).json({ error: { message: 'Session expired', code: 'SESSION_EXPIRED' } });
+    }
+  }
+
+  if (!payload) {
+    return res.status(401).json({ error: { message: 'Not authenticated', code: 'UNAUTHORIZED' } });
+  }
+
+  // Return minimal user object from JWT payload (no DB hit)
+  // For old tokens without username, return what we have
+  const user = {
+    id: payload.userId,
+    email: payload.email,
+    username: payload.username || payload.email.split('@')[0], // fallback for old tokens
+    role: payload.role,
+    // Provide sensible defaults for required fields
+    bio: '',
+    verified: true,
+    createdAt: 0,
+    location: { type: 'neighborhood' as const },
+    stats: { booksGiven: 0, booksReceived: 0, booksLoaned: 0, booksBorrowed: 0, booksTraded: 0, bookshares: 0 },
+  };
+
+  res.json({ data: user });
 });
 
 // PUT /api/auth/me

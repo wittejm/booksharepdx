@@ -14,11 +14,6 @@ import interestRoutes from './interests.js';
 
 const router = Router();
 
-// Health check endpoint
-router.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: Date.now() });
-});
-
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/posts', postRoutes);

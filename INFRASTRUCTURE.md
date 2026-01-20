@@ -200,30 +200,36 @@ Resend will provide these exact values, but they'll look like:
 
 ---
 
-### 4. Porkbun DNS Setup
+### 4. DNS Setup (Cloudflare)
 
-**URL:** https://porkbun.com → Domain Management → booksharepdx.com → DNS Records
+**Domain Registrar:** Porkbun (nameservers pointed to Cloudflare)
+**DNS Management:** Cloudflare
 
-#### Add These Records:
+**URL:** https://dash.cloudflare.com → booksharepdx.com → DNS → Records
+
+#### Configuration:
+The domain `booksharepdx.com` is registered at Porkbun, but nameservers are set to Cloudflare. All DNS records are managed in the Cloudflare dashboard.
+
+#### Add These Records in Cloudflare:
 
 **For Vercel (frontend):**
-| Type | Host | Answer | TTL |
-|------|------|--------|-----|
-| CNAME | staging | cname.vercel-dns.com | 600 |
+| Type | Name | Content | Proxy |
+|------|------|---------|-------|
+| CNAME | staging | cname.vercel-dns.com | DNS only |
 
-**For Cloud Run (backend) - add after deploying to Cloud Run:**
-| Type | Host | Answer | TTL |
-|------|------|--------|-----|
-| CNAME | api-staging | ghs.googlehosted.com | 600 |
+**For Cloud Run (backend):**
+| Type | Name | Content | Proxy |
+|------|------|---------|-------|
+| CNAME | api-staging | ghs.googlehosted.com | DNS only |
 
 **For Resend (email) - values from Resend dashboard:**
-| Type | Host | Answer | TTL |
-|------|------|--------|-----|
-| TXT | resend._domainkey | (from Resend) | 600 |
-| TXT | @ or blank | v=spf1 include:amazonses.com ~all | 600 |
+| Type | Name | Content | Proxy |
+|------|------|---------|-------|
+| TXT | resend._domainkey | (from Resend) | - |
+| TXT | @ | v=spf1 include:amazonses.com ~all | - |
 
 #### What to report back:
-- [ ] Confirm DNS records added
+- [ ] Confirm DNS records added in Cloudflare
 - [ ] Screenshot or list of records (optional)
 
 ---
@@ -307,7 +313,8 @@ Copy this checklist and fill it out:
 - [ ] Service account created
 - [ ] JSON key downloaded
 
-## Porkbun DNS
+## Cloudflare DNS
+- [ ] Nameservers set to Cloudflare in Porkbun
 - [ ] CNAME: staging → cname.vercel-dns.com
 - [ ] CNAME: api-staging → ghs.googlehosted.com
 - [ ] TXT: resend._domainkey → (from Resend)

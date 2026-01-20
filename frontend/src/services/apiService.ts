@@ -28,8 +28,9 @@ export const authService = {
     return response.data;
   },
 
-  signup: async (data: { email: string; username: string; preferredName?: string; bio: string }): Promise<User> => {
-    const response = await apiClient.post<{ data: User }>(
+  // Returns User if direct login (dev mode), or success message if email verification required
+  signup: async (data: { email: string; username: string; preferredName?: string; bio: string }): Promise<User | { success: boolean; message: string; requiresVerification: boolean }> => {
+    const response = await apiClient.post<{ data: User | { success: boolean; message: string; requiresVerification: boolean } }>(
       '/auth/signup',
       data
     );

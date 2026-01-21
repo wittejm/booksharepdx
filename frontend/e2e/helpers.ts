@@ -3,7 +3,7 @@ import { Page, expect } from '@playwright/test';
 const API_URL = process.env.API_URL || 'http://localhost:3001';
 
 // NOTE TO CLAUDE: KEEP LOW TIMEOUTS BECAUSE THIS APP IS SUPPOSED TO BE FAST
-const LOAD_TIMEOUT = 2000;
+export const LOAD_TIMEOUT = 2000;
 
 // Unique test users for this run
 const timestamp = Date.now();
@@ -24,7 +24,8 @@ export async function waitForReact(page: Page) {
 }
 
 export async function createUser(page: Page, user: typeof testOwner) {
-  await page.goto('/signup');
+  // Use domcontentloaded to avoid ERR_ABORTED on slow/contested loads
+  await page.goto('/signup', { waitUntil: 'domcontentloaded' });
   await waitForReact(page);
   await page.fill('input[id="email"]', user.email);
   await page.fill('input[id="username"]', user.username);
@@ -37,7 +38,7 @@ export async function createUser(page: Page, user: typeof testOwner) {
 
 export async function loginAs(page: Page, identifier: string) {
   // Always logout first to ensure we switch users
-  await page.goto('/');
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
   await waitForReact(page);
 
   const profileButton = page.locator('button:has(.rounded-full)');
@@ -49,7 +50,7 @@ export async function loginAs(page: Page, identifier: string) {
     await expect(page.locator('a[href="/login"]')).toBeVisible();
   }
 
-  await page.goto('/login');
+  await page.goto('/login', { waitUntil: 'domcontentloaded' });
   await waitForReact(page);
   await page.locator('input[id="identifier"]').fill(identifier);
   await page.click('button[type="submit"]');
@@ -57,7 +58,7 @@ export async function loginAs(page: Page, identifier: string) {
 }
 
 export async function logout(page: Page) {
-  await page.goto('/');
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
   await waitForReact(page);
 
   const profileButton = page.locator('button:has(.rounded-full)');

@@ -28,4 +28,6 @@ Post your approximate location and the books you like and the books you are will
 - Node.js
 - Express
 - TypeORM
-- AWS (deployment)
+- Cloudflare Pages (frontend)
+- Google Cloud Run (backend)
+- Neon (database)

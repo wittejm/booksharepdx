@@ -2,23 +2,24 @@
 
 ## Stack Overview
 
-**Frontend:** Vercel
+**Frontend:** Cloudflare Pages
 **Backend:** Google Cloud Run
 **Database:** Neon (Serverless Postgres)
 **File Storage:** Cloudflare R2 (future)
+**DNS:** Cloudflare
 
 ## Why This Stack
 
 - **Cost:** Free tier covers early usage, scales gradually to ~$5-15/month
 - **Serverless:** Backend and database scale to zero when idle
-- **Performance:** Global CDN (Vercel) + edge deployment (Cloud Run)
+- **Performance:** Cloudflare global CDN + edge deployment (Cloud Run)
 - **Developer Experience:** Push to deploy, minimal ops overhead
 
 ## Current Status
 
-- ✅ Frontend built and ready for Vercel deployment
-- ⏳ Backend not yet implemented
-- ⏳ Database not yet configured
+- ✅ Frontend deployed on Cloudflare Pages
+- ✅ Backend deployed on Cloud Run
+- ✅ Database configured on Neon
 
 ## Estimated Costs
 
@@ -31,8 +32,8 @@
 ## Deployment Flow
 
 1. Push to `main` branch
-2. Vercel auto-deploys frontend
-3. Cloud Run auto-deploys backend (when implemented)
+2. Cloudflare Pages auto-deploys frontend
+3. GitHub Actions deploys backend to Cloud Run
 4. Neon handles database (always available)
 
 ## Infrastructure as Code (Terraform)
@@ -43,7 +44,7 @@ All infrastructure can be managed via Terraform for reproducibility and version 
 
 | Service | Provider | Documentation |
 |---------|----------|---------------|
-| Vercel | `vercel/vercel` | https://registry.terraform.io/providers/vercel/vercel |
+| Cloudflare | `cloudflare/cloudflare` | https://registry.terraform.io/providers/cloudflare/cloudflare |
 | Neon | `kislerdm/neon` | https://registry.terraform.io/providers/kislerdm/neon |
 | Google Cloud | `hashicorp/google` | https://registry.terraform.io/providers/hashicorp/google |
 
@@ -51,14 +52,14 @@ All infrastructure can be managed via Terraform for reproducibility and version 
 
 **Phase 1 (Current):** Manual deployment via web UIs
 - Faster initial setup
-- Vercel GitHub integration is excellent
+- Cloudflare Pages GitHub integration works well
 - Good for experimentation
 
-**Phase 2 (When backend is ready):** Migrate to Terraform
+**Phase 2 (Optional):** Migrate to Terraform
 - Add `terraform/` directory with configs
 - Manage GCP resources (Cloud Run, IAM, secrets)
 - Manage Neon database and branches
-- Optional: Manage Vercel project (GitHub integration may be sufficient)
+- Manage Cloudflare Pages and DNS
 
 ### State Management
 
@@ -75,10 +76,10 @@ When implementing Terraform:
 
 | Subdomain | Purpose | Points To |
 |-----------|---------|-----------|
-| `staging.booksharepdx.com` | Staging frontend | Vercel |
+| `staging.booksharepdx.com` | Staging frontend | Cloudflare Pages |
 | `api-staging.booksharepdx.com` | Staging backend API | Cloud Run |
-| `booksharepdx.com` | Production frontend (later) | Vercel |
-| `api.booksharepdx.com` | Production backend (later) | Cloud Run |
+| `booksharepdx.com` | Production frontend | Cloudflare Pages |
+| `api.booksharepdx.com` | Production backend | Cloud Run |
 
 ---
 
@@ -212,15 +213,14 @@ The domain `booksharepdx.com` is registered at Porkbun, but nameservers are set 
 
 #### Add These Records in Cloudflare:
 
-**For Vercel (frontend):**
-| Type | Name | Content | Proxy |
-|------|------|---------|-------|
-| CNAME | staging | cname.vercel-dns.com | DNS only |
+**For Cloudflare Pages (frontend):**
+Frontend is hosted on Cloudflare Pages with custom domains configured directly in the Pages dashboard. DNS is automatically managed.
 
 **For Cloud Run (backend):**
 | Type | Name | Content | Proxy |
 |------|------|---------|-------|
 | CNAME | api-staging | ghs.googlehosted.com | DNS only |
+| CNAME | api | ghs.googlehosted.com | DNS only |
 
 **For Resend (email) - values from Resend dashboard:**
 | Type | Name | Content | Proxy |
@@ -234,18 +234,18 @@ The domain `booksharepdx.com` is registered at Porkbun, but nameservers are set 
 
 ---
 
-### 5. Vercel Domain Setup
+### 5. Cloudflare Pages Setup
 
-**URL:** https://vercel.com → Your booksharepdx project → Settings → Domains
+**URL:** https://dash.cloudflare.com → Pages → booksharepdx
 
 #### Steps:
-1. Click "Add Domain"
-2. Enter: `staging.booksharepdx.com`
-3. Vercel will check for the CNAME record
-4. Once verified, it will auto-provision SSL
+1. Create new Pages project, connect to GitHub repo
+2. Build settings: Framework preset "None", build command `npm run build`, output directory `frontend/dist`
+3. Add custom domains: `staging.booksharepdx.com` and `booksharepdx.com`
+4. SSL is automatically provisioned
 
 #### What to report back:
-- [ ] Confirm domain is verified and working
+- [X] Confirm domains are verified and working
 
 ---
 
@@ -270,7 +270,7 @@ NODE_ENV=staging
 FRONTEND_URL=https://staging.booksharepdx.com
 ```
 
-#### For Frontend (Vercel):
+#### For Frontend (Cloudflare Pages):
 ```env
 VITE_API_URL=https://api-staging.booksharepdx.com
 ```
@@ -314,15 +314,17 @@ Copy this checklist and fill it out:
 - [ ] JSON key downloaded
 
 ## Cloudflare DNS
-- [ ] Nameservers set to Cloudflare in Porkbun
-- [ ] CNAME: staging → cname.vercel-dns.com
-- [ ] CNAME: api-staging → ghs.googlehosted.com
-- [ ] TXT: resend._domainkey → (from Resend)
-- [ ] TXT: @ → SPF record
+- [X] Nameservers set to Cloudflare in Porkbun
+- [X] CNAME: api-staging → ghs.googlehosted.com
+- [X] CNAME: api → ghs.googlehosted.com
+- [X] TXT: resend._domainkey → (from Resend)
+- [X] TXT: @ → SPF record
 
-## Vercel
-- [ ] staging.booksharepdx.com added
-- [ ] Domain verified and SSL active
+## Cloudflare Pages
+- [X] GitHub repo connected
+- [X] staging.booksharepdx.com custom domain added
+- [X] booksharepdx.com custom domain added
+- [X] SSL active
 
 ## Secrets Collected
 - [ ] DATABASE_URL (Neon connection string)
@@ -332,8 +334,8 @@ Copy this checklist and fill it out:
 ```
 
 Notes:
-For Vercel I used Github for Oauth
-For Neon I used google.
-For Resend I used google.
+- For Neon I used Google OAuth
+- For Resend I used Google OAuth
+- Cloudflare Pages connected to GitHub
 
-Warm pings: Uptimerobot.com, Google oauth.
+Warm pings: Uptimerobot.com,  Google oauth.

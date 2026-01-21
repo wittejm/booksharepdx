@@ -6,6 +6,7 @@ import {
   logout,
   checkBackendHealth,
   deleteAllPostsForCurrentUser,
+  LOAD_TIMEOUT,
 } from './helpers';
 
 // NOTE TO CLAUDE: KEEP LOW TIMEOUTS BECAUSE THIS APP IS SUPPOSED TO BE FAST
@@ -416,7 +417,7 @@ test.describe('Gift Flow: Multiple Requesters', () => {
 
     // Click on the thread to see the status message
     await page.getByRole('button', { name: new RegExp(testBook.title) }).click();
-    await expect(page.getByText('This book was given to someone else')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('This book was given to someone else')).toBeVisible({ timeout: LOAD_TIMEOUT });
   });
 });
 

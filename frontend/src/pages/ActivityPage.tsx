@@ -8,6 +8,7 @@ import { useConfirm } from '../components/useConfirm';
 import ToastContainer from '../components/ToastContainer';
 import { formatTimestamp } from '../utils/time';
 import { ERROR_MESSAGES } from '../utils/errorMessages';
+import ActivityThreadList from '../components/ActivityThreadList';
 
 export default function ActivityPage() {
   const { threadId } = useParams<{ threadId?: string }>();
@@ -449,145 +450,11 @@ export default function ActivityPage() {
         {/* Desktop: Split View, Mobile: Conditional View */}
         <div className="flex-1 flex gap-6 overflow-hidden">
           {/* Thread List */}
-          <div className={`${
-            showConversation ? 'hidden md:block' : 'block'
-          } w-full md:w-80 flex-shrink-0 flex flex-col`}>
-            <div className="card p-0 flex-1 flex flex-col overflow-hidden">
-              {threads.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  <p>No activity yet</p>
-                  <p className="text-sm mt-2">Start a conversation by responding to a post</p>
-                </div>
-              ) : (
-                <div className="flex-1 overflow-y-auto">
-                  {/* Active threads */}
-                  {threads.filter(t => !t.requesterCompleted).map(thread => {
-                    const post = threadPosts[thread.id];
-                    const otherUser = threadUsers[thread.id];
-                    const unreadCount = thread.unreadCount[currentUser.id] || 0;
-
-                    if (!post || !otherUser) return null;
-
-                    return (
-                      <button
-                        key={thread.id}
-                        onClick={() => selectThread(thread)}
-                        className={`w-full p-4 flex gap-3 hover:bg-gray-50 transition-colors border-b border-gray-200 text-left ${
-                          selectedThread?.id === thread.id ? 'bg-primary-50' : ''
-                        }`}
-                      >
-                        {/* Book thumbnail */}
-                        <div className="flex-shrink-0">
-                          {post.book.coverImage ? (
-                            <img
-                              src={post.book.coverImage}
-                              alt={post.book.title}
-                              className="w-12 h-16 object-cover rounded shadow-sm"
-                            />
-                          ) : (
-                            <div className="w-12 h-16 bg-gray-200 rounded flex items-center justify-center">
-                              <span className="text-gray-400 text-xs">No cover</span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Thread info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <h3 className="font-semibold text-gray-900 truncate">
-                                {post.book.title}
-                              </h3>
-                              <span className={`flex-shrink-0 text-xs px-1.5 py-0.5 rounded font-medium ${
-                                post.type === 'giveaway'
-                                  ? 'bg-green-100 text-green-700'
-                                  : post.type === 'exchange'
-                                    ? 'bg-blue-100 text-blue-700'
-                                    : 'bg-purple-100 text-purple-700'
-                              }`}>
-                                {post.type === 'giveaway' ? 'Gift' : post.type === 'exchange' ? 'Trade' : 'Loan'}
-                              </span>
-                            </div>
-                            {unreadCount > 0 && (
-                              <span className="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-primary-600 rounded-full">
-                                {unreadCount}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600 truncate mb-1">
-                            {otherUser.username}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            {formatTimestamp(thread.lastMessageAt)}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
-
-                  {/* Completed section */}
-                  {threads.some(t => t.requesterCompleted) && (
-                    <>
-                      <h2 className="px-4 py-3 text-sm font-semibold text-gray-500 bg-gray-100 border-b border-gray-200">
-                        Completed
-                      </h2>
-                      {threads.filter(t => t.requesterCompleted).map(thread => {
-                        const post = threadPosts[thread.id];
-                        const otherUser = threadUsers[thread.id];
-
-                        if (!post || !otherUser) return null;
-
-                        return (
-                          <button
-                            key={thread.id}
-                            onClick={() => selectThread(thread)}
-                            className={`w-full p-4 flex gap-3 hover:bg-gray-50 transition-colors border-b border-gray-200 text-left opacity-75 ${
-                              selectedThread?.id === thread.id ? 'bg-primary-50' : ''
-                            }`}
-                          >
-                            {/* Book thumbnail */}
-                            <div className="flex-shrink-0">
-                              {post.book.coverImage ? (
-                                <img
-                                  src={post.book.coverImage}
-                                  alt={post.book.title}
-                                  className="w-12 h-16 object-cover rounded shadow-sm"
-                                />
-                              ) : (
-                                <div className="w-12 h-16 bg-gray-200 rounded flex items-center justify-center">
-                                  <span className="text-gray-400 text-xs">No cover</span>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Thread info */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2 mb-1">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <h3 className="font-semibold text-gray-900 truncate">
-                                    {post.book.title}
-                                  </h3>
-                                  <span className="flex-shrink-0 text-xs px-1.5 py-0.5 rounded font-medium bg-gray-100 text-gray-600">
-                                    ✓ {post.type === 'giveaway' ? 'Received' : post.type === 'exchange' ? 'Traded' : 'Returned'}
-                                  </span>
-                                </div>
-                              </div>
-                              <p className="text-sm text-gray-600 truncate mb-1">
-                                {otherUser.username}
-                              </p>
-                              <p className="text-xs text-gray-400">
-                                {formatTimestamp(thread.lastMessageAt)}
-                              </p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+          <ActivityThreadList
+            hide={!showConversation}
+            threads={threads}
+            selectedThread={selectedThread}
+            />
 
           {/* Conversation View */}
           <div className={`${

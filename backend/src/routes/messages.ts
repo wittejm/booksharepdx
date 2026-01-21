@@ -43,6 +43,7 @@ router.get('/threads', requireAuth, async (req, res, next) => {
       .createQueryBuilder('thread')
       .leftJoinAndSelect('thread.post', 'post')
       .where('thread.participants @> :userId::jsonb', { userId: JSON.stringify([req.user!.id]) })
+      .andWhere('thread.status != :cancelledStatus', { cancelledStatus: 'cancelled_by_requester' })
       .orderBy('thread.lastMessageAt', 'DESC')
       .getMany();
 

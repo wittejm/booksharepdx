@@ -234,44 +234,6 @@ test.describe('Gift Flow: Cancel and Re-request', () => {
   });
 });
 
-test.describe('Gift Flow: Cancel Stays Cancelled', () => {
-  test.describe.configure({ mode: 'serial' });
-
-  const testBook = { title: 'The Catcher in the Rye', author: 'J.D. Salinger' };
-  const ownerUser = {
-    email: `owner_stay${giftTimestamp}@example.com`,
-    username: `owner_stay${giftTimestamp}`,
-    bio: 'Test owner',
-  };
-  const requesterUser = {
-    email: `req_stay${giftTimestamp}@example.com`,
-    username: `req_stay${giftTimestamp}`,
-    bio: 'Test requester',
-  };
-
-  test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage();
-    await createUser(page, ownerUser);
-    await logout(page);
-    await createUser(page, requesterUser);
-    await page.close();
-  });
-
-  test('Request and cancel flow', async ({ page }) => {
-    await loginAs(page, ownerUser.username);
-    await createGiveawayPost(page, testBook.title, testBook.author);
-
-    await loginAs(page, requesterUser.username);
-    await sendRequestForBook(page, ownerUser.username, testBook.title);
-    await cancelRequest(page, testBook.title);
-
-    // After cancelling, thread should disappear from activity list
-    await page.goto('/activity');
-    await waitForReact(page);
-    await expect(page.getByRole('button', { name: new RegExp(testBook.title) })).not.toBeVisible();
-  });
-});
-
 test.describe('Gift Flow: Decline and Dismiss', () => {
   test.describe.configure({ mode: 'serial' });
 

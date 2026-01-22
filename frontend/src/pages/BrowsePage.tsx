@@ -1,145 +1,102 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import type { Post, User } from '@booksharepdx/shared';
-import { postService, neighborhoodService } from '../services';
-import { useUser } from '../contexts/UserContext';
-import PostCard from '../components/PostCard';
-import MultiSelectTagInput from '../components/MultiSelectTagInput';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { calculateDistance, getLocationCoords } from '../utils/distance';
-import { GENRES, mapToCanonicalGenres } from '../utils/genres';
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
+import type { Post, User } from "@booksharepdx/shared";
+import { postService, neighborhoodService } from "../services";
+import { useUser } from "../contexts/UserContext";
+import PostCard from "../components/PostCard";
+import MultiSelectTagInput from "../components/MultiSelectTagInput";
+import LoadingSpinner from "../components/LoadingSpinner";
+import { calculateDistance, getLocationCoords } from "../utils/distance";
+import { useAsync } from "../hooks/useAsync";
+  import { filterPosts, sortByDistance } from "../utils/postFilters";                                                                                   
+import { GENRES } from "../utils/genres";
 
 const POSTS_PER_PAGE = 10;
 
 export default function BrowsePage() {
   const { currentUser } = useUser();
   const [searchParams] = useSearchParams();
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [displayedPosts, setDisplayedPosts] = useState<Post[]>([]);
-  const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
-  const [users, setUsers] = useState<Map<string, User>>(new Map());
-  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [infiniteScrollEnabled, setInfiniteScrollEnabled] = useState(false);
 
-  // Filters
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [selectedType, setSelectedType] = useState<'all' | 'giveaway' | 'exchange'>('all');
-  const [maxDistance, setMaxDistance] = useState(10);
   const [showFilters, setShowFilters] = useState(false);
 
   // Handle URL parameters
-  const targetPostId = searchParams.get('postId');
-  const openRequest = searchParams.get('openRequest') === 'true';
+  const targetPostId = searchParams.get("postId");
+  const openRequest = searchParams.get("openRequest") === "true";
 
   // Infinite scroll
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  // Load initial data
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const activePosts = await postService.getActive();
+  const { data, loading } = useAsync(
+    async () => {
+      const activePosts = await postService.getActive();
+      const userMap = new Map<string, User>();
+      activePosts.forEach((p) => {
+        if (p.user) userMap.set(p.userId, p.user);
+      });
+      return { posts: activePosts, users: userMap };
+    },
+    [],
+    { posts: [], users: new Map<string, User>() },
+  );
 
-        // Build user map from embedded user data
-        const userMap = new Map<string, User>();
-        activePosts.forEach(p => {
-          if (p.user) userMap.set(p.userId, p.user);
-        });
-
-        setPosts(activePosts);
-        setUsers(userMap);
-      } catch (error) {
-        console.error('Error loading posts:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  // Use canonical genre list for filtering
-  const genres = GENRES;
-
+  const { posts, users } = data!;
   // Calculate distance for a post
-  const getPostDistance = useCallback((post: Post): number | undefined => {
-    if (!currentUser) return undefined;
+  const getPostDistance = useCallback(
+    (post: Post): number | undefined => {
+      if (!currentUser) return undefined;
 
-    const postUser = users.get(post.userId);
-    if (!postUser) return undefined;
+      const postUser = users.get(post.userId);
+      if (!postUser) return undefined;
 
-    const neighborhoods = neighborhoodService.getAll();
-    const currentUserCoords = getLocationCoords(currentUser.location, neighborhoods);
-    const postUserCoords = getLocationCoords(postUser.location, neighborhoods);
-
-    if (!currentUserCoords || !postUserCoords) return undefined;
-
-    return calculateDistance(currentUserCoords, postUserCoords);
-  }, [currentUser, users]);
-
-  // Apply filters
-  useEffect(() => {
-    let filtered = [...posts];
-
-    // Exclude current user's own posts
-    if (currentUser) {
-      filtered = filtered.filter(p => p.userId !== currentUser.id);
-    }
-
-    // Filter by search term
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        p =>
-          p.book.title.toLowerCase().includes(searchLower) ||
-          p.book.author.toLowerCase().includes(searchLower) ||
-          p.book.genre?.toLowerCase().includes(searchLower)
+      const neighborhoods = neighborhoodService.getAll();
+      const currentUserCoords = getLocationCoords(
+        currentUser.location,
+        neighborhoods,
       );
-    }
+      const postUserCoords = getLocationCoords(
+        postUser.location,
+        neighborhoods,
+      );
 
-    // Filter by genres (if any selected)
-    if (selectedGenres.length > 0) {
-      filtered = filtered.filter(p => {
-        const postGenres = mapToCanonicalGenres(p.book.genre || '');
-        return postGenres.some(g => selectedGenres.includes(g));
-      });
-    }
+      if (!currentUserCoords || !postUserCoords) return undefined;
 
-    // Filter by type
-    if (selectedType !== 'all') {
-      filtered = filtered.filter(p => p.type === selectedType);
-    }
+      return calculateDistance(currentUserCoords, postUserCoords);
+    },
+    [currentUser, users],
+  );
 
-    // Filter by distance (if user is logged in)
-    if (currentUser) {
-      filtered = filtered.filter(p => {
-        const distance = getPostDistance(p);
-        return distance === undefined || distance <= maxDistance;
-      });
-    }
+  const [filters, setFilters] = useState({                                                                                                              
+    searchTerm: "",                                                                                                                                     
+    selectedGenres: [] as string[],                                                                                                                     
+    selectedType: "all" as "all" | "giveaway" | "exchange",                                                                                             
+    maxDistance: 10,                                                                                                                                    
+  });                                                                                                                                                   
+                                                                                                                                                        
+  const updateFilter = <K extends keyof typeof filters>(key: K, value: typeof filters[K]) => {                                                          
+    setFilters((prev) => ({ ...prev, [key]: value }));                                                                                                  
+    setPage(1);                                                                                                                                         
+    setInfiniteScrollEnabled(false);                                                                                                                    
+  };        
 
-    // Sort by distance (closest first)
-    if (currentUser) {
-      filtered.sort((a, b) => {
-        const distA = getPostDistance(a) ?? Infinity;
-        const distB = getPostDistance(b) ?? Infinity;
-        return distA - distB;
-      });
-    }
+  const filteredPosts = useMemo(() => {                                                                                                                 
+    const filtered = filterPosts(posts, {                                                                                                               
+      excludeUserId: currentUser?.id,                                                                                                                   
+      search: filters.searchTerm,                                                                                                                       
+      genres: filters.selectedGenres,                                                                                                                   
+      type: filters.selectedType,                                                                                                                       
+      maxDistance: filters.maxDistance,                                                                                                                 
+      getDistance: getPostDistance,                                                                                                                     
+    });                                                                                                                                                 
+    return currentUser ? sortByDistance(filtered, getPostDistance) : filtered;                                                                          
+  }, [posts, currentUser, filters, getPostDistance]);
 
-    setFilteredPosts(filtered);
-    setPage(1); // Reset to first page when filters change
-    setInfiniteScrollEnabled(false); // Reset infinite scroll when filters change
-  }, [posts, searchTerm, selectedGenres, selectedType, maxDistance, currentUser, getPostDistance, users]);
-
-  // Update displayed posts based on page
-  useEffect(() => {
-    const endIndex = page * POSTS_PER_PAGE;
-    setDisplayedPosts(filteredPosts.slice(0, endIndex));
+  // Paginated view of filtered posts
+  const displayedPosts = useMemo(() => {
+    return filteredPosts.slice(0, page * POSTS_PER_PAGE);
   }, [filteredPosts, page]);
 
   // Infinite scroll (only when enabled)
@@ -153,15 +110,19 @@ export default function BrowsePage() {
       observerRef.current = new IntersectionObserver(
         (entries) => {
           const target = entries[0];
-          if (target.isIntersecting && !loadingMore && displayedPosts.length < filteredPosts.length) {
+          if (
+            target.isIntersecting &&
+            !loadingMore &&
+            displayedPosts.length < filteredPosts.length
+          ) {
             setLoadingMore(true);
             setTimeout(() => {
-              setPage(prev => prev + 1);
+              setPage((prev) => prev + 1);
               setLoadingMore(false);
             }, 500);
           }
         },
-        { threshold: 0.8 }
+        { threshold: 0.8 },
       );
 
       if (loadMoreRef.current) {
@@ -174,19 +135,28 @@ export default function BrowsePage() {
         observerRef.current.disconnect();
       }
     };
-  }, [displayedPosts.length, filteredPosts.length, loadingMore, infiniteScrollEnabled]);
+  }, [
+    displayedPosts.length,
+    filteredPosts.length,
+    loadingMore,
+    infiniteScrollEnabled,
+  ]);
 
   const clearFilters = () => {
-    setSearchTerm('');
-    setSelectedGenres([]);
-    setSelectedType('all');
-    setMaxDistance(10);
+    setFilters({
+      searchTerm: "",
+      selectedGenres: [],
+      selectedType: "all",
+      maxDistance: 10,
+    });
+    setPage(1);
+    setInfiniteScrollEnabled(false);
   };
 
   const handleLoadMore = () => {
     setLoadingMore(true);
     setTimeout(() => {
-      setPage(prev => prev + 1);
+      setPage((prev) => prev + 1);
       setInfiniteScrollEnabled(true);
       setLoadingMore(false);
     }, 300);
@@ -212,7 +182,8 @@ export default function BrowsePage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Browse Books</h1>
               <p className="mt-1 text-sm text-gray-600">
-                {filteredPosts.length} {filteredPosts.length === 1 ? 'book' : 'books'} available
+                {filteredPosts.length}{" "}
+                {filteredPosts.length === 1 ? "book" : "books"} available
               </p>
             </div>
 
@@ -221,8 +192,18 @@ export default function BrowsePage() {
               onClick={() => setShowFilters(!showFilters)}
               className="lg:hidden btn-secondary"
             >
-              <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              <svg
+                className="w-5 h-5 mr-2 inline"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                />
               </svg>
               Filters
             </button>
@@ -233,11 +214,16 @@ export default function BrowsePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Filters Sidebar */}
-          <aside className={`lg:w-64 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
+          <aside
+            className={`lg:w-64 flex-shrink-0 ${showFilters ? "block" : "hidden lg:block"}`}
+          >
             <div className="card p-4 sticky top-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold text-gray-900">Filters</h2>
-                {(searchTerm || selectedGenres.length > 0 || selectedType !== 'all' || maxDistance !== 10) && (
+                {(filters.searchTerm ||
+                  filters.selectedGenres.length > 0 ||
+                  filters.selectedType !== "all" ||
+                  filters.maxDistance !== 10) && (
                   <button
                     onClick={clearFilters}
                     className="text-sm text-primary-600 hover:text-primary-700 font-medium"
@@ -256,8 +242,8 @@ export default function BrowsePage() {
                   <input
                     type="text"
                     placeholder="Title or author"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    value={filters.searchTerm}
+                    onChange={(e) => updateFilter("searchTerm", e.target.value)}
                     className="input text-sm"
                   />
                 </div>
@@ -268,9 +254,9 @@ export default function BrowsePage() {
                     Genre
                   </label>
                   <MultiSelectTagInput
-                    options={genres}
-                    selectedTags={selectedGenres}
-                    onChange={setSelectedGenres}
+                    options={GENRES}
+                    selectedTags={filters.selectedGenres}
+                    onChange={(genres) => updateFilter("selectedGenres", genres)}
                     placeholder="All Genres"
                   />
                 </div>
@@ -285,8 +271,8 @@ export default function BrowsePage() {
                       <input
                         type="radio"
                         name="type"
-                        checked={selectedType === 'all'}
-                        onChange={() => setSelectedType('all')}
+                        checked={filters.selectedType === "all"}
+                        onChange={() => updateFilter("selectedType", "all")}
                         className="mr-2"
                       />
                       <span className="text-sm">All</span>
@@ -295,8 +281,8 @@ export default function BrowsePage() {
                       <input
                         type="radio"
                         name="type"
-                        checked={selectedType === 'giveaway'}
-                        onChange={() => setSelectedType('giveaway')}
+                        checked={filters.selectedType === "giveaway"}
+                        onChange={() => updateFilter("selectedType", "giveaway")}
                         className="mr-2"
                       />
                       <span className="text-sm inline-flex items-center">
@@ -308,8 +294,8 @@ export default function BrowsePage() {
                       <input
                         type="radio"
                         name="type"
-                        checked={selectedType === 'exchange'}
-                        onChange={() => setSelectedType('exchange')}
+                        checked={filters.selectedType === "exchange"}
+                        onChange={() => updateFilter("selectedType", "exchange")}
                         className="mr-2"
                       />
                       <span className="text-sm inline-flex items-center">
@@ -324,15 +310,15 @@ export default function BrowsePage() {
                 {currentUser && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Distance: {maxDistance} mi
+                      Distance: {filters.maxDistance} mi
                     </label>
                     <input
                       type="range"
                       min="1"
                       max="10"
                       step="1"
-                      value={maxDistance}
-                      onChange={(e) => setMaxDistance(Number(e.target.value))}
+                      value={filters.maxDistance}
+                      onChange={(e) => updateFilter("maxDistance", Number(e.target.value))}
                       className="w-full"
                     />
                     <div className="flex justify-between text-xs text-gray-500 mt-1">
@@ -362,13 +348,18 @@ export default function BrowsePage() {
                     d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
                   />
                 </svg>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No books found</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  No books found
+                </h3>
                 <p className="text-gray-600 mb-4">
                   {currentUser
                     ? "No books found nearby matching your filters."
                     : "Try adjusting your filters or clearing them."}
                 </p>
-                {(searchTerm || selectedGenres.length > 0 || selectedType !== 'all' || maxDistance !== 10) && (
+                {(filters.searchTerm ||
+                  filters.selectedGenres.length > 0 ||
+                  filters.selectedType !== "all" ||
+                  filters.maxDistance !== 10) && (
                   <button onClick={clearFilters} className="btn-primary">
                     Clear Filters
                   </button>
@@ -376,7 +367,7 @@ export default function BrowsePage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {displayedPosts.map(post => (
+                {displayedPosts.map((post) => (
                   <PostCard
                     key={post.id}
                     post={post}
@@ -398,7 +389,10 @@ export default function BrowsePage() {
                         >
                           {loadingMore ? (
                             <span className="flex items-center gap-2">
-                              <LoadingSpinner size="sm" className="text-white" />
+                              <LoadingSpinner
+                                size="sm"
+                                className="text-white"
+                              />
                               Loading...
                             </span>
                           ) : (
@@ -410,9 +404,14 @@ export default function BrowsePage() {
                       // Show automatic loading trigger after button is clicked
                       <div ref={loadMoreRef} className="py-8 text-center">
                         {loadingMore ? (
-                          <LoadingSpinner size="md" className="mx-auto text-primary-600" />
+                          <LoadingSpinner
+                            size="md"
+                            className="mx-auto text-primary-600"
+                          />
                         ) : (
-                          <p className="text-gray-500 text-sm">Scroll for more...</p>
+                          <p className="text-gray-500 text-sm">
+                            Scroll for more...
+                          </p>
                         )}
                       </div>
                     )}
@@ -420,11 +419,14 @@ export default function BrowsePage() {
                 )}
 
                 {/* End of Results */}
-                {displayedPosts.length === filteredPosts.length && displayedPosts.length > POSTS_PER_PAGE && (
-                  <div className="py-8 text-center">
-                    <p className="text-gray-500 text-sm">You've reached the end!</p>
-                  </div>
-                )}
+                {displayedPosts.length === filteredPosts.length &&
+                  displayedPosts.length > POSTS_PER_PAGE && (
+                    <div className="py-8 text-center">
+                      <p className="text-gray-500 text-sm">
+                        You've reached the end!
+                      </p>
+                    </div>
+                  )}
               </div>
             )}
           </main>

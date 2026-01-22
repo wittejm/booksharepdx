@@ -47,6 +47,7 @@ export function useConfirm(): UseConfirmReturn {
     });
   }, []);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleClose = useCallback(() => {
     if (dialogState.resolver) {
       dialogState.resolver(false);
@@ -58,6 +59,7 @@ export function useConfirm(): UseConfirmReturn {
     });
   }, [dialogState.resolver]);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleConfirm = useCallback(() => {
     if (dialogState.resolver) {
       dialogState.resolver(true);

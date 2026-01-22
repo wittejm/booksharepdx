@@ -18,5 +18,23 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres-test:
+    image: postgis/postgis:15-3.3
+    container_name: booksharepdx-test-db
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: booksharepdx_test
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev -d booksharepdx_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
+  postgres_test_data:

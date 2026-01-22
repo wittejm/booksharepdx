@@ -253,25 +253,23 @@ router.get('/verify-magic-link', async (req, res, next) => {
   }
 });
 
-// GET /api/auth/me - Returns user data from JWT without DB hit
-router.get('/me', (req, res) => {
+// GET /api/auth/me - Returns fresh user data from database
+router.get('/me', async (req, res) => {
   const accessToken = req.cookies?.accessToken;
   const refreshToken = req.cookies?.refreshToken;
 
   if (!accessToken && !refreshToken) {
-    console.log('[AUTH /me] 401: No tokens present. Cookie header:', req.headers.cookie ? 'exists' : 'missing');
     return res.status(401).json({ error: { message: 'Not authenticated', code: 'UNAUTHORIZED' } });
   }
 
   let payload = null;
-  let accessTokenError: string | null = null;
 
   // Try access token first
   if (accessToken) {
     try {
       payload = verifyAccessToken(accessToken);
-    } catch (err) {
-      accessTokenError = err instanceof Error ? err.message : 'unknown';
+    } catch {
+      // Token invalid, try refresh
     }
   }
 
@@ -279,7 +277,6 @@ router.get('/me', (req, res) => {
   if (!payload && refreshToken) {
     try {
       const refreshPayload = verifyRefreshToken(refreshToken);
-      // Extract only the fields we need (exclude iat, exp from refresh token)
       payload = {
         userId: refreshPayload.userId,
         email: refreshPayload.email,
@@ -289,35 +286,36 @@ router.get('/me', (req, res) => {
       // Issue new access token
       const newAccessToken = signAccessToken(payload);
       res.cookie('accessToken', newAccessToken, accessTokenCookieOptions);
-      console.log('[AUTH /me] Refreshed access token for user:', payload.userId);
-    } catch (err) {
-      const refreshError = err instanceof Error ? err.message : 'unknown';
-      console.log('[AUTH /me] 401: Both tokens failed. Access:', accessTokenError, 'Refresh:', refreshError);
+    } catch {
+      res.clearCookie('accessToken', { path: '/' });
+      res.clearCookie('refreshToken', { path: '/' });
       return res.status(401).json({ error: { message: 'Session expired', code: 'SESSION_EXPIRED' } });
     }
   }
 
   if (!payload) {
-    console.log('[AUTH /me] 401: Access token failed, no refresh token. Error:', accessTokenError);
+    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('refreshToken', { path: '/' });
     return res.status(401).json({ error: { message: 'Not authenticated', code: 'UNAUTHORIZED' } });
   }
 
-  // Return minimal user object from JWT payload (no DB hit)
-  // For old tokens without username, return what we have
-  const user = {
-    id: payload.userId,
-    email: payload.email,
-    username: payload.username || payload.email.split('@')[0], // fallback for old tokens
-    role: payload.role,
-    // Provide sensible defaults for required fields
-    bio: '',
-    verified: true,
-    createdAt: 0,
-    location: { type: 'neighborhood' as const },
-    stats: { booksGiven: 0, booksReceived: 0, booksLoaned: 0, booksBorrowed: 0, booksTraded: 0, bookshares: 0 },
-  };
+  // Verify user exists in database
+  const userRepo = AppDataSource.getRepository(User);
+  const user = await userRepo.findOne({ where: { id: payload.userId } });
 
-  res.json({ data: user });
+  if (!user) {
+    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('refreshToken', { path: '/' });
+    return res.status(401).json({ error: { message: 'Account not found', code: 'USER_NOT_FOUND' } });
+  }
+
+  if (user.banned) {
+    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('refreshToken', { path: '/' });
+    return res.status(403).json({ error: { message: 'Account banned', code: 'ACCOUNT_BANNED' } });
+  }
+
+  res.json({ data: user.toJSON() });
 });
 
 // PUT /api/auth/me

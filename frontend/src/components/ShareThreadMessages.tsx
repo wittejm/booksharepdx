@@ -6,13 +6,13 @@ import { useToast } from './useToast';
 import { useConfirm } from './useConfirm';
 import { formatTimestamp } from '../utils/time';
 
-interface ThreadMessagesProps {
+interface ShareThreadMessagesProps {
   threadId: string;
   otherUsername: string;
   highlightBanner?: string;  // Optional banner to show at top (e.g., "You proposed an exchange")
 }
 
-export default function ThreadMessages({ threadId, otherUsername, highlightBanner }: ThreadMessagesProps) {
+export default function ShareThreadMessages({ threadId, otherUsername, highlightBanner }: ShareThreadMessagesProps) {
   const { currentUser } = useUser();
   const { showToast } = useToast();
   const { confirm, ConfirmDialogComponent } = useConfirm();
@@ -103,7 +103,7 @@ export default function ThreadMessages({ threadId, otherUsername, highlightBanne
   const handleAcceptProposal = async (messageId: string) => {
     setResponding(true);
     try {
-      const result = await messageService.respondToProposal(threadId, messageId, 'accept');
+      await messageService.respondToProposal(threadId, messageId, 'accept');
       // Update the proposal message status in state
       setMessages(prev => prev.map(m =>
         m.id === messageId ? { ...m, proposalStatus: 'accepted' } : m

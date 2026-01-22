@@ -6,7 +6,7 @@
 import { ERROR_MESSAGES, getErrorMessage, getErrorMessageFromStatus } from '../utils/errorMessages';
 import { showGlobalToast } from '../utils/globalToast';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 /**
  * Custom API error class with additional context
@@ -108,10 +108,18 @@ class ApiClient {
 
       // Auto-redirect to login on session expiration (except for auth endpoints)
       if (error.isAuthError() && !endpoint.startsWith('/auth/')) {
-        // Redirect to login page
-        window.location.href = '/login?expired=true';
-        // Return a never-resolving promise to prevent further processing
-        return new Promise(() => {});
+        const isAuthPage = window.location.pathname.startsWith('/login') ||
+                          window.location.pathname.startsWith('/signup') ||
+                          window.location.pathname.startsWith('/verify-magic-link');
+        // Don't redirect if already on auth pages (prevents reload loop)
+        if (!isAuthPage) {
+          window.location.href = '/login?expired=true';
+          // Return a never-resolving promise to prevent further processing
+          return new Promise(() => {});
+        }
+        // On auth pages, log for debugging and throw error
+        console.warn('[apiClient] Auth error on auth page:', endpoint, error.code);
+        throw error;
       }
 
       // Show toast for server errors (5xx) - these are bugs that need fixing

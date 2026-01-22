@@ -212,12 +212,15 @@ test.describe('Gift Flow: Cancel and Re-request', () => {
     await sendRequestForBook(page, ownerUser.username, testBook.title);
     await cancelRequest(page, testBook.title);
 
-    await openThread(page, testBook.title);
-    await expect(page.getByText('You cancelled this request')).toBeVisible();
+    // After cancelling, thread should disappear from activity list
+    await page.goto('/activity');
+    await waitForReact(page);
+    await expect(page.getByRole('button', { name: new RegExp(testBook.title) })).not.toBeVisible();
   });
 
   test('Requester re-requests and thread reopens', async ({ page }) => {
     await loginAs(page, requesterUser.username);
+    // Re-request via the owner's profile (since cancelled thread is gone from activity)
     await sendRequestForBook(page, ownerUser.username, testBook.title);
 
     await openThread(page, testBook.title);
@@ -262,8 +265,10 @@ test.describe('Gift Flow: Cancel Stays Cancelled', () => {
     await sendRequestForBook(page, ownerUser.username, testBook.title);
     await cancelRequest(page, testBook.title);
 
-    await openThread(page, testBook.title);
-    await expect(page.getByText('You cancelled this request')).toBeVisible();
+    // After cancelling, thread should disappear from activity list
+    await page.goto('/activity');
+    await waitForReact(page);
+    await expect(page.getByRole('button', { name: new RegExp(testBook.title) })).not.toBeVisible();
   });
 });
 

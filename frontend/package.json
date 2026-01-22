@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:test": "VITE_API_TARGET=http://localhost:3002 vite --port 5174",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "deploy": "npm run build && gh-pages -d dist",
-    "test:e2e": "playwright test",
+    "test:e2e": "TEST_URL=http://localhost:5174 API_URL=http://localhost:3002 playwright test",
     "test": "vitest",
     "test:coverage": "vitest run --coverage"
   },

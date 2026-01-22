@@ -116,6 +116,26 @@ test.describe('Core Tests', () => {
     await page.setViewportSize({ width: 1280, height: 720 });
   });
 
+  test('Activity Page Mobile - Thread List Visible When No Conversation Selected', async ({ page }) => {
+    await loginAs(page, testOwner.username);
+
+    // Set mobile viewport
+    await page.setViewportSize({ width: 375, height: 667 });
+
+    await page.goto('/activity');
+    await waitForReact(page);
+
+    // The thread list container should be visible on mobile when no conversation is selected
+    // It contains either "No activity yet" or the list of threads
+    const threadListContainer = page.locator('text="No activity yet"').or(
+      page.locator('text="Start a conversation"')
+    );
+    await expect(threadListContainer.first()).toBeVisible();
+
+    // Reset viewport
+    await page.setViewportSize({ width: 1280, height: 720 });
+  });
+
   test('Navigation', async ({ page }) => {
     await page.goto('/');
     await waitForReact(page);

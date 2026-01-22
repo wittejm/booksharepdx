@@ -48,7 +48,7 @@ export default function ActivityThreadList({
 
                 return (
                   <ActivityThreadCard
-                    selected={thread.id === selectedThread!.id}
+                    selected={thread.id === selectedThread?.id}
                     thread={thread}
                     post={post}
                     otherUser={otherUser}

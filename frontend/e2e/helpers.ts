@@ -24,7 +24,8 @@ export async function waitForReact(page: Page) {
 }
 
 export async function createUser(page: Page, user: typeof testOwner) {
-  // Use domcontentloaded to avoid ERR_ABORTED on slow/contested loads
+  // Ensure page is settled before navigation
+  await page.waitForLoadState('load');
   await page.goto('/signup', { waitUntil: 'domcontentloaded' });
   await waitForReact(page);
   await page.fill('input[id="email"]', user.email);
@@ -37,6 +38,8 @@ export async function createUser(page: Page, user: typeof testOwner) {
 }
 
 export async function loginAs(page: Page, identifier: string) {
+  // Ensure page is settled before navigation
+  await page.waitForLoadState('load');
   // Always logout first to ensure we switch users
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await waitForReact(page);
@@ -69,6 +72,8 @@ export async function logout(page: Page) {
     await page.locator('button:has-text("Logout")').click();
     await expect(page.locator('a[href="/login"]')).toBeVisible();
   }
+  // Ensure page is settled before next navigation
+  await page.waitForLoadState('load');
 }
 
 export async function checkBackendHealth(page: Page) {

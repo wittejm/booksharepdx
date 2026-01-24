@@ -79,8 +79,9 @@ export const userService = {
     }
   },
 
-  getByUsername: async (username: string): Promise<User | null> => {
+  getByUsername: async (username: string | undefined): Promise<User | null> => {
     try {
+      if (!username) return null;
       const response = await apiClient.get<{ data: User }>(`/users/username/${username}`);
       return response.data;
     } catch (error) {

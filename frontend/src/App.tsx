@@ -1,37 +1,37 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useState, useEffect, lazy, Suspense } from 'react';
-import type { User } from '@booksharepdx/shared';
-import { authService } from './services';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useState, useEffect, lazy, Suspense } from "react";
+import type { User } from "@booksharepdx/shared";
+import { authService } from "./services";
 
 // Layout components
-import Header from './components/layout/Header';
-import Footer from './components/layout/Footer';
-import ScrollToTop from './components/ScrollToTop';
-import VerificationBanner from './components/VerificationBanner';
-import InterestBanner from './components/InterestBanner';
-import ToastContainer from './components/ToastContainer';
-import { useToast } from './components/useToast';
-import { setGlobalToastListener } from './utils/globalToast';
+import Header from "./components/layout/Header";
+import Footer from "./components/layout/Footer";
+import ScrollToTop from "./components/ScrollToTop";
+import VerificationBanner from "./components/VerificationBanner";
+import InterestBanner from "./components/InterestBanner";
+import ToastContainer from "./components/ToastContainer";
+import { useToast } from "./components/useToast";
+import { setGlobalToastListener } from "./utils/globalToast";
 
 // Page components
-import LandingPage from './pages/LandingPage';
-import BrowsePage from './pages/BrowsePage';
-import LoginPage from './pages/LoginPage';
-import SignUpPage from './pages/SignUpPage';
-import LocationSelectionPage from './pages/LocationSelectionPage';
-import ActivityPage from './pages/ActivityPage';
-import SharePage from './pages/SharePage';
-import ProfilePage from './pages/ProfilePage';
+import LandingPage from "./pages/LandingPage";
+import BrowsePage from "./pages/BrowsePage";
+import LoginPage from "./pages/LoginPage";
+import SignUpPage from "./pages/SignUpPage";
+import LocationSelectionPage from "./pages/LocationSelectionPage";
+import ActivityPage from "./pages/ActivityPage";
+import SharePage from "./pages/SharePage";
+import ProfilePage from "./pages/ProfilePage";
 // Note: SettingsPage removed - settings are now in MyProfilePage
 
 // Lazy-loaded pages (code splitting)
-const MyProfilePage = lazy(() => import('./pages/MyProfilePage'));
-const AboutPage = lazy(() => import('./pages/AboutPage'));
-import VerifyMagicLinkPage from './pages/VerifyMagicLinkPage';
+const MyProfilePage = lazy(() => import("./pages/MyProfilePage"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
+import VerifyMagicLinkPage from "./pages/VerifyMagicLinkPage";
 
 // Context for current user
-import { UserContext, useUser } from './contexts/UserContext';
-import { InterestProvider } from './contexts/InterestContext';
+import { UserContext, useUser } from "./contexts/UserContext";
+import { InterestProvider } from "./contexts/InterestContext";
 
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -88,44 +88,88 @@ function AppRoutes() {
           <VerificationBanner />
           <InterestBanner />
           <main className="flex-grow">
-          <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-600">Loading...</div></div>}>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={
-              currentUser ? <Navigate to="/browse" replace /> : <LandingPage />
-            } />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignUpPage />} />
-            <Route path="/verify-magic-link" element={<VerifyMagicLinkPage />} />
-            <Route path="/location-selection" element={
-              <ProtectedRoute><LocationSelectionPage /></ProtectedRoute>
-            } />
-            <Route path="/about" element={<AboutPage />} />
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-gray-600">Loading...</div>
+                </div>
+              }
+            >
+              <Routes>
+                {/* Public routes */}
+                <Route
+                  path="/"
+                  element={
+                    currentUser ? (
+                      <Navigate to="/browse" replace />
+                    ) : (
+                      <LandingPage />
+                    )
+                  }
+                />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/signup" element={<SignUpPage />} />
+                <Route
+                  path="/verify-magic-link"
+                  element={<VerifyMagicLinkPage />}
+                />
+                <Route
+                  path="/location-selection"
+                  element={
+                    <ProtectedRoute>
+                      <LocationSelectionPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/about" element={<AboutPage />} />
 
-            {/* Browse page - accessible to all */}
-            <Route path="/browse" element={<BrowsePage />} />
+                {/* Browse page - accessible to all */}
+                <Route path="/browse" element={<BrowsePage />} />
 
-            {/* Protected routes */}
-            <Route path="/activity" element={
-              <ProtectedRoute><ActivityPage /></ProtectedRoute>
-            } />
-            <Route path="/activity/:threadId" element={
-              <ProtectedRoute><ActivityPage /></ProtectedRoute>
-            } />
-            <Route path="/share" element={
-              <ProtectedRoute><SharePage /></ProtectedRoute>
-            } />
-            <Route path="/my-profile" element={
-              <ProtectedRoute><MyProfilePage /></ProtectedRoute>
-            } />
-            <Route path="/profile/:username" element={<ProfilePage />} />
-            {/* Redirect old settings route to my-profile */}
-            <Route path="/settings" element={<Navigate to="/my-profile" replace />} />
+                {/* Protected routes */}
+                <Route
+                  path="/activity"
+                  element={
+                    <ProtectedRoute>
+                      <ActivityPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/activity/:threadId"
+                  element={
+                    <ProtectedRoute>
+                      <ActivityPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/share"
+                  element={
+                    <ProtectedRoute>
+                      <SharePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/my-profile"
+                  element={
+                    <ProtectedRoute>
+                      <MyProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/profile/:username" element={<ProfilePage />} />
+                {/* Redirect old settings route to my-profile */}
+                <Route
+                  path="/settings"
+                  element={<Navigate to="/my-profile" replace />}
+                />
 
-            {/* 404 */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-          </Suspense>
+                {/* 404 */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
           </main>
           <Footer />
         </div>
@@ -139,8 +183,8 @@ export default function App() {
   useEffect(() => {
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (import.meta.env.DEV && isMobile) {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/eruda';
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/eruda";
       script.onload = () => (window as any).eruda.init();
       document.body.appendChild(script);
     }

@@ -1,5 +1,5 @@
-import { createContext, useContext } from 'react';
-import type { User } from '@booksharepdx/shared';
+import { createContext, useContext } from "react";
+import type { User } from "@booksharepdx/shared";
 
 interface UserContextType {
   currentUser: User | null;

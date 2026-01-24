@@ -4,7 +4,7 @@
  * @returns true if email is valid, false otherwise
  */
 export function isValidEmail(email: string): boolean {
-  if (typeof email !== 'string' || email.trim() === '') {
+  if (typeof email !== "string" || email.trim() === "") {
     return false;
   }
 
@@ -20,7 +20,7 @@ export function isValidEmail(email: string): boolean {
  * @returns true if username is valid, false otherwise
  */
 export function isValidUsername(username: string): boolean {
-  if (typeof username !== 'string' || username.trim() === '') {
+  if (typeof username !== "string" || username.trim() === "") {
     return false;
   }
 
@@ -36,7 +36,7 @@ export function isValidUsername(username: string): boolean {
  * @returns true if bio meets minimum length requirement, false otherwise
  */
 export function isValidBio(bio: string): boolean {
-  if (typeof bio !== 'string') {
+  if (typeof bio !== "string") {
     return false;
   }
 

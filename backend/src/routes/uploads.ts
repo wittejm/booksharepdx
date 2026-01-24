@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import multer from 'multer';
-import { requireAuth } from '../middleware/auth.js';
-import { getStorage } from '../services/storage/index.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { Router } from "express";
+import multer from "multer";
+import { requireAuth } from "../middleware/auth.js";
+import { getStorage } from "../services/storage/index.js";
+import { AppError } from "../middleware/errorHandler.js";
 
 const router = Router();
 
@@ -13,23 +13,27 @@ const upload = multer({
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.'));
+      cb(
+        new Error(
+          "Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.",
+        ),
+      );
     }
   },
 });
 
 // POST /api/uploads - Upload a file
-router.post('/', requireAuth, upload.single('file'), async (req, res, next) => {
+router.post("/", requireAuth, upload.single("file"), async (req, res, next) => {
   try {
     if (!req.file) {
       throw new AppError(
-        'No file was provided. Please select an image file to upload.',
+        "No file was provided. Please select an image file to upload.",
         400,
-        'NO_FILE'
+        "NO_FILE",
       );
     }
 
@@ -37,7 +41,7 @@ router.post('/', requireAuth, upload.single('file'), async (req, res, next) => {
     const url = await storage.upload(
       req.file.buffer,
       req.file.originalname,
-      req.file.mimetype
+      req.file.mimetype,
     );
 
     res.status(201).json({
@@ -54,14 +58,14 @@ router.post('/', requireAuth, upload.single('file'), async (req, res, next) => {
 });
 
 // DELETE /api/uploads - Delete a file
-router.delete('/', requireAuth, async (req, res, next) => {
+router.delete("/", requireAuth, async (req, res, next) => {
   try {
     const { url } = req.body;
     if (!url) {
       throw new AppError(
-        'No file URL was provided. Please specify which file to delete.',
+        "No file URL was provided. Please specify which file to delete.",
         400,
-        'NO_URL'
+        "NO_URL",
       );
     }
 

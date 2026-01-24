@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from "react";
 
 interface EditableTextProps {
   value: string;
@@ -14,12 +14,12 @@ interface EditableTextProps {
 export default function EditableText({
   value,
   onSave,
-  placeholder = 'Click to edit',
+  placeholder = "Click to edit",
   multiline = false,
   maxLength,
-  className = '',
-  inputClassName = '',
-  emptyText = 'Not set',
+  className = "",
+  inputClassName = "",
+  emptyText = "Not set",
 }: EditableTextProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
@@ -61,11 +61,11 @@ export default function EditableText({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !multiline) {
+    if (e.key === "Enter" && !multiline) {
       e.preventDefault();
       handleSave();
     }
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       setEditValue(value);
       setIsEditing(false);
     }
@@ -75,20 +75,25 @@ export default function EditableText({
     const inputProps = {
       ref: inputRef as React.RefObject<HTMLInputElement & HTMLTextAreaElement>,
       value: editValue,
-      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-        setEditValue(e.target.value),
+      onChange: (
+        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+      ) => setEditValue(e.target.value),
       onBlur: handleSave,
       onKeyDown: handleKeyDown,
       placeholder,
       maxLength,
       disabled: saving,
-      className: `input ${inputClassName} ${saving ? 'opacity-50' : ''}`,
+      className: `input ${inputClassName} ${saving ? "opacity-50" : ""}`,
     };
 
     return (
       <div className={className}>
         {multiline ? (
-          <textarea {...inputProps} rows={3} className={`input resize-none ${inputClassName}`} />
+          <textarea
+            {...inputProps}
+            rows={3}
+            className={`input resize-none ${inputClassName}`}
+          />
         ) : (
           <input type="text" {...inputProps} />
         )}
@@ -106,7 +111,7 @@ export default function EditableText({
       onClick={() => setIsEditing(true)}
       className={`group flex items-start gap-2 text-left hover:bg-gray-50 rounded-lg p-1 -m-1 transition-colors ${className}`}
     >
-      <span className={value ? '' : 'text-gray-400 italic'}>
+      <span className={value ? "" : "text-gray-400 italic"}>
         {value || emptyText}
       </span>
       <svg

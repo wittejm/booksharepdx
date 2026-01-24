@@ -8,7 +8,7 @@ import MultiSelectTagInput from "../components/MultiSelectTagInput";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { calculateDistance, getLocationCoords } from "../utils/distance";
 import { useAsync } from "../hooks/useAsync";
-  import { filterPosts, sortByDistance } from "../utils/postFilters";                                                                                   
+import { filterPosts, sortByDistance } from "../utils/postFilters";
 import { GENRES } from "../utils/genres";
 
 const POSTS_PER_PAGE = 10;
@@ -69,29 +69,32 @@ export default function BrowsePage() {
     [currentUser, users],
   );
 
-  const [filters, setFilters] = useState({                                                                                                              
-    searchTerm: "",                                                                                                                                     
-    selectedGenres: [] as string[],                                                                                                                     
-    selectedType: "all" as "all" | "giveaway" | "exchange",                                                                                             
-    maxDistance: 10,                                                                                                                                    
-  });                                                                                                                                                   
-                                                                                                                                                        
-  const updateFilter = <K extends keyof typeof filters>(key: K, value: typeof filters[K]) => {                                                          
-    setFilters((prev) => ({ ...prev, [key]: value }));                                                                                                  
-    setPage(1);                                                                                                                                         
-    setInfiniteScrollEnabled(false);                                                                                                                    
-  };        
+  const [filters, setFilters] = useState({
+    searchTerm: "",
+    selectedGenres: [] as string[],
+    selectedType: "all" as "all" | "giveaway" | "exchange",
+    maxDistance: 10,
+  });
 
-  const filteredPosts = useMemo(() => {                                                                                                                 
-    const filtered = filterPosts(posts, {                                                                                                               
-      excludeUserId: currentUser?.id,                                                                                                                   
-      search: filters.searchTerm,                                                                                                                       
-      genres: filters.selectedGenres,                                                                                                                   
-      type: filters.selectedType,                                                                                                                       
-      maxDistance: filters.maxDistance,                                                                                                                 
-      getDistance: getPostDistance,                                                                                                                     
-    });                                                                                                                                                 
-    return currentUser ? sortByDistance(filtered, getPostDistance) : filtered;                                                                          
+  const updateFilter = <K extends keyof typeof filters>(
+    key: K,
+    value: (typeof filters)[K],
+  ) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(1);
+    setInfiniteScrollEnabled(false);
+  };
+
+  const filteredPosts = useMemo(() => {
+    const filtered = filterPosts(posts, {
+      excludeUserId: currentUser?.id,
+      search: filters.searchTerm,
+      genres: filters.selectedGenres,
+      type: filters.selectedType,
+      maxDistance: filters.maxDistance,
+      getDistance: getPostDistance,
+    });
+    return currentUser ? sortByDistance(filtered, getPostDistance) : filtered;
   }, [posts, currentUser, filters, getPostDistance]);
 
   // Paginated view of filtered posts
@@ -256,7 +259,9 @@ export default function BrowsePage() {
                   <MultiSelectTagInput
                     options={GENRES}
                     selectedTags={filters.selectedGenres}
-                    onChange={(genres) => updateFilter("selectedGenres", genres)}
+                    onChange={(genres) =>
+                      updateFilter("selectedGenres", genres)
+                    }
                     placeholder="All Genres"
                   />
                 </div>
@@ -282,7 +287,9 @@ export default function BrowsePage() {
                         type="radio"
                         name="type"
                         checked={filters.selectedType === "giveaway"}
-                        onChange={() => updateFilter("selectedType", "giveaway")}
+                        onChange={() =>
+                          updateFilter("selectedType", "giveaway")
+                        }
                         className="mr-2"
                       />
                       <span className="text-sm inline-flex items-center">
@@ -295,7 +302,9 @@ export default function BrowsePage() {
                         type="radio"
                         name="type"
                         checked={filters.selectedType === "exchange"}
-                        onChange={() => updateFilter("selectedType", "exchange")}
+                        onChange={() =>
+                          updateFilter("selectedType", "exchange")
+                        }
                         className="mr-2"
                       />
                       <span className="text-sm inline-flex items-center">
@@ -318,7 +327,9 @@ export default function BrowsePage() {
                       max="10"
                       step="1"
                       value={filters.maxDistance}
-                      onChange={(e) => updateFilter("maxDistance", Number(e.target.value))}
+                      onChange={(e) =>
+                        updateFilter("maxDistance", Number(e.target.value))
+                      }
                       className="w-full"
                     />
                     <div className="flex justify-between text-xs text-gray-500 mt-1">

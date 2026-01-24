@@ -1,29 +1,30 @@
-import { useState, useEffect, useRef } from 'react';
-import { useSearchParams, Navigate } from 'react-router-dom';
-import type { Post, MessageThread } from '@booksharepdx/shared';
-import { postService, messageService } from '../services';
-import { useUser } from '../contexts/UserContext';
-import { useInterest } from '../contexts/InterestContext';
-import ShareCard from '../components/ShareCard';
-import InlineShareForm from '../components/InlineShareForm';
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams, Navigate } from "react-router-dom";
+import type { Post, MessageThread } from "@booksharepdx/shared";
+import { postService, messageService } from "../services";
+import { useUser } from "../contexts/UserContext";
+import { useInterest } from "../contexts/InterestContext";
+import ShareCard from "../components/ShareCard";
+import InlineShareForm from "../components/InlineShareForm";
 
-type TabType = 'active' | 'archive';
+type TabType = "active" | "archive";
 
 export default function SharePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { currentUser } = useUser();
   const { summary: interestSummary } = useInterest();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>('active');
+  const [activeTab, setActiveTab] = useState<TabType>("active");
   const [posts, setPosts] = useState<Post[]>([]);
   const [threads, setThreads] = useState<MessageThread[]>([]);
   const postRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const hasScrolledToInterest = useRef(false);
 
-  const shouldAutoFocusShare = searchParams.get('action') === 'share';
-  const shouldScrollToInterest = searchParams.get('scrollToInterest') === 'true';
-  const focusPostId = searchParams.get('focusPost');
-  const showThreadId = searchParams.get('showThread');
+  const shouldAutoFocusShare = searchParams.get("action") === "share";
+  const shouldScrollToInterest =
+    searchParams.get("scrollToInterest") === "true";
+  const focusPostId = searchParams.get("focusPost");
+  const showThreadId = searchParams.get("showThread");
 
   const handleShareSuccess = () => {
     reloadPosts();
@@ -33,16 +34,17 @@ export default function SharePage() {
     if (!currentUser) return;
     if (showLoading) setLoading(true);
     try {
-      const [activePosts, agreedPosts, archivedPosts, allThreads] = await Promise.all([
-        postService.getByUserId(currentUser.id, 'active'),
-        postService.getByUserId(currentUser.id, 'agreed_upon'),
-        postService.getByUserId(currentUser.id, 'archived'),
-        messageService.getThreads(),
-      ]);
+      const [activePosts, agreedPosts, archivedPosts, allThreads] =
+        await Promise.all([
+          postService.getByUserId(currentUser.id, "active"),
+          postService.getByUserId(currentUser.id, "agreed_upon"),
+          postService.getByUserId(currentUser.id, "archived"),
+          messageService.getThreads(),
+        ]);
       setPosts([...activePosts, ...agreedPosts, ...archivedPosts]);
       setThreads(allThreads);
     } catch (error) {
-      console.error('Failed to load shares:', error);
+      console.error("Failed to load shares:", error);
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -68,11 +70,15 @@ export default function SharePage() {
         if (element) {
           // Small delay to ensure DOM is ready
           setTimeout(() => {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
             // Highlight effect
-            element.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2');
+            element.classList.add("ring-2", "ring-blue-500", "ring-offset-2");
             setTimeout(() => {
-              element.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2');
+              element.classList.remove(
+                "ring-2",
+                "ring-blue-500",
+                "ring-offset-2",
+              );
             }, 2000);
           }, 100);
           hasScrolledToInterest.current = true;
@@ -89,11 +95,15 @@ export default function SharePage() {
       const element = postRefs.current.get(focusPostId);
       if (element) {
         setTimeout(() => {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
           // Highlight effect
-          element.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2');
+          element.classList.add("ring-2", "ring-blue-500", "ring-offset-2");
           setTimeout(() => {
-            element.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2');
+            element.classList.remove(
+              "ring-2",
+              "ring-blue-500",
+              "ring-offset-2",
+            );
           }, 2000);
         }, 100);
       }
@@ -108,19 +118,25 @@ export default function SharePage() {
   const getTradingPartnerPostId = (post: Post): string | undefined => {
     if (!post.agreedExchange || !currentUser) return undefined;
     const isResponder = currentUser.id === post.agreedExchange.responderUserId;
-    return isResponder ? post.agreedExchange.sharerPostId : post.agreedExchange.responderPostId;
+    return isResponder
+      ? post.agreedExchange.sharerPostId
+      : post.agreedExchange.responderPostId;
   };
 
   // Helper to check if owner has completed a post (via its accepted thread)
   // For trades, the thread may be on the OTHER post in the exchange, so check both
   const isOwnerCompleted = (post: Post): boolean => {
     // First check if there's a thread directly on this post
-    let acceptedThread = threads.find(t => t.postId === post.id && t.status === 'accepted');
+    let acceptedThread = threads.find(
+      (t) => t.postId === post.id && t.status === "accepted",
+    );
 
     // For trades, also check the other post in the exchange
     const partnerPostId = getTradingPartnerPostId(post);
     if (!acceptedThread && partnerPostId) {
-      acceptedThread = threads.find(t => t.postId === partnerPostId && t.status === 'accepted');
+      acceptedThread = threads.find(
+        (t) => t.postId === partnerPostId && t.status === "accepted",
+      );
     }
 
     return acceptedThread?.ownerCompleted ?? false;
@@ -131,16 +147,18 @@ export default function SharePage() {
     // - 'active' posts (no one accepted yet)
     // - 'agreed_upon' posts where ownerCompleted is false
     const activePosts = posts.filter((p) => {
-      if (p.status === 'active') return true;
-      if (p.status === 'agreed_upon') return !isOwnerCompleted(p);
+      if (p.status === "active") return true;
+      if (p.status === "agreed_upon") return !isOwnerCompleted(p);
       return false;
     });
     // Sort: agreed_upon first (need action), then posts with interest, then others
-    const postIdsWithInterest = new Set(interestSummary.interests.map(i => i.postId));
+    const postIdsWithInterest = new Set(
+      interestSummary.interests.map((i) => i.postId),
+    );
     return [...activePosts].sort((a, b) => {
       // Agreed upon posts come first (need action)
-      if (a.status === 'agreed_upon' && b.status !== 'agreed_upon') return -1;
-      if (a.status !== 'agreed_upon' && b.status === 'agreed_upon') return 1;
+      if (a.status === "agreed_upon" && b.status !== "agreed_upon") return -1;
+      if (a.status !== "agreed_upon" && b.status === "agreed_upon") return 1;
       // Then posts with interest
       const aHasInterest = postIdsWithInterest.has(a.id);
       const bHasInterest = postIdsWithInterest.has(b.id);
@@ -154,13 +172,14 @@ export default function SharePage() {
     // Archive = posts where owner HAS marked complete (ownerCompleted is true)
     // Also include any manually archived posts (status === 'archived')
     return posts.filter((p) => {
-      if (p.status === 'archived') return true;
-      if (p.status === 'agreed_upon') return isOwnerCompleted(p);
+      if (p.status === "archived") return true;
+      if (p.status === "agreed_upon") return isOwnerCompleted(p);
       return false;
     });
   };
 
-  const tabPosts = activeTab === 'active' ? getActivePosts() : getArchivedPosts();
+  const tabPosts =
+    activeTab === "active" ? getActivePosts() : getArchivedPosts();
 
   if (loading) {
     return (
@@ -186,21 +205,21 @@ export default function SharePage() {
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px overflow-x-auto">
               <button
-                onClick={() => setActiveTab('active')}
+                onClick={() => setActiveTab("active")}
                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'active'
-                    ? 'border-primary-600 text-primary-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  activeTab === "active"
+                    ? "border-primary-600 text-primary-600"
+                    : "border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300"
                 }`}
               >
                 Active ({getActivePosts().length})
               </button>
               <button
-                onClick={() => setActiveTab('archive')}
+                onClick={() => setActiveTab("archive")}
                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'archive'
-                    ? 'border-primary-600 text-primary-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  activeTab === "archive"
+                    ? "border-primary-600 text-primary-600"
+                    : "border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300"
                 }`}
               >
                 Archive ({getArchivedPosts().length})
@@ -214,9 +233,9 @@ export default function SharePage() {
           {tabPosts.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-600">
-                {activeTab === 'active'
-                  ? 'No active shares yet. Use the form above to share a book!'
-                  : 'No archived shares yet.'}
+                {activeTab === "active"
+                  ? "No active shares yet. Use the form above to share a book!"
+                  : "No archived shares yet."}
               </p>
             </div>
           ) : (
@@ -232,7 +251,9 @@ export default function SharePage() {
                 <ShareCard
                   post={post}
                   onUpdate={reloadPosts}
-                  autoFocusThreadId={post.id === focusPostId ? showThreadId : undefined}
+                  autoFocusThreadId={
+                    post.id === focusPostId ? showThreadId : undefined
+                  }
                   onAutoFocusComplete={() => {
                     // Clear the URL params after focusing
                     if (focusPostId || showThreadId) {

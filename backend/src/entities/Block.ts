@@ -7,13 +7,13 @@ import {
   JoinColumn,
   Index,
   Unique,
-} from 'typeorm';
-import { User } from './User.js';
+} from "typeorm";
+import { User } from "./User.js";
 
-@Entity('blocks')
-@Unique(['blockerId', 'blockedId'])
+@Entity("blocks")
+@Unique(["blockerId", "blockedId"])
 export class Block {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column({ type: "varchar" })
@@ -21,7 +21,7 @@ export class Block {
   blockerId: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'blockerId' })
+  @JoinColumn({ name: "blockerId" })
   blocker: User;
 
   @Column({ type: "varchar" })
@@ -29,7 +29,7 @@ export class Block {
   blockedId: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'blockedId' })
+  @JoinColumn({ name: "blockedId" })
   blocked: User;
 
   @CreateDateColumn()

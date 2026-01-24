@@ -6,31 +6,31 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
-} from 'typeorm';
-import { User } from './User.js';
-import { Report } from './Report.js';
+} from "typeorm";
+import { User } from "./User.js";
+import { Report } from "./Report.js";
 
-@Entity('moderator_notes')
+@Entity("moderator_notes")
 export class ModeratorNote {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column({ type: "varchar" })
   @Index()
   reportId: string;
 
-  @ManyToOne(() => Report, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'reportId' })
+  @ManyToOne(() => Report, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "reportId" })
   report: Report;
 
   @Column({ type: "varchar" })
   moderatorId: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'moderatorId' })
+  @JoinColumn({ name: "moderatorId" })
   moderator: User;
 
-  @Column({ type: 'text' })
+  @Column({ type: "text" })
   note: string;
 
   @CreateDateColumn()

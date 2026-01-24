@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { blockService } from '../services';
-import { useUser } from '../contexts/UserContext';
-import { useConfirm } from './useConfirm';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { blockService } from "../services";
+import { useUser } from "../contexts/UserContext";
+import { useConfirm } from "./useConfirm";
 
 interface PostCardMenuProps {
   postId: string;
@@ -14,7 +14,11 @@ interface PostCardMenuProps {
  * PostCardMenu - Three-dot menu for viewer actions on a post
  * Shows Block option for posts owned by other users
  */
-export default function PostCardMenu({ postId, postUserId, postUserUsername }: PostCardMenuProps) {
+export default function PostCardMenu({
+  postId,
+  postUserId,
+  postUserUsername,
+}: PostCardMenuProps) {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const { confirm, ConfirmDialogComponent } = useConfirm();
@@ -24,10 +28,10 @@ export default function PostCardMenu({ postId, postUserId, postUserUsername }: P
     if (!currentUser) return;
 
     const confirmed = await confirm({
-      title: 'Block User',
-      message: 'Block this user? You will no longer see their posts.',
-      confirmText: 'Block',
-      variant: 'warning'
+      title: "Block User",
+      message: "Block this user? You will no longer see their posts.",
+      confirmText: "Block",
+      variant: "warning",
     });
     if (!confirmed) return;
 
@@ -47,7 +51,11 @@ export default function PostCardMenu({ postId, postUserId, postUserUsername }: P
           }}
           className="p-2 hover:bg-gray-100 rounded-full transition-colors"
         >
-          <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+          <svg
+            className="w-5 h-5 text-gray-600"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
             <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
           </svg>
         </button>

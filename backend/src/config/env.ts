@@ -1,38 +1,42 @@
-import { config } from 'dotenv';
+import { config } from "dotenv";
 
 config();
 
 export const env = {
-  nodeEnv: process.env.NODE_ENV || 'development',
-  port: parseInt(process.env.PORT || '3001', 10),
+  nodeEnv: process.env.NODE_ENV || "development",
+  port: parseInt(process.env.PORT || "3001", 10),
 
   // Database
-  databaseUrl: process.env.DATABASE_URL || 'postgresql://dev:dev@localhost:5432/booksharepdx',
+  databaseUrl:
+    process.env.DATABASE_URL ||
+    "postgresql://dev:dev@localhost:5432/booksharepdx",
 
   // JWT
-  jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
-  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-change-in-production',
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '15m',
-  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '365d',
+  jwtSecret: process.env.JWT_SECRET || "dev-secret-change-in-production",
+  jwtRefreshSecret:
+    process.env.JWT_REFRESH_SECRET || "dev-refresh-secret-change-in-production",
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || "15m",
+  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "365d",
 
   // Book APIs
-  googleBooksApiKey: process.env.GOOGLE_BOOKS_API_KEY || '',
+  googleBooksApiKey: process.env.GOOGLE_BOOKS_API_KEY || "",
 
   // Email (Resend)
-  resendApiKey: process.env.RESEND_API_KEY || '',
-  emailFrom: process.env.EMAIL_FROM || 'BookSharePDX <noreply@booksharepdx.com>',
+  resendApiKey: process.env.RESEND_API_KEY || "",
+  emailFrom:
+    process.env.EMAIL_FROM || "BookSharePDX <noreply@booksharepdx.com>",
 
   // Storage
-  storageProvider: process.env.STORAGE_PROVIDER || 'local',
-  uploadDir: process.env.UPLOAD_DIR || './uploads',
+  storageProvider: process.env.STORAGE_PROVIDER || "local",
+  uploadDir: process.env.UPLOAD_DIR || "./uploads",
 
   // Frontend
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  frontendUrl: process.env.FRONTEND_URL || "http://localhost:5173",
 
   // Cookie domain for cross-subdomain auth (e.g., .booksharepdx.com)
   cookieDomain: process.env.COOKIE_DOMAIN || undefined,
 
-  isDev: process.env.NODE_ENV === 'development',
-  isStaging: process.env.NODE_ENV === 'staging',
-  isProd: process.env.NODE_ENV === 'production',
+  isDev: process.env.NODE_ENV === "development",
+  isStaging: process.env.NODE_ENV === "staging",
+  isProd: process.env.NODE_ENV === "production",
 };

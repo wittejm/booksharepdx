@@ -1,5 +1,5 @@
-import type { Repository, FindOneOptions, ObjectLiteral } from 'typeorm';
-import { AppError } from '../middleware/errorHandler.js';
+import type { Repository, FindOneOptions, ObjectLiteral } from "typeorm";
+import { AppError } from "../middleware/errorHandler.js";
 
 /**
  * Find an entity or throw a 404 error
@@ -9,7 +9,7 @@ export async function findOrThrow<T extends ObjectLiteral>(
   repo: Repository<T>,
   options: FindOneOptions<T>,
   errorMessage: string,
-  errorCode: string = 'NOT_FOUND'
+  errorCode: string = "NOT_FOUND",
 ): Promise<T> {
   const entity = await repo.findOne(options);
   if (!entity) {
@@ -26,7 +26,7 @@ export async function findByIdOrThrow<T extends ObjectLiteral>(
   repo: Repository<T>,
   id: string,
   errorMessage: string,
-  errorCode: string = 'NOT_FOUND'
+  errorCode: string = "NOT_FOUND",
 ): Promise<T> {
   return findOrThrow(repo, { where: { id } as any }, errorMessage, errorCode);
 }
@@ -48,16 +48,16 @@ export function requireOwnership(
   resourceUserId: string,
   currentUserId: string,
   currentUserRole?: string,
-  options: RequireOwnershipOptions = {}
+  options: RequireOwnershipOptions = {},
 ): void {
   const {
     allowAdmin = false,
-    errorMessage = 'You do not have permission to modify this resource',
-    errorCode = 'FORBIDDEN',
+    errorMessage = "You do not have permission to modify this resource",
+    errorCode = "FORBIDDEN",
   } = options;
 
   const isOwner = resourceUserId === currentUserId;
-  const isAdmin = allowAdmin && currentUserRole === 'admin';
+  const isAdmin = allowAdmin && currentUserRole === "admin";
 
   if (!isOwner && !isAdmin) {
     throw new AppError(errorMessage, 403, errorCode);

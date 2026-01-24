@@ -6,14 +6,18 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
-} from 'typeorm';
-import { User } from './User.js';
+} from "typeorm";
+import { User } from "./User.js";
 
-export type ModerationActionType = 'warning' | 'content_removed' | 'suspended' | 'banned';
+export type ModerationActionType =
+  | "warning"
+  | "content_removed"
+  | "suspended"
+  | "banned";
 
-@Entity('moderation_actions')
+@Entity("moderation_actions")
 export class ModerationAction {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column({ type: "varchar" })
@@ -21,7 +25,7 @@ export class ModerationAction {
   moderatorId: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'moderatorId' })
+  @JoinColumn({ name: "moderatorId" })
   moderator: User;
 
   @Column({ type: "varchar" })
@@ -29,19 +33,19 @@ export class ModerationAction {
   targetUserId: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'targetUserId' })
+  @JoinColumn({ name: "targetUserId" })
   targetUser: User;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: "varchar" })
   action: ModerationActionType;
 
-  @Column({ type: 'text' })
+  @Column({ type: "text" })
   reason: string;
 
   @Column({ type: "varchar", nullable: true })
   targetContentId: string | null;
 
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: "int", nullable: true })
   suspensionDuration: number | null; // days
 
   @CreateDateColumn()

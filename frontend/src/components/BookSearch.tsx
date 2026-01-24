@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import LoadingSpinner from './LoadingSpinner';
-import { bookService } from '../services';
+import { useState, useRef, useEffect, useCallback } from "react";
+import LoadingSpinner from "./LoadingSpinner";
+import { bookService } from "../services";
 
 interface GoogleBook {
   id: string;
@@ -35,8 +35,12 @@ interface BookSearchProps {
   autoFocus?: boolean;
 }
 
-export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearchProps) {
-  const [query, setQuery] = useState('');
+export default function BookSearch({
+  onSelect,
+  disabled,
+  autoFocus,
+}: BookSearchProps) {
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<GoogleBook[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -45,26 +49,32 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
   const [searchPerformed, setSearchPerformed] = useState(false);
 
   // Manual entry fields
-  const [manualTitle, setManualTitle] = useState('');
-  const [manualAuthor, setManualAuthor] = useState('');
-  const [manualCoverUrl, setManualCoverUrl] = useState('');
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualAuthor, setManualAuthor] = useState("");
+  const [manualCoverUrl, setManualCoverUrl] = useState("");
 
   // Manual entry matching
-  const [manualMatches, setManualMatches] = useState<Array<{
-    id: string;
-    googleBooksId?: string;
-    title: string;
-    author: string;
-    coverImage?: string;
-    genre?: string;
-    isbn?: string;
-  }>>([]);
+  const [manualMatches, setManualMatches] = useState<
+    Array<{
+      id: string;
+      googleBooksId?: string;
+      title: string;
+      author: string;
+      coverImage?: string;
+      genre?: string;
+      isbn?: string;
+    }>
+  >([]);
   const [isMatchingLoading, setIsMatchingLoading] = useState(false);
-  const matchDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const matchDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
 
   const apiKey = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
 
@@ -97,7 +107,7 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
         const matches = await bookService.match(manualTitle, manualAuthor);
         setManualMatches(matches);
       } catch (error) {
-        console.error('Failed to fetch book matches:', error);
+        console.error("Failed to fetch book matches:", error);
         setManualMatches([]);
       } finally {
         setIsMatchingLoading(false);
@@ -112,34 +122,37 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
   }, [showManualEntry, manualTitle, manualAuthor]);
 
   // Debounced search function
-  const searchBooks = useCallback(async (searchQuery: string) => {
-    if (searchQuery.length < 2) {
-      setResults([]);
-      setIsOpen(false);
-      setSearchPerformed(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setSearchPerformed(true);
-    try {
-      let url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchQuery)}&maxResults=8`;
-      if (apiKey) {
-        url += `&key=${apiKey}`;
+  const searchBooks = useCallback(
+    async (searchQuery: string) => {
+      if (searchQuery.length < 2) {
+        setResults([]);
+        setIsOpen(false);
+        setSearchPerformed(false);
+        return;
       }
 
-      const response = await fetch(url);
-      const data = await response.json();
-      setResults(data.items || []);
-      setIsOpen(true);
-      setFocusedIndex(-1);
-    } catch (error) {
-      console.error('Google Books search failed:', error);
-      setResults([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [apiKey]);
+      setIsLoading(true);
+      setSearchPerformed(true);
+      try {
+        let url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchQuery)}&maxResults=8`;
+        if (apiKey) {
+          url += `&key=${apiKey}`;
+        }
+
+        const response = await fetch(url);
+        const data = await response.json();
+        setResults(data.items || []);
+        setIsOpen(true);
+        setFocusedIndex(-1);
+      } catch (error) {
+        console.error("Google Books search failed:", error);
+        setResults([]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [apiKey],
+  );
 
   // Handle input change with debounce
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -161,10 +174,10 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
     if (!identifiers) return undefined;
 
     // Prefer ISBN_13 over ISBN_10
-    const isbn13 = identifiers.find(id => id.type === 'ISBN_13');
+    const isbn13 = identifiers.find((id) => id.type === "ISBN_13");
     if (isbn13) return isbn13.identifier;
 
-    const isbn10 = identifiers.find(id => id.type === 'ISBN_10');
+    const isbn10 = identifiers.find((id) => id.type === "ISBN_10");
     return isbn10?.identifier;
   };
 
@@ -178,7 +191,7 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
     const url = imageLinks.thumbnail || imageLinks.smallThumbnail;
     if (!url) return undefined;
 
-    return url.replace('http://', 'https://');
+    return url.replace("http://", "https://");
   };
 
   // Handle book selection
@@ -186,20 +199,20 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
     onSelect({
       googleBooksId: book.id,
       title: book.volumeInfo.title,
-      author: book.volumeInfo.authors?.[0] || 'Unknown Author',
+      author: book.volumeInfo.authors?.[0] || "Unknown Author",
       coverImage: getCoverImage(book),
       isbn: getIsbn(book),
       subjects: book.volumeInfo.categories,
     });
 
-    setQuery('');
+    setQuery("");
     setIsOpen(false);
     setResults([]);
     setSearchPerformed(false);
   };
 
   // Handle selecting an existing book match
-  const handleSelectMatch = (match: typeof manualMatches[0]) => {
+  const handleSelectMatch = (match: (typeof manualMatches)[0]) => {
     onSelect({
       googleBooksId: match.googleBooksId,
       title: match.title,
@@ -209,12 +222,12 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
     });
 
     // Reset form
-    setManualTitle('');
-    setManualAuthor('');
-    setManualCoverUrl('');
+    setManualTitle("");
+    setManualAuthor("");
+    setManualCoverUrl("");
     setManualMatches([]);
     setShowManualEntry(false);
-    setQuery('');
+    setQuery("");
   };
 
   // Handle manual entry submission
@@ -223,33 +236,33 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
 
     onSelect({
       title: manualTitle.trim(),
-      author: manualAuthor.trim() || 'Unknown Author',
+      author: manualAuthor.trim() || "Unknown Author",
       coverImage: manualCoverUrl.trim() || undefined,
     });
 
     // Reset form
-    setManualTitle('');
-    setManualAuthor('');
-    setManualCoverUrl('');
+    setManualTitle("");
+    setManualAuthor("");
+    setManualCoverUrl("");
     setManualMatches([]);
     setShowManualEntry(false);
-    setQuery('');
+    setQuery("");
   };
 
   // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isOpen || results.length === 0) return;
 
-    if (e.key === 'ArrowDown') {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
-      setFocusedIndex(prev => Math.min(prev + 1, results.length - 1));
-    } else if (e.key === 'ArrowUp') {
+      setFocusedIndex((prev) => Math.min(prev + 1, results.length - 1));
+    } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setFocusedIndex(prev => Math.max(prev - 1, -1));
-    } else if (e.key === 'Enter' && focusedIndex >= 0) {
+      setFocusedIndex((prev) => Math.max(prev - 1, -1));
+    } else if (e.key === "Enter" && focusedIndex >= 0) {
       e.preventDefault();
       handleSelect(results[focusedIndex]);
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       setIsOpen(false);
     }
   };
@@ -257,13 +270,16 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
   // Close on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Cleanup debounce on unmount
@@ -319,7 +335,8 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Cover Image URL <span className="text-gray-400 text-xs">(optional)</span>
+            Cover Image URL{" "}
+            <span className="text-gray-400 text-xs">(optional)</span>
           </label>
           <input
             type="url"
@@ -334,7 +351,9 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
         {(isMatchingLoading || manualMatches.length > 0) && (
           <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
             <p className="text-sm font-medium text-gray-700 mb-2">
-              {isMatchingLoading ? 'Searching for matches...' : 'Existing books that match:'}
+              {isMatchingLoading
+                ? "Searching for matches..."
+                : "Existing books that match:"}
             </p>
             {isMatchingLoading ? (
               <div className="flex justify-center py-2">
@@ -361,13 +380,19 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 text-sm truncate">{match.title}</p>
-                      <p className="text-xs text-gray-600 truncate">{match.author}</p>
+                      <p className="font-medium text-gray-900 text-sm truncate">
+                        {match.title}
+                      </p>
+                      <p className="text-xs text-gray-600 truncate">
+                        {match.author}
+                      </p>
                       {match.genre && (
                         <p className="text-xs text-gray-500">{match.genre}</p>
                       )}
                     </div>
-                    <span className="text-xs text-primary-600 self-center">Use this</span>
+                    <span className="text-xs text-primary-600 self-center">
+                      Use this
+                    </span>
                   </button>
                 ))}
               </div>
@@ -381,7 +406,7 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
           disabled={!manualTitle.trim()}
           className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {manualMatches.length > 0 ? 'Create New Book Entry' : 'Use This Book'}
+          {manualMatches.length > 0 ? "Create New Book Entry" : "Use This Book"}
         </button>
       </div>
     );
@@ -417,13 +442,16 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
               type="button"
               onClick={() => handleSelect(book)}
               className={`w-full text-left p-3 flex gap-3 hover:bg-gray-50 ${
-                index === focusedIndex ? 'bg-primary-50' : ''
-              } ${index !== results.length - 1 ? 'border-b border-gray-100' : ''}`}
+                index === focusedIndex ? "bg-primary-50" : ""
+              } ${index !== results.length - 1 ? "border-b border-gray-100" : ""}`}
             >
               {/* Book cover thumbnail */}
               {book.volumeInfo.imageLinks?.smallThumbnail ? (
                 <img
-                  src={book.volumeInfo.imageLinks.smallThumbnail.replace('http://', 'https://')}
+                  src={book.volumeInfo.imageLinks.smallThumbnail.replace(
+                    "http://",
+                    "https://",
+                  )}
                   alt={book.volumeInfo.title}
                   className="w-10 h-14 object-cover rounded flex-shrink-0"
                 />
@@ -433,12 +461,16 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 truncate">{book.volumeInfo.title}</p>
+                <p className="font-medium text-gray-900 truncate">
+                  {book.volumeInfo.title}
+                </p>
                 <p className="text-sm text-gray-600 truncate">
-                  {book.volumeInfo.authors?.join(', ') || 'Unknown Author'}
+                  {book.volumeInfo.authors?.join(", ") || "Unknown Author"}
                 </p>
                 {book.volumeInfo.publishedDate && (
-                  <p className="text-xs text-gray-500">{book.volumeInfo.publishedDate.slice(0, 4)}</p>
+                  <p className="text-xs text-gray-500">
+                    {book.volumeInfo.publishedDate.slice(0, 4)}
+                  </p>
                 )}
               </div>
             </button>
@@ -454,28 +486,36 @@ export default function BookSearch({ onSelect, disabled, autoFocus }: BookSearch
             }}
             className="w-full text-left p-3 hover:bg-gray-50 border-t border-gray-200 text-primary-600"
           >
-            <span className="text-sm">Can't find your book? Enter details manually</span>
+            <span className="text-sm">
+              Can't find your book? Enter details manually
+            </span>
           </button>
         </div>
       )}
 
       {/* No results message with manual entry option */}
-      {isOpen && query.length >= 2 && results.length === 0 && !isLoading && searchPerformed && (
-        <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4">
-          <p className="text-gray-600 text-center mb-3">No books found for "{query}"</p>
-          <button
-            type="button"
-            onClick={() => {
-              setIsOpen(false);
-              setShowManualEntry(true);
-              setManualTitle(query);
-            }}
-            className="w-full btn-secondary text-sm"
-          >
-            Enter book details manually
-          </button>
-        </div>
-      )}
+      {isOpen &&
+        query.length >= 2 &&
+        results.length === 0 &&
+        !isLoading &&
+        searchPerformed && (
+          <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4">
+            <p className="text-gray-600 text-center mb-3">
+              No books found for "{query}"
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                setShowManualEntry(true);
+                setManualTitle(query);
+              }}
+              className="w-full btn-secondary text-sm"
+            >
+              Enter book details manually
+            </button>
+          </div>
+        )}
 
       {/* Manual entry link when not searching */}
       {!isOpen && query.length === 0 && (

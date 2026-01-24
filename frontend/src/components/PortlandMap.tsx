@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import mapData from '../data/portland-map-data.json';
-import { neighborhoodService } from '../services';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import mapData from "../data/portland-map-data.json";
+import { neighborhoodService } from "../services";
 
 interface MapData {
   width: number;
@@ -22,8 +22,13 @@ interface MapData {
 const typedMapData = mapData as MapData;
 
 export default function PortlandMap() {
-  const [hoveredNeighborhood, setHoveredNeighborhood] = useState<number | null>(null);
-  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
+  const [hoveredNeighborhood, setHoveredNeighborhood] = useState<number | null>(
+    null,
+  );
+  const [tooltipPosition, setTooltipPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const [bookCounts, setBookCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -35,7 +40,7 @@ export default function PortlandMap() {
         const counts = await neighborhoodService.getBookCounts();
         setBookCounts(counts);
       } catch (error) {
-        console.error('Error fetching neighborhood book counts:', error);
+        console.error("Error fetching neighborhood book counts:", error);
       } finally {
         setLoading(false);
       }
@@ -45,14 +50,15 @@ export default function PortlandMap() {
   }, []);
 
   // Merge book counts with neighborhood data
-  const neighborhoodsWithCounts = typedMapData.neighborhoods.map(n => ({
+  const neighborhoodsWithCounts = typedMapData.neighborhoods.map((n) => ({
     ...n,
-    bookCount: bookCounts[n.name] || 0
+    bookCount: bookCounts[n.name] || 0,
   }));
 
-  const hoveredNeighborhoodData = hoveredNeighborhood !== null
-    ? neighborhoodsWithCounts.find(n => n.id === hoveredNeighborhood)
-    : null;
+  const hoveredNeighborhoodData =
+    hoveredNeighborhood !== null
+      ? neighborhoodsWithCounts.find((n) => n.id === hoveredNeighborhood)
+      : null;
 
   const handleNeighborhoodClick = (neighborhoodName: string) => {
     // Navigate to browse page with neighborhood filter and scroll to top
@@ -65,7 +71,7 @@ export default function PortlandMap() {
       const rect = e.currentTarget.getBoundingClientRect();
       setTooltipPosition({
         x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+        y: e.clientY - rect.top,
       });
     }
   };
@@ -86,14 +92,20 @@ export default function PortlandMap() {
         onMouseLeave={handleMouseLeave}
       >
         {/* Background */}
-        <rect width={typedMapData.width} height={typedMapData.height} fill="#FFFFFF" />
+        <rect
+          width={typedMapData.width}
+          height={typedMapData.height}
+          fill="#FFFFFF"
+        />
 
         {/* Neighborhood fills */}
         <g id="neighborhood-fills">
           {neighborhoodsWithCounts.map((neighborhood) => {
             const isHovered = hoveredNeighborhood === neighborhood.id;
             const hasBooks = neighborhood.bookCount > 0;
-            const colorPalette = hasBooks ? typedMapData.colorsWithBooks : typedMapData.colorsNoBooks;
+            const colorPalette = hasBooks
+              ? typedMapData.colorsWithBooks
+              : typedMapData.colorsNoBooks;
             const fillColor = colorPalette[neighborhood.color];
 
             return (
@@ -103,11 +115,13 @@ export default function PortlandMap() {
                 fill={fillColor}
                 opacity={isHovered ? 0.9 : 0.7}
                 style={{
-                  cursor: hasBooks ? 'pointer' : 'default',
-                  transition: 'opacity 0.2s'
+                  cursor: hasBooks ? "pointer" : "default",
+                  transition: "opacity 0.2s",
                 }}
                 onMouseEnter={() => setHoveredNeighborhood(neighborhood.id)}
-                onClick={() => hasBooks && handleNeighborhoodClick(neighborhood.name)}
+                onClick={() =>
+                  hasBooks && handleNeighborhoodClick(neighborhood.name)
+                }
               >
                 <title>{neighborhood.name}</title>
               </path>
@@ -116,7 +130,12 @@ export default function PortlandMap() {
         </g>
 
         {/* Regular edges (light gray) */}
-        <g id="regular-edges" stroke="#D1D5DB" strokeWidth="0.8" pointerEvents="none">
+        <g
+          id="regular-edges"
+          stroke="#D1D5DB"
+          strokeWidth="0.8"
+          pointerEvents="none"
+        >
           {typedMapData.regularEdges.map((edge, i) => (
             <line
               key={`edge-${i}`}
@@ -129,7 +148,13 @@ export default function PortlandMap() {
         </g>
 
         {/* River edges (blue, thicker) */}
-        <g id="river-edges" stroke="#3B82F6" strokeWidth="2.5" opacity="0.9" pointerEvents="none">
+        <g
+          id="river-edges"
+          stroke="#3B82F6"
+          strokeWidth="2.5"
+          opacity="0.9"
+          pointerEvents="none"
+        >
           {typedMapData.riverEdges.map((edge, i) => (
             <line
               key={`river-${i}`}
@@ -149,13 +174,18 @@ export default function PortlandMap() {
           style={{
             left: `${tooltipPosition.x}px`,
             top: `${tooltipPosition.y}px`,
-            transform: 'translate(10px, calc(-50% - 30px))'
+            transform: "translate(10px, calc(-50% - 30px))",
           }}
         >
           <div className="text-sm font-semibold text-gray-700 whitespace-nowrap">
-            <span className="text-[#08A045]">{hoveredNeighborhoodData.name}</span>
-            {' · '}
-            <span>{hoveredNeighborhoodData.bookCount} {hoveredNeighborhoodData.bookCount === 1 ? 'book' : 'books'}</span>
+            <span className="text-[#08A045]">
+              {hoveredNeighborhoodData.name}
+            </span>
+            {" · "}
+            <span>
+              {hoveredNeighborhoodData.bookCount}{" "}
+              {hoveredNeighborhoodData.bookCount === 1 ? "book" : "books"}
+            </span>
           </div>
         </div>
       )}

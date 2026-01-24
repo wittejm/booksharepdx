@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
-import { userService, postService } from '../services';
-import type { User, Post } from '@booksharepdx/shared';
+import { useState, useEffect, useRef } from "react";
+import { userService, postService } from "../services";
+import type { User, Post } from "@booksharepdx/shared";
 
 // NOTE: These hooks intentionally do NOT cache data. Fresh fetches on every mount/change.
 // Caching was removed because: (1) stale data bugs are worse than extra API calls,
@@ -22,9 +22,10 @@ export function useUser(userId: string | null | undefined) {
     setLoading(true);
     setError(null);
 
-    userService.getById(userId)
+    userService
+      .getById(userId)
       .then(setUser)
-      .catch(err => {
+      .catch((err) => {
         console.error(`Failed to load user ${userId}:`, err);
         setError(err);
       })
@@ -48,9 +49,10 @@ export function usePost(postId: string | null | undefined) {
     setLoading(true);
     setError(null);
 
-    postService.getById(postId)
+    postService
+      .getById(postId)
       .then(setPost)
-      .catch(err => {
+      .catch((err) => {
         console.error(`Failed to load post ${postId}:`, err);
         setError(err);
       })
@@ -67,31 +69,35 @@ export function useUsers(userIds: string[]) {
   const [users, setUsers] = useState<Record<string, User>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const idsRef = useRef<string>('');
+  const idsRef = useRef<string>("");
 
   useEffect(() => {
     const filteredIds = userIds.filter(Boolean);
-    const idsKey = [...filteredIds].sort().join(',');
+    const idsKey = [...filteredIds].sort().join(",");
     if (idsKey === idsRef.current || filteredIds.length === 0) return;
     idsRef.current = idsKey;
 
     setLoading(true);
     setError(null);
 
-    Promise.all(filteredIds.map(id => userService.getById(id).then(user => ({ id, user }))))
-      .then(results => {
+    Promise.all(
+      filteredIds.map((id) =>
+        userService.getById(id).then((user) => ({ id, user })),
+      ),
+    )
+      .then((results) => {
         const map: Record<string, User> = {};
         for (const { id, user } of results) {
           if (user) map[id] = user;
         }
         setUsers(map);
       })
-      .catch(err => {
-        console.error('Failed to load users:', err);
+      .catch((err) => {
+        console.error("Failed to load users:", err);
         setError(err);
       })
       .finally(() => setLoading(false));
-  }, [userIds.join(',')]);
+  }, [userIds.join(",")]);
 
   return { users, loading, error };
 }
@@ -103,31 +109,35 @@ export function usePosts(postIds: string[]) {
   const [posts, setPosts] = useState<Record<string, Post>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const idsRef = useRef<string>('');
+  const idsRef = useRef<string>("");
 
   useEffect(() => {
     const filteredIds = postIds.filter(Boolean);
-    const idsKey = [...filteredIds].sort().join(',');
+    const idsKey = [...filteredIds].sort().join(",");
     if (idsKey === idsRef.current || filteredIds.length === 0) return;
     idsRef.current = idsKey;
 
     setLoading(true);
     setError(null);
 
-    Promise.all(filteredIds.map(id => postService.getById(id).then(post => ({ id, post }))))
-      .then(results => {
+    Promise.all(
+      filteredIds.map((id) =>
+        postService.getById(id).then((post) => ({ id, post })),
+      ),
+    )
+      .then((results) => {
         const map: Record<string, Post> = {};
         for (const { id, post } of results) {
           if (post) map[id] = post;
         }
         setPosts(map);
       })
-      .catch(err => {
-        console.error('Failed to load posts:', err);
+      .catch((err) => {
+        console.error("Failed to load posts:", err);
         setError(err);
       })
       .finally(() => setLoading(false));
-  }, [postIds.join(',')]);
+  }, [postIds.join(",")]);
 
   return { posts, loading, error };
 }

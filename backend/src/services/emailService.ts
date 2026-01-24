@@ -1,5 +1,5 @@
-import { Resend } from 'resend';
-import { env } from '../config/env.js';
+import { Resend } from "resend";
+import { env } from "../config/env.js";
 
 const resend = env.resendApiKey ? new Resend(env.resendApiKey) : null;
 
@@ -27,21 +27,24 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
     });
 
     if (error) {
-      console.error('[EMAIL] Failed to send:', error);
+      console.error("[EMAIL] Failed to send:", error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('[EMAIL] Error sending email:', error);
+    console.error("[EMAIL] Error sending email:", error);
     return false;
   }
 }
 
-export async function sendMagicLinkEmail(to: string, magicLinkUrl: string): Promise<boolean> {
+export async function sendMagicLinkEmail(
+  to: string,
+  magicLinkUrl: string,
+): Promise<boolean> {
   return sendEmail({
     to,
-    subject: 'Sign in to BookSharePDX',
+    subject: "Sign in to BookSharePDX",
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #2563eb;">Sign in to BookSharePDX</h1>
@@ -61,10 +64,14 @@ export async function sendMagicLinkEmail(to: string, magicLinkUrl: string): Prom
   });
 }
 
-export async function sendWelcomeEmail(to: string, username: string, verifyUrl: string): Promise<boolean> {
+export async function sendWelcomeEmail(
+  to: string,
+  username: string,
+  verifyUrl: string,
+): Promise<boolean> {
   return sendEmail({
     to,
-    subject: 'Welcome to BookSharePDX!',
+    subject: "Welcome to BookSharePDX!",
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #2563eb;">Welcome to BookSharePDX, ${username}!</h1>

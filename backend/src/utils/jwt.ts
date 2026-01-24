@@ -1,5 +1,5 @@
-import jwt, { SignOptions } from 'jsonwebtoken';
-import { env } from '../config/env.js';
+import jwt, { SignOptions } from "jsonwebtoken";
+import { env } from "../config/env.js";
 
 export interface JwtPayload {
   userId: string;
@@ -10,13 +10,13 @@ export interface JwtPayload {
 
 export function signAccessToken(payload: JwtPayload): string {
   return jwt.sign(payload, env.jwtSecret, {
-    expiresIn: env.jwtExpiresIn as SignOptions['expiresIn'],
+    expiresIn: env.jwtExpiresIn as SignOptions["expiresIn"],
   });
 }
 
 export function signRefreshToken(payload: JwtPayload): string {
   return jwt.sign(payload, env.jwtRefreshSecret, {
-    expiresIn: env.jwtRefreshExpiresIn as SignOptions['expiresIn'],
+    expiresIn: env.jwtRefreshExpiresIn as SignOptions["expiresIn"],
   });
 }
 
@@ -36,18 +36,18 @@ const isDeployed = env.isProd || env.isStaging;
 export const accessTokenCookieOptions = {
   httpOnly: true,
   secure: isDeployed,
-  sameSite: isDeployed ? ('none' as const) : ('lax' as const),
+  sameSite: isDeployed ? ("none" as const) : ("lax" as const),
   maxAge: 15 * 60 * 1000, // 15 minutes
-  path: '/',
+  path: "/",
   ...(env.cookieDomain && { domain: env.cookieDomain }),
 };
 
 export const refreshTokenCookieOptions = {
   httpOnly: true,
   secure: isDeployed,
-  sameSite: isDeployed ? ('none' as const) : ('lax' as const),
+  sameSite: isDeployed ? ("none" as const) : ("lax" as const),
   maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
-  path: '/',
+  path: "/",
   ...(env.cookieDomain && { domain: env.cookieDomain }),
 };
 
@@ -55,19 +55,21 @@ export const refreshTokenCookieOptions = {
 export interface MagicLinkPayload {
   userId: string;
   email: string;
-  type: 'magic-link';
+  type: "magic-link";
 }
 
-export function signMagicLinkToken(payload: Omit<MagicLinkPayload, 'type'>): string {
-  return jwt.sign({ ...payload, type: 'magic-link' }, env.jwtSecret, {
-    expiresIn: '30m', // 30 minutes
+export function signMagicLinkToken(
+  payload: Omit<MagicLinkPayload, "type">,
+): string {
+  return jwt.sign({ ...payload, type: "magic-link" }, env.jwtSecret, {
+    expiresIn: "30m", // 30 minutes
   });
 }
 
 export function verifyMagicLinkToken(token: string): MagicLinkPayload {
   const payload = jwt.verify(token, env.jwtSecret) as MagicLinkPayload;
-  if (payload.type !== 'magic-link') {
-    throw new Error('Invalid token type');
+  if (payload.type !== "magic-link") {
+    throw new Error("Invalid token type");
   }
   return payload;
 }

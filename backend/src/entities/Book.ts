@@ -7,43 +7,43 @@ import {
   OneToMany,
   Index,
   Relation,
-} from 'typeorm';
-import type { Post } from './Post.js';
+} from "typeorm";
+import type { Post } from "./Post.js";
 
-@Entity('books')
+@Entity("books")
 export class Book {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @Column({ type: 'varchar', nullable: true, unique: true })
+  @Column({ type: "varchar", nullable: true, unique: true })
   @Index()
   googleBooksId: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: "varchar", nullable: true })
   @Index()
   isbn: string | null;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: "varchar" })
   @Index()
   title: string;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: "varchar" })
   @Index()
   author: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   coverImage: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: "varchar", nullable: true })
   genre: string | null;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ type: "int", default: 0 })
   timesGifted: number;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ type: "int", default: 0 })
   timesTraded: number;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ type: "int", default: 0 })
   timesLoaned: number;
 
   @CreateDateColumn()
@@ -52,7 +52,7 @@ export class Book {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @OneToMany('Post', 'book')
+  @OneToMany("Post", "book")
   posts: Relation<Post[]>;
 
   toJSON() {

@@ -1,7 +1,7 @@
-import { Link } from 'react-router-dom';
-import { useInterest } from '../contexts/InterestContext';
-import { useUser } from '../contexts/UserContext';
-import { numberToWords } from '../utils/numberToWords';
+import { Link } from "react-router-dom";
+import { useInterest } from "../contexts/InterestContext";
+import { useUser } from "../contexts/UserContext";
+import { numberToWords } from "../utils/numberToWords";
 
 export default function InterestBanner() {
   const { currentUser } = useUser();
@@ -18,9 +18,9 @@ export default function InterestBanner() {
 
     if (uniquePeople === 1) {
       if (uniquePosts === 1) {
-        return 'Someone is interested in one of your shared books';
+        return "Someone is interested in one of your shared books";
       } else {
-        return 'Someone is interested in some of your shared books';
+        return "Someone is interested in some of your shared books";
       }
     } else {
       const peopleWord = numberToWords(uniquePeople);

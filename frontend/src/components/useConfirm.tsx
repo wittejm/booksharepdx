@@ -1,18 +1,18 @@
-import { useState, useCallback } from 'react';
-import ConfirmDialog from './ConfirmDialog';
+import { useState, useCallback } from "react";
+import ConfirmDialog from "./ConfirmDialog";
 
 interface ConfirmOptions {
   title: string;
   message: string;
   confirmText?: string;
   cancelText?: string;
-  variant?: 'danger' | 'warning' | 'info';
+  variant?: "danger" | "warning" | "info";
   hideCancel?: boolean; // For alert-style dialogs with only one button
 }
 
 interface UseConfirmReturn {
   confirm: (options: ConfirmOptions) => Promise<boolean>;
-  alert: (options: Omit<ConfirmOptions, 'hideCancel'>) => Promise<void>; // One-button alert
+  alert: (options: Omit<ConfirmOptions, "hideCancel">) => Promise<void>; // One-button alert
   ConfirmDialogComponent: React.ReactNode;
 }
 
@@ -23,8 +23,8 @@ export function useConfirm(): UseConfirmReturn {
     resolver: ((value: boolean) => void) | null;
   }>({
     open: false,
-    options: { title: '', message: '' },
-    resolver: null
+    options: { title: "", message: "" },
+    resolver: null,
   });
 
   const confirm = useCallback((options: ConfirmOptions): Promise<boolean> => {
@@ -32,20 +32,27 @@ export function useConfirm(): UseConfirmReturn {
       setDialogState({
         open: true,
         options,
-        resolver: resolve
+        resolver: resolve,
       });
     });
   }, []);
 
-  const alert = useCallback((options: Omit<ConfirmOptions, 'hideCancel'>): Promise<void> => {
-    return new Promise((resolve) => {
-      setDialogState({
-        open: true,
-        options: { ...options, hideCancel: true, confirmText: options.confirmText || 'OK' },
-        resolver: () => resolve()
+  const alert = useCallback(
+    (options: Omit<ConfirmOptions, "hideCancel">): Promise<void> => {
+      return new Promise((resolve) => {
+        setDialogState({
+          open: true,
+          options: {
+            ...options,
+            hideCancel: true,
+            confirmText: options.confirmText || "OK",
+          },
+          resolver: () => resolve(),
+        });
       });
-    });
-  }, []);
+    },
+    [],
+  );
 
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleClose = useCallback(() => {
@@ -54,8 +61,8 @@ export function useConfirm(): UseConfirmReturn {
     }
     setDialogState({
       open: false,
-      options: { title: '', message: '' },
-      resolver: null
+      options: { title: "", message: "" },
+      resolver: null,
     });
   }, [dialogState.resolver]);
 
@@ -66,8 +73,8 @@ export function useConfirm(): UseConfirmReturn {
     }
     setDialogState({
       open: false,
-      options: { title: '', message: '' },
-      resolver: null
+      options: { title: "", message: "" },
+      resolver: null,
     });
   }, [dialogState.resolver]);
 

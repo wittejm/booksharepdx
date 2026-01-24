@@ -1,16 +1,16 @@
-import { describe, it, expect } from 'vitest';
-import { Post } from './Post.js';
-import { Book } from './Book.js';
+import { describe, it, expect } from "vitest";
+import { Post } from "./Post.js";
+import { Book } from "./Book.js";
 
 function createMockBook(overrides: Partial<Book> = {}): Book {
   const book = new Book();
-  book.id = 'book-uuid';
+  book.id = "book-uuid";
   book.googleBooksId = null;
-  book.title = 'Test';
-  book.author = 'Author';
+  book.title = "Test";
+  book.author = "Author";
   book.isbn = null;
   book.coverImage = null;
-  book.genre = 'fiction';
+  book.genre = "fiction";
   book.timesGifted = 0;
   book.timesTraded = 0;
   book.timesLoaned = 0;
@@ -20,67 +20,67 @@ function createMockBook(overrides: Partial<Book> = {}): Book {
   return book;
 }
 
-describe('Post entity', () => {
-  describe('toJSON', () => {
-    it('should convert post to API response format', () => {
+describe("Post entity", () => {
+  describe("toJSON", () => {
+    it("should convert post to API response format", () => {
       const post = new Post();
-      post.id = 'post-uuid';
-      post.userId = 'user-uuid';
-      post.bookId = 'book-uuid';
+      post.id = "post-uuid";
+      post.userId = "user-uuid";
+      post.bookId = "book-uuid";
       post.book = createMockBook({
-        title: 'The Great Gatsby',
-        author: 'F. Scott Fitzgerald',
-        coverImage: 'https://example.com/cover.jpg',
-        genre: 'fiction',
-        isbn: '9780743273565',
+        title: "The Great Gatsby",
+        author: "F. Scott Fitzgerald",
+        coverImage: "https://example.com/cover.jpg",
+        genre: "fiction",
+        isbn: "9780743273565",
       });
-      post.type = 'giveaway';
-      post.status = 'active';
+      post.type = "giveaway";
+      post.status = "active";
       post.agreedExchange = null;
       post.archivedAt = null;
       post.givenTo = null;
-      post.createdAt = new Date('2024-01-15T10:00:00Z');
-      post.updatedAt = new Date('2024-01-15T10:00:00Z');
+      post.createdAt = new Date("2024-01-15T10:00:00Z");
+      post.updatedAt = new Date("2024-01-15T10:00:00Z");
 
       const json = post.toJSON();
 
-      expect(json.id).toBe('post-uuid');
-      expect(json.userId).toBe('user-uuid');
-      expect(json.book.title).toBe('The Great Gatsby');
-      expect(json.book.author).toBe('F. Scott Fitzgerald');
-      expect(json.book.genre).toBe('fiction');
-      expect(json.type).toBe('giveaway');
-      expect(json.status).toBe('active');
+      expect(json.id).toBe("post-uuid");
+      expect(json.userId).toBe("user-uuid");
+      expect(json.book.title).toBe("The Great Gatsby");
+      expect(json.book.author).toBe("F. Scott Fitzgerald");
+      expect(json.book.genre).toBe("fiction");
+      expect(json.type).toBe("giveaway");
+      expect(json.status).toBe("active");
     });
 
-    it('should convert createdAt to timestamp', () => {
+    it("should convert createdAt to timestamp", () => {
       const post = new Post();
-      post.id = 'post-uuid';
-      post.userId = 'user-uuid';
-      post.bookId = 'book-uuid';
+      post.id = "post-uuid";
+      post.userId = "user-uuid";
+      post.bookId = "book-uuid";
       post.book = createMockBook();
-      post.type = 'giveaway';
-      post.status = 'active';
+      post.type = "giveaway";
+      post.status = "active";
       post.agreedExchange = null;
       post.archivedAt = null;
       post.givenTo = null;
-      post.createdAt = new Date('2024-06-15T12:00:00Z');
+      post.createdAt = new Date("2024-06-15T12:00:00Z");
       post.updatedAt = new Date();
 
       const json = post.toJSON();
 
-      expect(typeof json.createdAt).toBe('number');
-      expect(json.createdAt).toBe(new Date('2024-06-15T12:00:00Z').getTime());
+      expect(typeof json.createdAt).toBe("number");
+      expect(json.createdAt).toBe(new Date("2024-06-15T12:00:00Z").getTime());
     });
 
-    it('should handle exchange type posts', () => {
+    it("should handle exchange type posts", () => {
       const post = new Post();
-      post.id = 'post-uuid';
-      post.userId = 'user-uuid';
-      post.bookId = 'book-uuid';
+      post.id = "post-uuid";
+      post.userId = "user-uuid";
+      post.bookId = "book-uuid";
       post.book = createMockBook();
-      post.type = 'exchange';
-      post.status = 'active';
+      post.type = "exchange";
+      post.status = "active";
       post.agreedExchange = null;
       post.archivedAt = null;
       post.givenTo = null;
@@ -89,22 +89,22 @@ describe('Post entity', () => {
 
       const json = post.toJSON();
 
-      expect(json.type).toBe('exchange');
+      expect(json.type).toBe("exchange");
     });
 
-    it('should handle pending exchange status', () => {
+    it("should handle pending exchange status", () => {
       const post = new Post();
-      post.id = 'post-uuid';
-      post.userId = 'user-uuid';
-      post.bookId = 'book-uuid';
+      post.id = "post-uuid";
+      post.userId = "user-uuid";
+      post.bookId = "book-uuid";
       post.book = createMockBook();
-      post.type = 'exchange';
-      post.status = 'agreed_upon';
+      post.type = "exchange";
+      post.status = "agreed_upon";
       post.agreedExchange = {
-        responderUserId: 'other-user-uuid',
-        sharerUserId: 'user-uuid',
-        responderPostId: 'other-post-uuid',
-        sharerPostId: 'post-uuid',
+        responderUserId: "other-user-uuid",
+        sharerUserId: "user-uuid",
+        responderPostId: "other-post-uuid",
+        sharerPostId: "post-uuid",
       };
       post.archivedAt = null;
       post.givenTo = null;
@@ -113,62 +113,61 @@ describe('Post entity', () => {
 
       const json = post.toJSON();
 
-      expect(json.status).toBe('agreed_upon');
+      expect(json.status).toBe("agreed_upon");
       expect(json.agreedExchange).toBeDefined();
-      expect(json.agreedExchange?.sharerUserId).toBe('user-uuid');
+      expect(json.agreedExchange?.sharerUserId).toBe("user-uuid");
     });
 
-    it('should handle archived posts', () => {
-      const archivedDate = new Date('2024-02-01T15:00:00Z');
+    it("should handle archived posts", () => {
+      const archivedDate = new Date("2024-02-01T15:00:00Z");
 
       const post = new Post();
-      post.id = 'post-uuid';
-      post.userId = 'user-uuid';
-      post.bookId = 'book-uuid';
+      post.id = "post-uuid";
+      post.userId = "user-uuid";
+      post.bookId = "book-uuid";
       post.book = createMockBook();
-      post.type = 'giveaway';
-      post.status = 'archived';
+      post.type = "giveaway";
+      post.status = "archived";
       post.agreedExchange = null;
       post.archivedAt = archivedDate;
-      post.givenTo = 'recipient-uuid';
-      post.createdAt = new Date('2024-01-01T10:00:00Z');
+      post.givenTo = "recipient-uuid";
+      post.createdAt = new Date("2024-01-01T10:00:00Z");
       post.updatedAt = new Date();
 
       const json = post.toJSON();
 
-      expect(json.status).toBe('archived');
+      expect(json.status).toBe("archived");
       expect(json.archivedAt).toBe(archivedDate.getTime());
-      expect(json.givenTo).toBe('recipient-uuid');
-    });
-
-  });
-
-  describe('PostType', () => {
-    it('should accept giveaway type', () => {
-      const post = new Post();
-      post.type = 'giveaway';
-      expect(post.type).toBe('giveaway');
-    });
-
-    it('should accept exchange type', () => {
-      const post = new Post();
-      post.type = 'exchange';
-      expect(post.type).toBe('exchange');
+      expect(json.givenTo).toBe("recipient-uuid");
     });
   });
 
-  describe('PostStatus', () => {
-    it('should accept all valid statuses', () => {
+  describe("PostType", () => {
+    it("should accept giveaway type", () => {
+      const post = new Post();
+      post.type = "giveaway";
+      expect(post.type).toBe("giveaway");
+    });
+
+    it("should accept exchange type", () => {
+      const post = new Post();
+      post.type = "exchange";
+      expect(post.type).toBe("exchange");
+    });
+  });
+
+  describe("PostStatus", () => {
+    it("should accept all valid statuses", () => {
       const post = new Post();
 
-      post.status = 'active';
-      expect(post.status).toBe('active');
+      post.status = "active";
+      expect(post.status).toBe("active");
 
-      post.status = 'agreed_upon';
-      expect(post.status).toBe('agreed_upon');
+      post.status = "agreed_upon";
+      expect(post.status).toBe("agreed_upon");
 
-      post.status = 'archived';
-      expect(post.status).toBe('archived');
+      post.status = "archived";
+      expect(post.status).toBe("archived");
     });
   });
 });

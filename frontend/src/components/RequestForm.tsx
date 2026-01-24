@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import type { MessageThread } from '@booksharepdx/shared';
-import { messageService } from '../services';
-import { useUser } from '../contexts/UserContext';
+import { useState } from "react";
+import type { MessageThread } from "@booksharepdx/shared";
+import { messageService } from "../services";
+import { useUser } from "../contexts/UserContext";
 
 interface RequestFormProps {
   postId: string;
@@ -14,9 +14,14 @@ interface RequestFormProps {
  * RequestForm - Form for sending a message to request a book
  * Messages are private (sent to MessageThread)
  */
-export default function RequestForm({ postId, postUserId, onCancel, onSuccess }: RequestFormProps) {
+export default function RequestForm({
+  postId,
+  postUserId,
+  onCancel,
+  onSuccess,
+}: RequestFormProps) {
   const { currentUser } = useUser();
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
 
   const handleSubmit = async (e: React.MouseEvent) => {
@@ -25,12 +30,16 @@ export default function RequestForm({ postId, postUserId, onCancel, onSuccess }:
 
     setIsSending(true);
     try {
-      const thread = await messageService.getOrCreateThread(currentUser.id, postUserId, postId);
+      const thread = await messageService.getOrCreateThread(
+        currentUser.id,
+        postUserId,
+        postId,
+      );
       await messageService.sendMessage({
         threadId: thread.id,
         content: message.trim(),
       });
-      setMessage('');
+      setMessage("");
       onSuccess(thread);
     } finally {
       setIsSending(false);
@@ -39,12 +48,15 @@ export default function RequestForm({ postId, postUserId, onCancel, onSuccess }:
 
   const handleCancel = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setMessage('');
+    setMessage("");
     onCancel();
   };
 
   return (
-    <div className="border-t border-gray-200 p-4 bg-gray-50" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="border-t border-gray-200 p-4 bg-gray-50"
+      onClick={(e) => e.stopPropagation()}
+    >
       <label className="block text-sm font-medium text-gray-700 mb-2">
         Your message
       </label>
@@ -67,7 +79,7 @@ export default function RequestForm({ postId, postUserId, onCancel, onSuccess }:
           disabled={!message.trim() || isSending}
           className="btn-primary text-sm py-2 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isSending ? 'Sending...' : 'Send'}
+          {isSending ? "Sending..." : "Send"}
         </button>
       </div>
     </div>

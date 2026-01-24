@@ -14,13 +14,13 @@ export function formatTimestamp(timestamp: number): string {
 
   // "just now" for < 1 minute
   if (diffSeconds < 60) {
-    return 'just now';
+    return "just now";
   }
 
   // Format time component
   const hours = date.getHours();
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const ampm = hours >= 12 ? 'pm' : 'am';
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const ampm = hours >= 12 ? "pm" : "am";
   const displayHours = hours % 12 || 12;
   const timeStr = `${displayHours}:${minutes}${ampm}`;
 
@@ -35,7 +35,20 @@ export function formatTimestamp(timestamp: number): string {
   }
 
   // Earlier than today: include date
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   const month = monthNames[date.getMonth()];
   const dayOfMonth = date.getDate();
 

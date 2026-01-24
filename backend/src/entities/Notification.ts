@@ -6,19 +6,19 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
-} from 'typeorm';
-import { User } from './User.js';
+} from "typeorm";
+import { User } from "./User.js";
 
 export type NotificationType =
-  | 'exchange_proposed'
-  | 'exchange_confirmed'
-  | 'exchange_declined'
-  | 'message'
-  | 'moderator_action';
+  | "exchange_proposed"
+  | "exchange_confirmed"
+  | "exchange_declined"
+  | "message"
+  | "moderator_action";
 
-@Entity('notifications')
+@Entity("notifications")
 export class Notification {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column({ type: "varchar" })
@@ -26,13 +26,13 @@ export class Notification {
   userId: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: "userId" })
   user: User;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: "varchar" })
   type: NotificationType;
 
-  @Column({ type: 'text' })
+  @Column({ type: "text" })
   content: string;
 
   @Column({ type: "boolean", default: false })

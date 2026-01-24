@@ -1,10 +1,10 @@
-import type { BookInfo } from '@booksharepdx/shared';
-import GenreDisplay from './GenreDisplay';
+import type { BookInfo } from "@booksharepdx/shared";
+import GenreDisplay from "./GenreDisplay";
 
 interface BookDisplayProps {
   book: BookInfo;
-  type?: 'giveaway' | 'exchange' | 'loan';
-  status?: 'active' | 'agreed_upon' | 'archived';
+  type?: "giveaway" | "exchange" | "loan";
+  status?: "active" | "agreed_upon" | "archived";
   showTypeBadge?: boolean;
   children?: React.ReactNode; // For additional badges or buttons
 }
@@ -13,7 +13,13 @@ interface BookDisplayProps {
  * BookDisplay - Shared component for displaying book info (cover, title, author, genre)
  * Used by PostCard and ShareCard to avoid duplicate markup
  */
-export default function BookDisplay({ book, type, status, showTypeBadge = true, children }: BookDisplayProps) {
+export default function BookDisplay({
+  book,
+  type,
+  status,
+  showTypeBadge = true,
+  children,
+}: BookDisplayProps) {
   return (
     <div className="flex gap-4">
       {/* Book Cover */}
@@ -26,7 +32,9 @@ export default function BookDisplay({ book, type, status, showTypeBadge = true, 
           />
         ) : (
           <div className="w-24 h-36 md:w-32 md:h-48 bg-gray-200 rounded flex items-center justify-center">
-            <span className="text-gray-400 text-xs text-center px-2">No Cover</span>
+            <span className="text-gray-400 text-xs text-center px-2">
+              No Cover
+            </span>
           </div>
         )}
       </div>
@@ -45,7 +53,7 @@ export default function BookDisplay({ book, type, status, showTypeBadge = true, 
         {showTypeBadge && type && (
           <div className="flex items-center gap-2 mt-2">
             <TypeBadge type={type} />
-            {status === 'archived' && (
+            {status === "archived" && (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                 Archived
               </span>
@@ -60,15 +68,19 @@ export default function BookDisplay({ book, type, status, showTypeBadge = true, 
   );
 }
 
-export function TypeBadge({ type }: { type: 'giveaway' | 'exchange' | 'loan' }) {
-  if (type === 'giveaway') {
+export function TypeBadge({
+  type,
+}: {
+  type: "giveaway" | "exchange" | "loan";
+}) {
+  if (type === "giveaway") {
     return (
       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
         Give Away
       </span>
     );
   }
-  if (type === 'exchange') {
+  if (type === "exchange") {
     return (
       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
         Exchange

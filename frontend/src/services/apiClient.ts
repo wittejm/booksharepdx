@@ -3,10 +3,14 @@
  * Uses cookie-based JWT authentication
  */
 
-import { ERROR_MESSAGES, getErrorMessage, getErrorMessageFromStatus } from '../utils/errorMessages';
-import { showGlobalToast } from '../utils/globalToast';
+import {
+  ERROR_MESSAGES,
+  getErrorMessage,
+  getErrorMessageFromStatus,
+} from "../utils/errorMessages";
+import { showGlobalToast } from "../utils/globalToast";
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 /**
  * Custom API error class with additional context
@@ -16,9 +20,14 @@ export class ApiError extends Error {
   statusCode: number;
   details?: unknown;
 
-  constructor(message: string, code: string, statusCode: number, details?: unknown) {
+  constructor(
+    message: string,
+    code: string,
+    statusCode: number,
+    details?: unknown,
+  ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
     this.code = code;
     this.statusCode = statusCode;
     this.details = details;
@@ -29,7 +38,7 @@ export class ApiError extends Error {
    */
   getUserMessage(): string {
     // Return the backend message if available, otherwise provide a fallback
-    if (this.message && this.message !== 'Request failed') {
+    if (this.message && this.message !== "Request failed") {
       return this.message;
     }
     // Try error code first, then status code
@@ -44,7 +53,11 @@ export class ApiError extends Error {
    * Check if this is an authentication error that requires re-login
    */
   isAuthError(): boolean {
-    return this.statusCode === 401 || this.code === 'SESSION_EXPIRED' || this.code === 'UNAUTHORIZED';
+    return (
+      this.statusCode === 401 ||
+      this.code === "SESSION_EXPIRED" ||
+      this.code === "UNAUTHORIZED"
+    );
   }
 }
 
@@ -57,10 +70,10 @@ class ApiClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<T> {
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...options.headers,
     };
 
@@ -71,28 +84,30 @@ class ApiClient {
       response = await fetch(url, {
         ...options,
         headers,
-        credentials: 'include', // Always send cookies for JWT auth
+        credentials: "include", // Always send cookies for JWT auth
       });
     } catch (networkError) {
       // Handle network errors (CORS issues, server unreachable, etc.)
       const error = new ApiError(
         ERROR_MESSAGES.NETWORK_ERROR,
-        'NETWORK_ERROR',
-        0
+        "NETWORK_ERROR",
+        0,
       );
-      showGlobalToast(error.getUserMessage(), 'error');
+      showGlobalToast(error.getUserMessage(), "error");
       throw error;
     }
 
     if (!response.ok) {
-      let errorBody: { error?: { message?: string; code?: string; details?: unknown } };
+      let errorBody: {
+        error?: { message?: string; code?: string; details?: unknown };
+      };
       try {
         errorBody = await response.json();
       } catch {
         errorBody = {
           error: {
-            message: response.statusText || 'An error occurred',
-            code: 'UNKNOWN',
+            message: response.statusText || "An error occurred",
+            code: "UNKNOWN",
           },
         };
       }
@@ -100,31 +115,36 @@ class ApiClient {
       // Backend returns { error: { message, code, details? } }
       const errorData = errorBody.error || errorBody;
       const error = new ApiError(
-        (errorData as any).message || 'Request failed',
-        (errorData as any).code || 'UNKNOWN',
+        (errorData as any).message || "Request failed",
+        (errorData as any).code || "UNKNOWN",
         response.status,
-        (errorData as any).details
+        (errorData as any).details,
       );
 
       // Auto-redirect to login on session expiration (except for auth endpoints)
-      if (error.isAuthError() && !endpoint.startsWith('/auth/')) {
-        const isAuthPage = window.location.pathname.startsWith('/login') ||
-                          window.location.pathname.startsWith('/signup') ||
-                          window.location.pathname.startsWith('/verify-magic-link');
+      if (error.isAuthError() && !endpoint.startsWith("/auth/")) {
+        const isAuthPage =
+          window.location.pathname.startsWith("/login") ||
+          window.location.pathname.startsWith("/signup") ||
+          window.location.pathname.startsWith("/verify-magic-link");
         // Don't redirect if already on auth pages (prevents reload loop)
         if (!isAuthPage) {
-          window.location.href = '/login?expired=true';
+          window.location.href = "/login?expired=true";
           // Return a never-resolving promise to prevent further processing
           return new Promise(() => {});
         }
         // On auth pages, log for debugging and throw error
-        console.warn('[apiClient] Auth error on auth page:', endpoint, error.code);
+        console.warn(
+          "[apiClient] Auth error on auth page:",
+          endpoint,
+          error.code,
+        );
         throw error;
       }
 
       // Show toast for server errors (5xx) - these are bugs that need fixing
       if (response.status >= 500) {
-        showGlobalToast(error.getUserMessage(), 'error');
+        showGlobalToast(error.getUserMessage(), "error");
       }
 
       throw error;
@@ -136,32 +156,32 @@ class ApiClient {
   }
 
   async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' });
+    return this.request<T>(endpoint, { method: "GET" });
   }
 
   async post<T>(endpoint: string, data?: any): Promise<T> {
     return this.request<T>(endpoint, {
-      method: 'POST',
+      method: "POST",
       body: data ? JSON.stringify(data) : undefined,
     });
   }
 
   async put<T>(endpoint: string, data?: any): Promise<T> {
     return this.request<T>(endpoint, {
-      method: 'PUT',
+      method: "PUT",
       body: data ? JSON.stringify(data) : undefined,
     });
   }
 
   async patch<T>(endpoint: string, data?: any): Promise<T> {
     return this.request<T>(endpoint, {
-      method: 'PATCH',
+      method: "PATCH",
       body: data ? JSON.stringify(data) : undefined,
     });
   }
 
   async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+    return this.request<T>(endpoint, { method: "DELETE" });
   }
 }
 

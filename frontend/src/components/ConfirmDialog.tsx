@@ -1,4 +1,4 @@
-import Modal from './Modal';
+import Modal from "./Modal";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -8,7 +8,7 @@ interface ConfirmDialogProps {
   message: string;
   confirmText?: string;
   cancelText?: string;
-  variant?: 'danger' | 'warning' | 'info';
+  variant?: "danger" | "warning" | "info";
   hideCancel?: boolean; // For alert-style dialogs with only one button
 }
 
@@ -18,10 +18,10 @@ export default function ConfirmDialog({
   onConfirm,
   title,
   message,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
-  variant = 'info',
-  hideCancel = false
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+  variant = "info",
+  hideCancel = false,
 }: ConfirmDialogProps) {
   const handleConfirm = () => {
     onConfirm();
@@ -29,9 +29,9 @@ export default function ConfirmDialog({
   };
 
   const variantStyles = {
-    danger: 'bg-red-600 hover:bg-red-700',
-    warning: 'bg-yellow-600 hover:bg-yellow-700',
-    info: 'bg-primary-600 hover:bg-primary-700'
+    danger: "bg-red-600 hover:bg-red-700",
+    warning: "bg-yellow-600 hover:bg-yellow-700",
+    info: "bg-primary-600 hover:bg-primary-700",
   };
 
   return (

@@ -1,7 +1,13 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { InterestSummary } from '@booksharepdx/shared';
-import { interestService } from '../services';
-import { useUser } from './UserContext';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
+import type { InterestSummary } from "@booksharepdx/shared";
+import { interestService } from "../services";
+import { useUser } from "./UserContext";
 
 interface InterestContextType {
   summary: InterestSummary;

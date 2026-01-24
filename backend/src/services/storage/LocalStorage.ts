@@ -1,8 +1,8 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { v4 as uuid } from 'uuid';
-import { StorageProvider } from './StorageProvider.js';
-import { env } from '../../config/env.js';
+import fs from "fs/promises";
+import path from "path";
+import { v4 as uuid } from "uuid";
+import { StorageProvider } from "./StorageProvider.js";
+import { env } from "../../config/env.js";
 
 /**
  * Local filesystem storage provider for development
@@ -19,11 +19,15 @@ export class LocalStorage implements StorageProvider {
     try {
       await fs.mkdir(this.uploadDir, { recursive: true });
     } catch (error) {
-      console.error('Failed to create upload directory:', error);
+      console.error("Failed to create upload directory:", error);
     }
   }
 
-  async upload(file: Buffer, filename: string, mimetype: string): Promise<string> {
+  async upload(
+    file: Buffer,
+    filename: string,
+    mimetype: string,
+  ): Promise<string> {
     // Generate unique filename
     const ext = path.extname(filename) || this.getExtFromMime(mimetype);
     const uniqueName = `${uuid()}${ext}`;
@@ -36,7 +40,7 @@ export class LocalStorage implements StorageProvider {
 
   async delete(filePath: string): Promise<void> {
     // Extract filename from URL
-    const filename = filePath.replace('/uploads/', '');
+    const filename = filePath.replace("/uploads/", "");
     const fullPath = path.join(this.uploadDir, filename);
 
     try {
@@ -48,7 +52,7 @@ export class LocalStorage implements StorageProvider {
 
   getUrl(filePath: string): string {
     // Already a URL path, return as-is
-    if (filePath.startsWith('/uploads/')) {
+    if (filePath.startsWith("/uploads/")) {
       return filePath;
     }
     return `/uploads/${filePath}`;
@@ -56,11 +60,11 @@ export class LocalStorage implements StorageProvider {
 
   private getExtFromMime(mimetype: string): string {
     const mimeToExt: Record<string, string> = {
-      'image/jpeg': '.jpg',
-      'image/png': '.png',
-      'image/gif': '.gif',
-      'image/webp': '.webp',
+      "image/jpeg": ".jpg",
+      "image/png": ".png",
+      "image/gif": ".gif",
+      "image/webp": ".webp",
     };
-    return mimeToExt[mimetype] || '';
+    return mimeToExt[mimetype] || "";
   }
 }

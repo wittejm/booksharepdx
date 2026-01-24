@@ -1,12 +1,12 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useRef, useCallback } from "react";
+import { X } from "lucide-react";
 
 interface ModalProps {
   open: boolean;
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg';
+  size?: "sm" | "md" | "lg";
   showCloseButton?: boolean;
 }
 
@@ -15,16 +15,16 @@ export default function Modal({
   onClose,
   title,
   children,
-  size = 'md',
+  size = "md",
   showCloseButton = true,
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const sizeClasses = {
-    sm: 'max-w-sm',
-    md: 'max-w-md',
-    lg: 'max-w-lg',
+    sm: "max-w-sm",
+    md: "max-w-md",
+    lg: "max-w-lg",
   };
 
   // Handle Escape key
@@ -32,13 +32,13 @@ export default function Modal({
     if (!open) return;
 
     const handleEscapeKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         onClose();
       }
     };
 
-    window.addEventListener('keydown', handleEscapeKey);
-    return () => window.removeEventListener('keydown', handleEscapeKey);
+    window.addEventListener("keydown", handleEscapeKey);
+    return () => window.removeEventListener("keydown", handleEscapeKey);
   }, [open, onClose]);
 
   // Handle backdrop click
@@ -48,7 +48,7 @@ export default function Modal({
         onClose();
       }
     },
-    [onClose]
+    [onClose],
   );
 
   // Focus trap and body overflow
@@ -57,12 +57,12 @@ export default function Modal({
 
     // Prevent body scroll
     const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
 
     // Focus management
     const previouslyFocusedElement = document.activeElement as HTMLElement;
     const focusableElements = contentRef.current?.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
     );
 
     if (focusableElements?.length) {
@@ -92,7 +92,9 @@ export default function Modal({
       >
         {(title || showCloseButton) && (
           <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-            {title && <h2 className="text-lg font-semibold text-gray-900">{title}</h2>}
+            {title && (
+              <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+            )}
             {!title && <div />}
             {showCloseButton && (
               <button
@@ -105,9 +107,7 @@ export default function Modal({
             )}
           </div>
         )}
-        <div className="px-6 py-4">
-          {children}
-        </div>
+        <div className="px-6 py-4">{children}</div>
       </div>
     </div>
   );

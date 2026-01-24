@@ -10,21 +10,27 @@ export function fileToBase64(file: File): Promise<string> {
 
     reader.onload = () => {
       const result = reader.result;
-      if (typeof result === 'string') {
+      if (typeof result === "string") {
         resolve(result);
       } else {
-        reject(new Error('Failed to convert file to base64: unexpected result type'));
+        reject(
+          new Error("Failed to convert file to base64: unexpected result type"),
+        );
       }
     };
 
     reader.onerror = () => {
-      reject(new Error('Failed to read file'));
+      reject(new Error("Failed to read file"));
     };
 
     try {
       reader.readAsDataURL(file);
     } catch (error) {
-      reject(new Error(`Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      reject(
+        new Error(
+          `Failed to read file: ${error instanceof Error ? error.message : "Unknown error"}`,
+        ),
+      );
     }
   });
 }
@@ -39,7 +45,7 @@ export function fileToBase64(file: File): Promise<string> {
  */
 export async function createImagePreview(file: File): Promise<string> {
   // Validate that the file is an image
-  if (!file.type.startsWith('image/')) {
+  if (!file.type.startsWith("image/")) {
     throw new Error(`Invalid file type: ${file.type}. Expected an image file.`);
   }
 
@@ -48,7 +54,7 @@ export async function createImagePreview(file: File): Promise<string> {
     return url;
   } catch (error) {
     throw new Error(
-      `Failed to create image preview: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Failed to create image preview: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
 }

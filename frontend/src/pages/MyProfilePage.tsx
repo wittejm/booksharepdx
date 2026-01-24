@@ -1,30 +1,36 @@
-import { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
-import type { User } from '@booksharepdx/shared';
-import { authService, blockService, userService, neighborhoodService } from '../services';
-import { useUser } from '../contexts/UserContext';
-import { useToast } from '../components/useToast';
-import ToastContainer from '../components/ToastContainer';
-import LocationPicker from '../components/LocationPicker';
-import MapPicker from '../components/MapPicker';
-import EditableText from '../components/EditableText';
-import ProfilePictureUploadModal from '../components/ProfilePictureUploadModal';
+import { useState, useEffect } from "react";
+import { Navigate } from "react-router-dom";
+import type { User } from "@booksharepdx/shared";
+import {
+  authService,
+  blockService,
+  userService,
+  neighborhoodService,
+} from "../services";
+import { useUser } from "../contexts/UserContext";
+import { useToast } from "../components/useToast";
+import ToastContainer from "../components/ToastContainer";
+import LocationPicker from "../components/LocationPicker";
+import MapPicker from "../components/MapPicker";
+import EditableText from "../components/EditableText";
+import ProfilePictureUploadModal from "../components/ProfilePictureUploadModal";
 
-type TabType = 'loves' | 'lookingFor';
+type TabType = "loves" | "lookingFor";
 
 export default function MyProfilePage() {
   const { currentUser, updateCurrentUser } = useUser();
 
   const { showToast, toasts, dismiss } = useToast();
 
-  const [activeTab, setActiveTab] = useState<TabType>('loves');
+  const [activeTab, setActiveTab] = useState<TabType>("loves");
 
   // State
   const [blockedUsers, setBlockedUsers] = useState<User[]>([]);
 
   // Section expand states
   const [showChangeLocation, setShowChangeLocation] = useState(false);
-  const [showPreciseLocationPicker, setShowPreciseLocationPicker] = useState(false);
+  const [showPreciseLocationPicker, setShowPreciseLocationPicker] =
+    useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -43,7 +49,7 @@ export default function MyProfilePage() {
       blockedIds.map(async (id) => {
         const user = await userService.getById(id);
         return user;
-      })
+      }),
     );
     setBlockedUsers(users.filter((u): u is User => u !== null));
   };
@@ -57,11 +63,11 @@ export default function MyProfilePage() {
       });
       if (updatedUser) {
         updateCurrentUser(updatedUser);
-        showToast('Name updated', 'success');
+        showToast("Name updated", "success");
       }
     } catch {
-      showToast('Failed to update name', 'error');
-      throw new Error('Failed to save');
+      showToast("Failed to update name", "error");
+      throw new Error("Failed to save");
     }
   };
 
@@ -72,11 +78,11 @@ export default function MyProfilePage() {
       const updatedUser = await authService.updateCurrentUser({ bio });
       if (updatedUser) {
         updateCurrentUser(updatedUser);
-        showToast('Bio updated', 'success');
+        showToast("Bio updated", "success");
       }
     } catch {
-      showToast('Failed to update bio', 'error');
-      throw new Error('Failed to save');
+      showToast("Failed to update bio", "error");
+      throw new Error("Failed to save");
     }
   };
 
@@ -89,11 +95,14 @@ export default function MyProfilePage() {
       });
       if (updatedUser) {
         updateCurrentUser(updatedUser);
-        showToast(imageBase64 ? 'Profile picture updated' : 'Profile picture removed', 'success');
+        showToast(
+          imageBase64 ? "Profile picture updated" : "Profile picture removed",
+          "success",
+        );
       }
     } catch {
-      showToast('Failed to update profile picture', 'error');
-      throw new Error('Failed to save');
+      showToast("Failed to update profile picture", "error");
+      throw new Error("Failed to save");
     }
   };
 
@@ -103,14 +112,14 @@ export default function MyProfilePage() {
     try {
       await blockService.unblock(currentUser.id, userId);
       setBlockedUsers(blockedUsers.filter((u) => u.id !== userId));
-      showToast('User unblocked', 'success');
+      showToast("User unblocked", "success");
     } catch (error) {
-      showToast('Failed to unblock user', 'error');
+      showToast("Failed to unblock user", "error");
     }
   };
 
   const handleChangeLocation = async (location: {
-    type: 'neighborhood' | 'pin';
+    type: "neighborhood" | "pin";
     neighborhoodId: string;
     lat?: number;
     lng?: number;
@@ -125,21 +134,24 @@ export default function MyProfilePage() {
         setShowChangeLocation(false);
       }
     } catch (error) {
-      console.error('Failed to update location:', error);
-      showToast('Failed to update location', 'error');
+      console.error("Failed to update location:", error);
+      showToast("Failed to update location", "error");
     } finally {
       setLocationLoading(false);
     }
   };
 
-  const handlePreciseLocationSelect = async (position: { lat: number; lng: number }) => {
+  const handlePreciseLocationSelect = async (position: {
+    lat: number;
+    lng: number;
+  }) => {
     if (!currentUser || !currentUser.location.neighborhoodId) return;
 
     setLocationLoading(true);
     try {
       const updatedUser = await authService.updateCurrentUser({
         location: {
-          type: 'pin',
+          type: "pin",
           neighborhoodId: currentUser.location.neighborhoodId,
           lat: position.lat,
           lng: position.lng,
@@ -150,8 +162,8 @@ export default function MyProfilePage() {
         setShowPreciseLocationPicker(false);
       }
     } catch (error) {
-      console.error('Failed to update location:', error);
-      showToast('Failed to update location', 'error');
+      console.error("Failed to update location:", error);
+      showToast("Failed to update location", "error");
     } finally {
       setLocationLoading(false);
     }
@@ -164,7 +176,7 @@ export default function MyProfilePage() {
     try {
       const updatedUser = await authService.updateCurrentUser({
         location: {
-          type: 'neighborhood',
+          type: "neighborhood",
           neighborhoodId: currentUser.location.neighborhoodId,
         },
       });
@@ -172,8 +184,8 @@ export default function MyProfilePage() {
         updateCurrentUser(updatedUser);
       }
     } catch (error) {
-      console.error('Failed to remove pin:', error);
-      showToast('Failed to update location', 'error');
+      console.error("Failed to remove pin:", error);
+      showToast("Failed to update location", "error");
     } finally {
       setLocationLoading(false);
     }
@@ -188,7 +200,7 @@ export default function MyProfilePage() {
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
-    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   };
 
   // Redirect to login if not authenticated
@@ -247,16 +259,18 @@ export default function MyProfilePage() {
               <div className="mb-2">
                 {/* Editable Preferred Name */}
                 <EditableText
-                  value={currentUser.preferredName || ''}
+                  value={currentUser.preferredName || ""}
                   onSave={handleSavePreferredName}
                   placeholder="Add your name"
                   emptyText={currentUser.username}
                   className="text-2xl md:text-3xl font-bold text-gray-900"
                   inputClassName="text-2xl md:text-3xl font-bold"
                 />
-                <div className="text-gray-500 text-sm">@{currentUser.username}</div>
+                <div className="text-gray-500 text-sm">
+                  @{currentUser.username}
+                </div>
                 <div className="text-gray-600 flex flex-wrap items-center gap-3 mt-1">
-                  <span>{currentNeighborhood?.name || 'Portland'}</span>
+                  <span>{currentNeighborhood?.name || "Portland"}</span>
                   <span>•</span>
                   <span>Member since {formatDate(currentUser.createdAt)}</span>
                 </div>
@@ -265,7 +279,7 @@ export default function MyProfilePage() {
               {/* Editable Bio */}
               <div className="mb-4">
                 <EditableText
-                  value={currentUser.bio || ''}
+                  value={currentUser.bio || ""}
                   onSave={handleSaveBio}
                   placeholder="Add a bio..."
                   emptyText="Add a bio..."
@@ -286,36 +300,61 @@ export default function MyProfilePage() {
                   </span>
                   <span className="text-gray-700">Bookshares</span>
                   <svg
-                    className={`w-4 h-4 text-gray-400 transition-transform ${statsExpanded ? 'rotate-180' : ''}`}
+                    className={`w-4 h-4 text-gray-400 transition-transform ${statsExpanded ? "rotate-180" : ""}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </button>
                 {statsExpanded && (
                   <div className="mt-3 pt-3 border-t border-gray-200">
                     <div className="flex flex-col gap-2 md:flex-row md:gap-6">
                       <div className="flex justify-between md:block md:text-center">
-                        <span className="text-gray-600 md:block md:text-sm">Gave</span>
-                        <span className="font-semibold text-primary-600 md:text-lg">{currentUser.stats.booksGiven}</span>
+                        <span className="text-gray-600 md:block md:text-sm">
+                          Gave
+                        </span>
+                        <span className="font-semibold text-primary-600 md:text-lg">
+                          {currentUser.stats.booksGiven}
+                        </span>
                       </div>
                       <div className="flex justify-between md:block md:text-center">
-                        <span className="text-gray-600 md:block md:text-sm">Received</span>
-                        <span className="font-semibold text-primary-600 md:text-lg">{currentUser.stats.booksReceived}</span>
+                        <span className="text-gray-600 md:block md:text-sm">
+                          Received
+                        </span>
+                        <span className="font-semibold text-primary-600 md:text-lg">
+                          {currentUser.stats.booksReceived}
+                        </span>
                       </div>
                       <div className="flex justify-between md:block md:text-center">
-                        <span className="text-gray-600 md:block md:text-sm">Loaned</span>
-                        <span className="font-semibold text-primary-600 md:text-lg">{currentUser.stats.booksLoaned}</span>
+                        <span className="text-gray-600 md:block md:text-sm">
+                          Loaned
+                        </span>
+                        <span className="font-semibold text-primary-600 md:text-lg">
+                          {currentUser.stats.booksLoaned}
+                        </span>
                       </div>
                       <div className="flex justify-between md:block md:text-center">
-                        <span className="text-gray-600 md:block md:text-sm">Borrowed</span>
-                        <span className="font-semibold text-primary-600 md:text-lg">{currentUser.stats.booksBorrowed}</span>
+                        <span className="text-gray-600 md:block md:text-sm">
+                          Borrowed
+                        </span>
+                        <span className="font-semibold text-primary-600 md:text-lg">
+                          {currentUser.stats.booksBorrowed}
+                        </span>
                       </div>
                       <div className="flex justify-between md:block md:text-center">
-                        <span className="text-gray-600 md:block md:text-sm">Traded</span>
-                        <span className="font-semibold text-primary-600 md:text-lg">{currentUser.stats.booksTraded}</span>
+                        <span className="text-gray-600 md:block md:text-sm">
+                          Traded
+                        </span>
+                        <span className="font-semibold text-primary-600 md:text-lg">
+                          {currentUser.stats.booksTraded}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -335,7 +374,9 @@ export default function MyProfilePage() {
               <div>
                 <div className="text-sm text-gray-500">Neighborhood</div>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-900 font-medium">{currentNeighborhood?.name || 'Not set'}</span>
+                  <span className="text-gray-900 font-medium">
+                    {currentNeighborhood?.name || "Not set"}
+                  </span>
                   <span className="text-gray-300">•</span>
                   <button
                     onClick={() => setShowChangeLocation(true)}
@@ -351,17 +392,27 @@ export default function MyProfilePage() {
               {currentNeighborhood && (
                 <div className="pt-4 border-t border-gray-200">
                   <div className="text-sm text-gray-500 mb-3">
-                    {currentUser.location.type === 'pin' && currentUser.location.lat && currentUser.location.lng
-                      ? 'Precise Location'
-                      : 'No precise location'}
+                    {currentUser.location.type === "pin" &&
+                    currentUser.location.lat &&
+                    currentUser.location.lng
+                      ? "Precise Location"
+                      : "No precise location"}
                   </div>
 
-                  {currentUser.location.type === 'pin' && currentUser.location.lat && currentUser.location.lng ? (
+                  {currentUser.location.type === "pin" &&
+                  currentUser.location.lat &&
+                  currentUser.location.lng ? (
                     // User has a pin - show the map
                     <div className="space-y-3">
                       <MapPicker
-                        center={{ lat: currentUser.location.lat, lng: currentUser.location.lng }}
-                        selectedPosition={{ lat: currentUser.location.lat, lng: currentUser.location.lng }}
+                        center={{
+                          lat: currentUser.location.lat,
+                          lng: currentUser.location.lng,
+                        }}
+                        selectedPosition={{
+                          lat: currentUser.location.lat,
+                          lng: currentUser.location.lng,
+                        }}
                         onPositionSelect={handlePreciseLocationSelect}
                       />
                       <button
@@ -369,13 +420,15 @@ export default function MyProfilePage() {
                         className="text-sm text-red-600 hover:text-red-700"
                         disabled={locationLoading}
                       >
-                        {locationLoading ? 'Removing...' : 'Remove Pin'}
+                        {locationLoading ? "Removing..." : "Remove Pin"}
                       </button>
                     </div>
                   ) : showPreciseLocationPicker ? (
                     // User clicked to add a pin - show the map picker
                     <div className="space-y-3">
-                      <p className="text-sm text-gray-600 italic">Click on the map to drop a pin</p>
+                      <p className="text-sm text-gray-600 italic">
+                        Click on the map to drop a pin
+                      </p>
                       <MapPicker
                         center={currentNeighborhood.centroid}
                         selectedPosition={null}
@@ -404,10 +457,15 @@ export default function MyProfilePage() {
             </div>
           ) : (
             <LocationPicker
-              initialNeighborhoodId={currentUser.location.neighborhoodId || ''}
+              initialNeighborhoodId={currentUser.location.neighborhoodId || ""}
               initialPreciseLocation={
-                currentUser.location.type === 'pin' && currentUser.location.lat && currentUser.location.lng
-                  ? { lat: currentUser.location.lat, lng: currentUser.location.lng }
+                currentUser.location.type === "pin" &&
+                currentUser.location.lat &&
+                currentUser.location.lng
+                  ? {
+                      lat: currentUser.location.lat,
+                      lng: currentUser.location.lng,
+                    }
                   : null
               }
               onSave={handleChangeLocation}
@@ -423,21 +481,21 @@ export default function MyProfilePage() {
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px overflow-x-auto">
               <button
-                onClick={() => setActiveTab('loves')}
+                onClick={() => setActiveTab("loves")}
                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'loves'
-                    ? 'border-primary-600 text-primary-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  activeTab === "loves"
+                    ? "border-primary-600 text-primary-600"
+                    : "border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300"
                 }`}
               >
                 Loves
               </button>
               <button
-                onClick={() => setActiveTab('lookingFor')}
+                onClick={() => setActiveTab("lookingFor")}
                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'lookingFor'
-                    ? 'border-primary-600 text-primary-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  activeTab === "lookingFor"
+                    ? "border-primary-600 text-primary-600"
+                    : "border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300"
                 }`}
               >
                 Looking For
@@ -447,129 +505,186 @@ export default function MyProfilePage() {
         </div>
 
         {/* Loves Tab */}
-        {activeTab === 'loves' && (
+        {activeTab === "loves" && (
           <div className="space-y-8">
-            {currentUser.readingPreferences?.favoriteGenres && currentUser.readingPreferences.favoriteGenres.length > 0 && (
-              <div className="card p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Genres</h3>
-                <div className="flex flex-wrap gap-2">
-                  {currentUser.readingPreferences.favoriteGenres.map((genre) => (
-                    <span
-                      key={genre}
-                      className="px-3 py-1.5 bg-primary-100 text-primary-700 rounded-full text-sm font-medium"
-                    >
-                      {genre}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {currentUser.readingPreferences?.favoriteBooks && currentUser.readingPreferences.favoriteBooks.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 px-6">Books</h3>
-                {currentUser.readingPreferences.favoriteBooks.map((book, index) => (
-                  <div key={index} className="card p-4 flex gap-4">
-                    <div className="flex-shrink-0">
-                      {book.coverImage ? (
-                        <img src={book.coverImage} alt={book.title} className="w-24 h-36 object-cover rounded shadow-sm" />
-                      ) : (
-                        <div className="w-24 h-36 bg-gray-200 rounded flex items-center justify-center">
-                          <span className="text-gray-400 text-xs">No Cover</span>
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-lg text-gray-900">{book.title}</h4>
-                      <p className="text-gray-600 text-sm">{book.author}</p>
-                    </div>
+            {currentUser.readingPreferences?.favoriteGenres &&
+              currentUser.readingPreferences.favoriteGenres.length > 0 && (
+                <div className="card p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Genres
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {currentUser.readingPreferences.favoriteGenres.map(
+                      (genre) => (
+                        <span
+                          key={genre}
+                          className="px-3 py-1.5 bg-primary-100 text-primary-700 rounded-full text-sm font-medium"
+                        >
+                          {genre}
+                        </span>
+                      ),
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
-
-            {currentUser.readingPreferences?.favoriteAuthors && currentUser.readingPreferences.favoriteAuthors.length > 0 && (
-              <div className="card p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Authors</h3>
-                <div className="flex flex-wrap gap-2">
-                  {currentUser.readingPreferences.favoriteAuthors.map((author) => (
-                    <span key={author} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
-                      {author}
-                    </span>
-                  ))}
                 </div>
-              </div>
-            )}
+              )}
 
-            {(!currentUser.readingPreferences?.favoriteGenres?.length &&
+            {currentUser.readingPreferences?.favoriteBooks &&
+              currentUser.readingPreferences.favoriteBooks.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 px-6">
+                    Books
+                  </h3>
+                  {currentUser.readingPreferences.favoriteBooks.map(
+                    (book, index) => (
+                      <div key={index} className="card p-4 flex gap-4">
+                        <div className="flex-shrink-0">
+                          {book.coverImage ? (
+                            <img
+                              src={book.coverImage}
+                              alt={book.title}
+                              className="w-24 h-36 object-cover rounded shadow-sm"
+                            />
+                          ) : (
+                            <div className="w-24 h-36 bg-gray-200 rounded flex items-center justify-center">
+                              <span className="text-gray-400 text-xs">
+                                No Cover
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-lg text-gray-900">
+                            {book.title}
+                          </h4>
+                          <p className="text-gray-600 text-sm">{book.author}</p>
+                        </div>
+                      </div>
+                    ),
+                  )}
+                </div>
+              )}
+
+            {currentUser.readingPreferences?.favoriteAuthors &&
+              currentUser.readingPreferences.favoriteAuthors.length > 0 && (
+                <div className="card p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Authors
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {currentUser.readingPreferences.favoriteAuthors.map(
+                      (author) => (
+                        <span
+                          key={author}
+                          className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium"
+                        >
+                          {author}
+                        </span>
+                      ),
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {!currentUser.readingPreferences?.favoriteGenres?.length &&
               !currentUser.readingPreferences?.favoriteAuthors?.length &&
-              !currentUser.readingPreferences?.favoriteBooks?.length) && (
-              <div className="card p-12 text-center">
-                <p className="text-gray-600">No reading preferences added yet.</p>
-              </div>
-            )}
+              !currentUser.readingPreferences?.favoriteBooks?.length && (
+                <div className="card p-12 text-center">
+                  <p className="text-gray-600">
+                    No reading preferences added yet.
+                  </p>
+                </div>
+              )}
           </div>
         )}
 
         {/* Looking For Tab */}
-        {activeTab === 'lookingFor' && (
+        {activeTab === "lookingFor" && (
           <div className="space-y-8">
-            {currentUser.readingPreferences?.lookingForGenres && currentUser.readingPreferences.lookingForGenres.length > 0 && (
-              <div className="card p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Genres</h3>
-                <div className="flex flex-wrap gap-2">
-                  {currentUser.readingPreferences.lookingForGenres.map((genre) => (
-                    <span key={genre} className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                      {genre}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {currentUser.readingPreferences?.lookingForBooks && currentUser.readingPreferences.lookingForBooks.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 px-6">Books</h3>
-                {currentUser.readingPreferences.lookingForBooks.map((book, index) => (
-                  <div key={index} className="card p-4 flex gap-4">
-                    <div className="flex-shrink-0">
-                      {book.coverImage ? (
-                        <img src={book.coverImage} alt={book.title} className="w-24 h-36 object-cover rounded shadow-sm" />
-                      ) : (
-                        <div className="w-24 h-36 bg-gray-200 rounded flex items-center justify-center">
-                          <span className="text-gray-400 text-xs">No Cover</span>
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-lg text-gray-900">{book.title}</h4>
-                      <p className="text-gray-600 text-sm">{book.author}</p>
-                    </div>
+            {currentUser.readingPreferences?.lookingForGenres &&
+              currentUser.readingPreferences.lookingForGenres.length > 0 && (
+                <div className="card p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Genres
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {currentUser.readingPreferences.lookingForGenres.map(
+                      (genre) => (
+                        <span
+                          key={genre}
+                          className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium"
+                        >
+                          {genre}
+                        </span>
+                      ),
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
-
-            {currentUser.readingPreferences?.lookingForAuthors && currentUser.readingPreferences.lookingForAuthors.length > 0 && (
-              <div className="card p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Authors</h3>
-                <div className="flex flex-wrap gap-2">
-                  {currentUser.readingPreferences.lookingForAuthors.map((author) => (
-                    <span key={author} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
-                      {author}
-                    </span>
-                  ))}
                 </div>
-              </div>
-            )}
+              )}
 
-            {(!currentUser.readingPreferences?.lookingForGenres?.length &&
+            {currentUser.readingPreferences?.lookingForBooks &&
+              currentUser.readingPreferences.lookingForBooks.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 px-6">
+                    Books
+                  </h3>
+                  {currentUser.readingPreferences.lookingForBooks.map(
+                    (book, index) => (
+                      <div key={index} className="card p-4 flex gap-4">
+                        <div className="flex-shrink-0">
+                          {book.coverImage ? (
+                            <img
+                              src={book.coverImage}
+                              alt={book.title}
+                              className="w-24 h-36 object-cover rounded shadow-sm"
+                            />
+                          ) : (
+                            <div className="w-24 h-36 bg-gray-200 rounded flex items-center justify-center">
+                              <span className="text-gray-400 text-xs">
+                                No Cover
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-lg text-gray-900">
+                            {book.title}
+                          </h4>
+                          <p className="text-gray-600 text-sm">{book.author}</p>
+                        </div>
+                      </div>
+                    ),
+                  )}
+                </div>
+              )}
+
+            {currentUser.readingPreferences?.lookingForAuthors &&
+              currentUser.readingPreferences.lookingForAuthors.length > 0 && (
+                <div className="card p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Authors
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {currentUser.readingPreferences.lookingForAuthors.map(
+                      (author) => (
+                        <span
+                          key={author}
+                          className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium"
+                        >
+                          {author}
+                        </span>
+                      ),
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {!currentUser.readingPreferences?.lookingForGenres?.length &&
               !currentUser.readingPreferences?.lookingForAuthors?.length &&
-              !currentUser.readingPreferences?.lookingForBooks?.length) && (
-              <div className="card p-12 text-center">
-                <p className="text-gray-600">No preferences added yet.</p>
-              </div>
-            )}
+              !currentUser.readingPreferences?.lookingForBooks?.length && (
+                <div className="card p-12 text-center">
+                  <p className="text-gray-600">No preferences added yet.</p>
+                </div>
+              )}
           </div>
         )}
 
@@ -578,7 +693,9 @@ export default function MyProfilePage() {
           <h2 className="text-xl font-bold text-gray-900 mb-4">Privacy</h2>
 
           <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Blocked Users</h3>
+            <h3 className="text-sm font-medium text-gray-700 mb-3">
+              Blocked Users
+            </h3>
             {blockedUsers.length === 0 ? (
               <p className="text-sm text-gray-500">No blocked users.</p>
             ) : (
@@ -602,7 +719,9 @@ export default function MyProfilePage() {
                           </span>
                         </div>
                       )}
-                      <span className="font-medium text-gray-900">{user.username}</span>
+                      <span className="font-medium text-gray-900">
+                        {user.username}
+                      </span>
                     </div>
                     <button
                       onClick={() => handleUnblock(user.id)}
@@ -623,7 +742,8 @@ export default function MyProfilePage() {
 
           <div>
             <p className="text-sm text-gray-600 mb-4">
-              Once you delete your account, there is no going back. Please be certain.
+              Once you delete your account, there is no going back. Please be
+              certain.
             </p>
             <button
               onClick={() => setShowDeleteAccount(true)}
@@ -639,19 +759,28 @@ export default function MyProfilePage() {
       {showDeleteAccount && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="card p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold text-red-600 mb-4">Delete Account</h3>
+            <h3 className="text-xl font-bold text-red-600 mb-4">
+              Delete Account
+            </h3>
             <p className="text-gray-700 mb-4">
-              Are you absolutely sure you want to delete your account? This action cannot be undone.
+              Are you absolutely sure you want to delete your account? This
+              action cannot be undone.
             </p>
             <p className="text-sm text-gray-600 mb-4">
               All your posts, messages, and data will be permanently deleted.
             </p>
 
             <div className="flex gap-3">
-              <button onClick={() => setShowDeleteAccount(false)} className="btn-secondary flex-1">
+              <button
+                onClick={() => setShowDeleteAccount(false)}
+                className="btn-secondary flex-1"
+              >
                 Cancel
               </button>
-              <button onClick={handleDeleteAccount} className="btn-danger flex-1">
+              <button
+                onClick={handleDeleteAccount}
+                className="btn-danger flex-1"
+              >
                 Delete My Account
               </button>
             </div>

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import type { Post, User } from '@booksharepdx/shared';
-import { postService, userService } from '../services';
-import PortlandMap from '../components/PortlandMap';
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import type { Post, User } from "@booksharepdx/shared";
+import { postService, userService } from "../services";
+import PortlandMap from "../components/PortlandMap";
 
 export default function LandingPage() {
   const [recentPosts, setRecentPosts] = useState<Post[]>([]);
@@ -15,17 +15,19 @@ export default function LandingPage() {
         const posts = await postService.getActive();
 
         // Get last 10 posts, sorted by most recent
-        const sorted = posts.sort((a, b) => b.createdAt - a.createdAt).slice(0, 10);
+        const sorted = posts
+          .sort((a, b) => b.createdAt - a.createdAt)
+          .slice(0, 10);
         setRecentPosts(sorted);
 
         // Build author map from embedded user data
         const userMap = new Map<string, User>();
-        sorted.forEach(p => {
+        sorted.forEach((p) => {
           if (p.user) userMap.set(p.userId, p.user);
         });
         setAuthors(userMap);
       } catch (error) {
-        console.error('Error loading posts:', error);
+        console.error("Error loading posts:", error);
       } finally {
         setLoading(false);
       }
@@ -51,7 +53,8 @@ export default function LandingPage() {
                   Share books with your neighbors.
                 </h1>
                 <p className="text-xl text-gray-600 mt-6 leading-relaxed">
-                  Give away books you've finished. Find something new to read. Meet the people who live near you.
+                  Give away books you've finished. Find something new to read.
+                  Meet the people who live near you.
                 </p>
               </div>
 
@@ -79,21 +82,26 @@ export default function LandingPage() {
               {loading ? (
                 <div className="flex flex-col gap-3">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="bg-gray-100 rounded-lg h-24 animate-pulse"></div>
+                    <div
+                      key={i}
+                      className="bg-gray-100 rounded-lg h-24 animate-pulse"
+                    ></div>
                   ))}
                 </div>
               ) : recentPosts.length === 0 ? (
                 <div className="bg-white rounded-lg p-8 shadow-md text-center">
                   <div className="text-4xl mb-2">📚</div>
-                  <p className="text-gray-600 text-sm">No books in this area yet. Be the first to share!</p>
+                  <p className="text-gray-600 text-sm">
+                    No books in this area yet. Be the first to share!
+                  </p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
                   {recentPosts.slice(0, 5).map((post, index) => {
                     const author = authors.get(post.userId);
                     // Desktop: show 5, Tablet (lg): show 3, Mobile: show 2
-                    const hideOnTablet = index >= 3 ? 'hidden lg:block' : '';
-                    const hideOnMobile = index >= 2 ? 'hidden md:block' : '';
+                    const hideOnTablet = index >= 3 ? "hidden lg:block" : "";
+                    const hideOnMobile = index >= 2 ? "hidden md:block" : "";
 
                     return (
                       <div
@@ -124,7 +132,7 @@ export default function LandingPage() {
                             </p>
                             <div className="flex items-center gap-2 mt-1.5">
                               <span className="text-xs font-semibold text-primary-600">
-                                {post.type === 'giveaway' ? 'Gift' : 'Exchange'}
+                                {post.type === "giveaway" ? "Gift" : "Exchange"}
                               </span>
                             </div>
                           </div>
@@ -143,7 +151,8 @@ export default function LandingPage() {
                                 />
                               ) : (
                                 <div className="w-6 h-6 rounded-full bg-[#164E4A] text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                                  {author.username?.charAt(0).toUpperCase() || 'U'}
+                                  {author.username?.charAt(0).toUpperCase() ||
+                                    "U"}
                                 </div>
                               )}
                             </div>
@@ -159,11 +168,12 @@ export default function LandingPage() {
                     className="flex items-center justify-center gap-2 bg-primary-50 hover:bg-primary-100 rounded-lg p-3 text-primary-700 font-semibold text-sm transition-colors group"
                   >
                     <span>Browse All Books</span>
-                    <span className="group-hover:translate-x-1 transition-transform">→</span>
+                    <span className="group-hover:translate-x-1 transition-transform">
+                      →
+                    </span>
                   </Link>
                 </div>
               )}
-
             </div>
           </div>
         </div>
@@ -173,7 +183,9 @@ export default function LandingPage() {
       <section className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">How it works</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              How it works
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
@@ -184,9 +196,12 @@ export default function LandingPage() {
                   <span className="text-3xl">📚</span>
                 </div>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Post your books</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Post your books
+              </h3>
               <p className="text-gray-600">
-                Books you want to give away, trade, or loan out. Someone nearby probably wants to read them.
+                Books you want to give away, trade, or loan out. Someone nearby
+                probably wants to read them.
               </p>
             </div>
 
@@ -197,9 +212,12 @@ export default function LandingPage() {
                   <span className="text-3xl">👋</span>
                 </div>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Meet up and share</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Meet up and share
+              </h3>
               <p className="text-gray-600">
-                Message your neighbors, figure out a time, hand off the book. Maybe make a friend.
+                Message your neighbors, figure out a time, hand off the book.
+                Maybe make a friend.
               </p>
             </div>
           </div>
@@ -209,7 +227,9 @@ export default function LandingPage() {
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-primary-600 to-primary-700 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">Got books collecting dust?</h2>
+          <h2 className="text-4xl md:text-5xl font-bold mb-6">
+            Got books collecting dust?
+          </h2>
           <p className="text-lg text-primary-100 mb-8 max-w-2xl mx-auto">
             Someone in your neighborhood wants to read them.
           </p>

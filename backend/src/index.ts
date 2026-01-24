@@ -1,8 +1,8 @@
-import 'reflect-metadata';
-import { createApp } from './app.js';
-import { AppDataSource } from './config/database.js';
-import { env } from './config/env.js';
-import logger from './utils/logger.js';
+import "reflect-metadata";
+import { createApp } from "./app.js";
+import { AppDataSource } from "./config/database.js";
+import { env } from "./config/env.js";
+import logger from "./utils/logger.js";
 
 async function main() {
   try {
@@ -10,9 +10,9 @@ async function main() {
     logger.clear();
 
     // Initialize database connection
-    logger.info('Connecting to database...');
+    logger.info("Connecting to database...");
     await AppDataSource.initialize();
-    logger.info('Database connected successfully');
+    logger.info("Database connected successfully");
 
     // Create and start Express app
     const app = createApp();
@@ -23,7 +23,7 @@ async function main() {
       logger.info(`Frontend URL: ${env.frontendUrl}`);
     });
   } catch (error) {
-    logger.error('Failed to start server:', error);
+    logger.error("Failed to start server:", error);
     process.exit(1);
   }
 }

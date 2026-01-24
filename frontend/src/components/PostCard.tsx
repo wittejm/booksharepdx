@@ -1,35 +1,40 @@
-import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import type { Post, MessageThread } from '@booksharepdx/shared';
-import { messageService } from '../services';
-import { useUser } from '../contexts/UserContext';
-import { useUser as useFetchUser } from '../hooks/useDataLoader';
-import { useToast } from './useToast';
-import { useConfirm } from './useConfirm';
-import { setPendingAction } from '../utils/pendingAuth';
-import PostCardMenu from './PostCardMenu';
-import RequestForm from './RequestForm';
-import BookDisplay, { TypeBadge } from './BookDisplay';
-import Avatar from './Avatar';
+import { useState, useEffect, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import type { Post, MessageThread } from "@booksharepdx/shared";
+import { messageService } from "../services";
+import { useUser } from "../contexts/UserContext";
+import { useUser as useFetchUser } from "../hooks/useDataLoader";
+import { useToast } from "./useToast";
+import { useConfirm } from "./useConfirm";
+import { setPendingAction } from "../utils/pendingAuth";
+import PostCardMenu from "./PostCardMenu";
+import RequestForm from "./RequestForm";
+import BookDisplay, { TypeBadge } from "./BookDisplay";
+import Avatar from "./Avatar";
 
 // Exchange info for when viewing someone's books who has interest in your exchange posts
 interface ExchangeInfo {
-  myPosts: Post[];  // My exchange posts this user is interested in
-  threadIds: { [myPostId: string]: string };  // Map from my post ID to thread ID
+  myPosts: Post[]; // My exchange posts this user is interested in
+  threadIds: { [myPostId: string]: string }; // Map from my post ID to thread ID
 }
 
 interface PostCardProps {
   post: Post;
   distance?: number;
   autoOpenRequest?: boolean;
-  exchangeInfo?: ExchangeInfo;  // Present when this user has interest in my exchange posts
+  exchangeInfo?: ExchangeInfo; // Present when this user has interest in my exchange posts
 }
 
 /**
  * PostCard - Displays a post for viewing (not for the owner)
  * Used on BrowsePage and ProfilePage
  */
-export default function PostCard({ post, distance, autoOpenRequest, exchangeInfo }: PostCardProps) {
+export default function PostCard({
+  post,
+  distance,
+  autoOpenRequest,
+  exchangeInfo,
+}: PostCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const { currentUser } = useUser();
   const navigate = useNavigate();
@@ -38,23 +43,31 @@ export default function PostCard({ post, distance, autoOpenRequest, exchangeInfo
   const [showContactForm, setShowContactForm] = useState(false);
   const [showExchangeDropdown, setShowExchangeDropdown] = useState(false);
   const [proposingExchange, setProposingExchange] = useState(false);
-  const [existingThread, setExistingThread] = useState<MessageThread | null>(null);
+  const [existingThread, setExistingThread] = useState<MessageThread | null>(
+    null,
+  );
 
   // Load post owner using data loader hook
   const { user: postUser } = useFetchUser(post.userId);
 
   // Determine if we're in exchange mode (can't exchange for loans)
-  const canExchange = exchangeInfo && exchangeInfo.myPosts.length > 0 && post.type !== 'loan';
+  const canExchange =
+    exchangeInfo && exchangeInfo.myPosts.length > 0 && post.type !== "loan";
 
   // Check if user has already requested this book
   useEffect(() => {
     if (!currentUser) return;
 
-    messageService.getThreads().then(threads => {
-      const thread = threads.find(t =>
-        t.postId === post.id &&
-        t.participants.includes(currentUser.id) &&
-        !['declined_by_owner', 'cancelled_by_requester', 'completed'].includes(t.status || '')
+    messageService.getThreads().then((threads) => {
+      const thread = threads.find(
+        (t) =>
+          t.postId === post.id &&
+          t.participants.includes(currentUser.id) &&
+          ![
+            "declined_by_owner",
+            "cancelled_by_requester",
+            "completed",
+          ].includes(t.status || ""),
       );
       setExistingThread(thread || null);
     });
@@ -65,7 +78,10 @@ export default function PostCard({ post, distance, autoOpenRequest, exchangeInfo
     if (autoOpenRequest && currentUser) {
       setShowContactForm(true);
       setTimeout(() => {
-        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        cardRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
       }, 100);
     }
   }, [autoOpenRequest, currentUser]);
@@ -74,11 +90,11 @@ export default function PostCard({ post, distance, autoOpenRequest, exchangeInfo
     e.stopPropagation();
     if (!currentUser) {
       setPendingAction({
-        type: 'request',
+        type: "request",
         postId: post.id,
-        returnTo: '/browse',
+        returnTo: "/browse",
       });
-      navigate('/login');
+      navigate("/login");
       return;
     }
     setShowContactForm(true);
@@ -103,10 +119,10 @@ export default function PostCard({ post, distance, autoOpenRequest, exchangeInfo
     if (!threadId) return;
 
     const confirmed = await confirm({
-      title: 'Propose Exchange',
+      title: "Propose Exchange",
       message: `Exchange your "${myPost.book.title}" for their "${post.book.title}"?`,
-      confirmText: 'Propose Exchange',
-      variant: 'info'
+      confirmText: "Propose Exchange",
+      variant: "info",
     });
     if (!confirmed) return;
 
@@ -115,17 +131,17 @@ export default function PostCard({ post, distance, autoOpenRequest, exchangeInfo
     try {
       await messageService.sendMessage({
         threadId,
-        content: '', // Content is ignored for trade_proposal, visual is rendered from post data
-        type: 'trade_proposal',
-        offeredPostId: myPost.id,    // My book (what I'm offering)
-        requestedPostId: post.id,     // Their book (what I want)
+        content: "", // Content is ignored for trade_proposal, visual is rendered from post data
+        type: "trade_proposal",
+        offeredPostId: myPost.id, // My book (what I'm offering)
+        requestedPostId: post.id, // Their book (what I want)
       });
-      showToast('Exchange proposal sent!', 'success');
+      showToast("Exchange proposal sent!", "success");
       // Navigate back to shares page, focused on the post with the thread open
       navigate(`/share?focusPost=${myPost.id}&showThread=${threadId}`);
     } catch (error) {
-      console.error('Failed to propose exchange:', error);
-      showToast('Failed to send exchange proposal', 'error');
+      console.error("Failed to propose exchange:", error);
+      showToast("Failed to send exchange proposal", "error");
     } finally {
       setProposingExchange(false);
     }
@@ -134,7 +150,10 @@ export default function PostCard({ post, distance, autoOpenRequest, exchangeInfo
   const isOwnPost = currentUser?.id === post.userId;
 
   return (
-    <div ref={cardRef} className="card hover:shadow-lg transition-shadow relative">
+    <div
+      ref={cardRef}
+      className="card hover:shadow-lg transition-shadow relative"
+    >
       {/* Three-dot Menu - only show for other users' posts */}
       {!isOwnPost && (
         <div className="absolute top-3 right-3">
@@ -151,8 +170,10 @@ export default function PostCard({ post, distance, autoOpenRequest, exchangeInfo
           {/* Type Badge and Request/Exchange Button */}
           <div className="flex items-center justify-between mt-1 mb-2 pr-3">
             <TypeBadge type={post.type} />
-            {!isOwnPost && post.status === 'active' && !showContactForm && (
-              canExchange ? (
+            {!isOwnPost &&
+              post.status === "active" &&
+              !showContactForm &&
+              (canExchange ? (
                 // Exchange mode - show Exchange button with optional dropdown
                 <div className="relative">
                   <button
@@ -160,19 +181,32 @@ export default function PostCard({ post, distance, autoOpenRequest, exchangeInfo
                     disabled={proposingExchange}
                     className="btn-primary text-sm py-1.5 px-4 flex items-center gap-1 disabled:opacity-50"
                   >
-                    {proposingExchange ? 'Sending...' : 'Exchange'}
+                    {proposingExchange ? "Sending..." : "Exchange"}
                     {exchangeInfo && exchangeInfo.myPosts.length > 1 && (
-                      <svg className={`w-4 h-4 transition-transform ${showExchangeDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      <svg
+                        className={`w-4 h-4 transition-transform ${showExchangeDropdown ? "rotate-180" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
                       </svg>
                     )}
                   </button>
                   {/* Dropdown for multiple exchange posts */}
                   {showExchangeDropdown && exchangeInfo && (
                     <>
-                      <div className="fixed inset-0 z-10" onClick={() => setShowExchangeDropdown(false)} />
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setShowExchangeDropdown(false)}
+                      />
                       <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[200px]">
-                        {exchangeInfo.myPosts.map(myPost => (
+                        {exchangeInfo.myPosts.map((myPost) => (
                           <button
                             key={myPost.id}
                             onClick={(e) => {
@@ -205,8 +239,7 @@ export default function PostCard({ post, distance, autoOpenRequest, exchangeInfo
                 >
                   Request
                 </button>
-              )
-            )}
+              ))}
           </div>
 
           {/* User Info */}
@@ -214,7 +247,11 @@ export default function PostCard({ post, distance, autoOpenRequest, exchangeInfo
             <div className="flex items-center gap-2">
               {postUser && (
                 <>
-                  <Avatar src={postUser.profilePicture} username={postUser.username} size="sm" />
+                  <Avatar
+                    src={postUser.profilePicture}
+                    username={postUser.username}
+                    size="sm"
+                  />
                   <Link
                     to={`/profile/${postUser.username}`}
                     className="font-medium hover:text-primary-600 transition-colors"
@@ -225,7 +262,9 @@ export default function PostCard({ post, distance, autoOpenRequest, exchangeInfo
                 </>
               )}
               {distance !== undefined && (
-                <span className="text-gray-400">• {distance.toFixed(1)} mi away</span>
+                <span className="text-gray-400">
+                  • {distance.toFixed(1)} mi away
+                </span>
               )}
             </div>
           </div>

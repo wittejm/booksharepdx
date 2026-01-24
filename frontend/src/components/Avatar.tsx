@@ -1,22 +1,27 @@
 interface AvatarProps {
   src?: string;
   username: string;
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
   className?: string;
 }
 
 const sizeClasses = {
-  xs: 'w-5 h-5 text-xs',
-  sm: 'w-6 h-6 text-xs',
-  md: 'w-8 h-8 text-sm',
-  lg: 'w-12 h-12 text-lg',
-  xl: 'w-16 h-16 text-xl',
+  xs: "w-5 h-5 text-xs",
+  sm: "w-6 h-6 text-xs",
+  md: "w-8 h-8 text-sm",
+  lg: "w-12 h-12 text-lg",
+  xl: "w-16 h-16 text-xl",
 };
 
 /**
  * Avatar - Displays user profile picture or fallback initial
  */
-export default function Avatar({ src, username, size = 'md', className = '' }: AvatarProps) {
+export default function Avatar({
+  src,
+  username,
+  size = "md",
+  className = "",
+}: AvatarProps) {
   const sizeClass = sizeClasses[size];
 
   if (src) {

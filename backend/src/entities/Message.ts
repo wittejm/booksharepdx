@@ -7,57 +7,57 @@ import {
   JoinColumn,
   Index,
   Relation,
-} from 'typeorm';
-import type { User } from './User.js';
-import type { MessageThread } from './MessageThread.js';
+} from "typeorm";
+import type { User } from "./User.js";
+import type { MessageThread } from "./MessageThread.js";
 
-export type MessageType = 'user' | 'system' | 'trade_proposal';
+export type MessageType = "user" | "system" | "trade_proposal";
 export type SystemMessageType =
-  | 'exchange_proposed'
-  | 'exchange_completed'
-  | 'exchange_declined'
-  | 'exchange_cancelled'
-  | 'gift_completed'
-  | 'request_cancelled';
-export type ProposalStatus = 'pending' | 'accepted' | 'declined';
+  | "exchange_proposed"
+  | "exchange_completed"
+  | "exchange_declined"
+  | "exchange_cancelled"
+  | "gift_completed"
+  | "request_cancelled";
+export type ProposalStatus = "pending" | "accepted" | "declined";
 
-@Entity('messages')
+@Entity("messages")
 export class Message {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column({ type: "varchar" })
   @Index()
   threadId: string;
 
-  @ManyToOne('MessageThread', 'messages', { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'threadId' })
+  @ManyToOne("MessageThread", "messages", { onDelete: "CASCADE" })
+  @JoinColumn({ name: "threadId" })
   thread: Relation<MessageThread>;
 
   @Column({ type: "varchar" })
   senderId: string;
 
-  @ManyToOne('User', 'messages')
-  @JoinColumn({ name: 'senderId' })
+  @ManyToOne("User", "messages")
+  @JoinColumn({ name: "senderId" })
   sender: Relation<User>;
 
-  @Column({ type: 'text' })
+  @Column({ type: "text" })
   content: string;
 
-  @Column({ type: 'varchar', default: 'user' })
+  @Column({ type: "varchar", default: "user" })
   type: MessageType;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: "varchar", nullable: true })
   systemMessageType: SystemMessageType | null;
 
   // Trade proposal fields (only for type: 'trade_proposal')
-  @Column({ type: 'varchar', nullable: true })
-  offeredPostId: string | null;  // The proposer's book
+  @Column({ type: "varchar", nullable: true })
+  offeredPostId: string | null; // The proposer's book
 
-  @Column({ type: 'varchar', nullable: true })
-  requestedPostId: string | null;  // The book they want
+  @Column({ type: "varchar", nullable: true })
+  requestedPostId: string | null; // The book they want
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: "varchar", nullable: true })
   proposalStatus: ProposalStatus | null;
 
   @CreateDateColumn()

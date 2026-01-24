@@ -6,16 +6,26 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
-} from 'typeorm';
-import { User } from './User.js';
+} from "typeorm";
+import { User } from "./User.js";
 
-export type ReportReason = 'spam' | 'harassment' | 'scam' | 'inappropriate' | 'other';
-export type ReportStatus = 'new' | 'in_review' | 'resolved';
-export type ReportAction = 'dismissed' | 'warned' | 'content_removed' | 'suspended' | 'escalated';
+export type ReportReason =
+  | "spam"
+  | "harassment"
+  | "scam"
+  | "inappropriate"
+  | "other";
+export type ReportStatus = "new" | "in_review" | "resolved";
+export type ReportAction =
+  | "dismissed"
+  | "warned"
+  | "content_removed"
+  | "suspended"
+  | "escalated";
 
-@Entity('reports')
+@Entity("reports")
 export class Report {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column({ type: "varchar" })
@@ -23,7 +33,7 @@ export class Report {
   reporterId: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'reporterId' })
+  @JoinColumn({ name: "reporterId" })
   reporter: User;
 
   @Column({ type: "varchar", nullable: true })
@@ -31,29 +41,29 @@ export class Report {
   reportedUserId: string | null;
 
   @ManyToOne(() => User, { nullable: true })
-  @JoinColumn({ name: 'reportedUserId' })
+  @JoinColumn({ name: "reportedUserId" })
   reportedUser: User | null;
 
   @Column({ type: "varchar", nullable: true })
   reportedPostId: string | null;
 
-  @Column({ type: 'jsonb' })
+  @Column({ type: "jsonb" })
   reasons: ReportReason[];
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   details: string | null;
 
   @Column({ type: "boolean", default: false })
   includeMessageHistory: boolean;
 
-  @Column({ type: 'varchar', default: 'new' })
+  @Column({ type: "varchar", default: "new" })
   @Index()
   status: ReportStatus;
 
   @Column({ type: "varchar", nullable: true })
   claimedBy: string | null;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: "jsonb", nullable: true })
   resolution: {
     action: ReportAction;
     moderatorId: string;

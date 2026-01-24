@@ -1,8 +1,14 @@
-import { Request, Response, NextFunction } from 'express';
-import { verifyAccessToken, verifyRefreshToken, signAccessToken, accessTokenCookieOptions, JwtPayload } from '../utils/jwt.js';
-import { AppError } from './errorHandler.js';
-import { AppDataSource } from '../config/database.js';
-import { User } from '../entities/User.js';
+import { Request, Response, NextFunction } from "express";
+import {
+  verifyAccessToken,
+  verifyRefreshToken,
+  signAccessToken,
+  accessTokenCookieOptions,
+  JwtPayload,
+} from "../utils/jwt.js";
+import { AppError } from "./errorHandler.js";
+import { AppDataSource } from "../config/database.js";
+import { User } from "../entities/User.js";
 
 // Extend Express Request to include user
 declare global {
@@ -18,16 +24,20 @@ declare global {
  * Middleware to require authentication
  * Checks access token from cookie, refreshes if expired
  */
-export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+export async function requireAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   try {
     const accessToken = req.cookies?.accessToken;
     const refreshToken = req.cookies?.refreshToken;
 
     if (!accessToken && !refreshToken) {
       throw new AppError(
-        'You must be logged in to access this feature. Please log in and try again.',
+        "You must be logged in to access this feature. Please log in and try again.",
         401,
-        'UNAUTHORIZED'
+        "UNAUTHORIZED",
       );
     }
 
@@ -55,21 +65,21 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
         };
         // Issue new access token
         const newAccessToken = signAccessToken(payload);
-        res.cookie('accessToken', newAccessToken, accessTokenCookieOptions);
+        res.cookie("accessToken", newAccessToken, accessTokenCookieOptions);
       } catch {
         throw new AppError(
-          'Your session has expired. Please log in again to continue.',
+          "Your session has expired. Please log in again to continue.",
           401,
-          'SESSION_EXPIRED'
+          "SESSION_EXPIRED",
         );
       }
     }
 
     if (!payload) {
       throw new AppError(
-        'You must be logged in to access this feature. Please log in and try again.',
+        "You must be logged in to access this feature. Please log in and try again.",
         401,
-        'UNAUTHORIZED'
+        "UNAUTHORIZED",
       );
     }
 
@@ -79,17 +89,17 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
     if (!user) {
       throw new AppError(
-        'Your account could not be found. It may have been deleted. Please contact support if you need assistance.',
+        "Your account could not be found. It may have been deleted. Please contact support if you need assistance.",
         401,
-        'USER_NOT_FOUND'
+        "USER_NOT_FOUND",
       );
     }
 
     if (user.banned) {
       throw new AppError(
-        'Your account has been banned due to a violation of our community guidelines. Please contact support if you believe this is an error.',
+        "Your account has been banned due to a violation of our community guidelines. Please contact support if you believe this is an error.",
         403,
-        'ACCOUNT_BANNED'
+        "ACCOUNT_BANNED",
       );
     }
 
@@ -104,7 +114,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 /**
  * Optional auth - populates req.user if token exists, but doesn't require it
  */
-export async function optionalAuth(req: Request, res: Response, next: NextFunction) {
+export async function optionalAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   try {
     const accessToken = req.cookies?.accessToken;
     const refreshToken = req.cookies?.refreshToken;
@@ -134,7 +148,7 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
           username: refreshPayload.username,
         };
         const newAccessToken = signAccessToken(payload);
-        res.cookie('accessToken', newAccessToken, accessTokenCookieOptions);
+        res.cookie("accessToken", newAccessToken, accessTokenCookieOptions);
       } catch {
         // Refresh token also invalid
       }

@@ -1,10 +1,10 @@
-import { useState, useCallback } from 'react';
-import { generateId } from '../utils/idGenerator';
+import { useState, useCallback } from "react";
+import { generateId } from "../utils/idGenerator";
 
 export interface ToastMessage {
   id: string;
   message: string;
-  type: 'success' | 'error' | 'warning' | 'info';
+  type: "success" | "error" | "warning" | "info";
   duration: number;
 }
 
@@ -14,7 +14,11 @@ interface UseToastReturn {
   error: (message: string, duration?: number) => void;
   warning: (message: string, duration?: number) => void;
   info: (message: string, duration?: number) => void;
-  showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info', duration?: number) => void;
+  showToast: (
+    message: string,
+    type: "success" | "error" | "warning" | "info",
+    duration?: number,
+  ) => void;
   dismiss: (id: string) => void;
   dismissAll: () => void;
 }
@@ -23,41 +27,45 @@ export function useToast(): UseToastReturn {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const addToast = useCallback(
-    (message: string, type: 'success' | 'error' | 'warning' | 'info', duration: number = 3000) => {
+    (
+      message: string,
+      type: "success" | "error" | "warning" | "info",
+      duration: number = 3000,
+    ) => {
       const id = generateId();
       const toast: ToastMessage = { id, message, type, duration };
       setToasts((prev) => [...prev, toast]);
       return id;
     },
-    [generateId]
+    [generateId],
   );
 
   const success = useCallback(
     (message: string, duration?: number) => {
-      addToast(message, 'success', duration);
+      addToast(message, "success", duration);
     },
-    [addToast]
+    [addToast],
   );
 
   const error = useCallback(
     (message: string, duration?: number) => {
-      addToast(message, 'error', duration);
+      addToast(message, "error", duration);
     },
-    [addToast]
+    [addToast],
   );
 
   const warning = useCallback(
     (message: string, duration?: number) => {
-      addToast(message, 'warning', duration);
+      addToast(message, "warning", duration);
     },
-    [addToast]
+    [addToast],
   );
 
   const info = useCallback(
     (message: string, duration?: number) => {
-      addToast(message, 'info', duration);
+      addToast(message, "info", duration);
     },
-    [addToast]
+    [addToast],
   );
 
   const dismiss = useCallback((id: string) => {
@@ -69,10 +77,14 @@ export function useToast(): UseToastReturn {
   }, []);
 
   const showToast = useCallback(
-    (message: string, type: 'success' | 'error' | 'warning' | 'info', duration?: number) => {
+    (
+      message: string,
+      type: "success" | "error" | "warning" | "info",
+      duration?: number,
+    ) => {
       addToast(message, type, duration);
     },
-    [addToast]
+    [addToast],
   );
 
   return {

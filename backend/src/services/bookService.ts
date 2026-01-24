@@ -1,6 +1,6 @@
-import { ILike } from 'typeorm';
-import { AppDataSource } from '../config/database.js';
-import { Book } from '../entities/Book.js';
+import { ILike } from "typeorm";
+import { AppDataSource } from "../config/database.js";
+import { Book } from "../entities/Book.js";
 
 export interface BookInput {
   googleBooksId?: string;
@@ -15,17 +15,17 @@ function normalizeTitle(title: string): string {
   return title
     .toLowerCase()
     .trim()
-    .replace(/^(the|a|an)\s+/i, '')
-    .replace(/[^\w\s]/g, '')
-    .replace(/\s+/g, ' ');
+    .replace(/^(the|a|an)\s+/i, "")
+    .replace(/[^\w\s]/g, "")
+    .replace(/\s+/g, " ");
 }
 
 function normalizeAuthor(author: string): string {
   return author
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s]/g, '')
-    .replace(/\s+/g, ' ');
+    .replace(/[^\w\s]/g, "")
+    .replace(/\s+/g, " ");
 }
 
 /**
@@ -33,7 +33,10 @@ function normalizeAuthor(author: string): string {
  * - Fill in missing fields (googleBooksId, isbn, coverImage)
  * - Always update genre (last write wins - community can correct)
  */
-async function updateBookMetadata(existing: Book, input: BookInput): Promise<Book> {
+async function updateBookMetadata(
+  existing: Book,
+  input: BookInput,
+): Promise<Book> {
   const bookRepo = AppDataSource.getRepository(Book);
   let updated = false;
 
@@ -72,7 +75,7 @@ export async function findOrCreateBook(input: BookInput): Promise<Book> {
   // Priority 1: googleBooksId (exact match, most reliable)
   if (input.googleBooksId) {
     const byGoogleId = await bookRepo.findOne({
-      where: { googleBooksId: input.googleBooksId }
+      where: { googleBooksId: input.googleBooksId },
     });
     if (byGoogleId) {
       return updateBookMetadata(byGoogleId, input);
@@ -82,7 +85,7 @@ export async function findOrCreateBook(input: BookInput): Promise<Book> {
   // Priority 2: ISBN (exact match)
   if (input.isbn) {
     const byIsbn = await bookRepo.findOne({
-      where: { isbn: input.isbn }
+      where: { isbn: input.isbn },
     });
     if (byIsbn) {
       return updateBookMetadata(byIsbn, input);
@@ -109,17 +112,22 @@ export async function findOrCreateBook(input: BookInput): Promise<Book> {
  * Fuzzy search for similar books (used for manual entry confirmation).
  * Returns potential matches for user to confirm.
  */
-export async function findSimilarBooks(title: string, author: string): Promise<Book[]> {
+export async function findSimilarBooks(
+  title: string,
+  author: string,
+): Promise<Book[]> {
   const bookRepo = AppDataSource.getRepository(Book);
   const normalizedTitle = normalizeTitle(title);
   const normalizedAuthor = normalizeAuthor(author);
 
   // Search by normalized title OR author using ILIKE
   const books = await bookRepo
-    .createQueryBuilder('book')
-    .where('LOWER(book.title) LIKE :title', { title: `%${normalizedTitle}%` })
-    .orWhere('LOWER(book.author) LIKE :author', { author: `%${normalizedAuthor}%` })
-    .orderBy('book.timesGifted + book.timesTraded + book.timesLoaned', 'DESC')
+    .createQueryBuilder("book")
+    .where("LOWER(book.title) LIKE :title", { title: `%${normalizedTitle}%` })
+    .orWhere("LOWER(book.author) LIKE :author", {
+      author: `%${normalizedAuthor}%`,
+    })
+    .orderBy("book.timesGifted + book.timesTraded + book.timesLoaned", "DESC")
     .limit(5)
     .getMany();
 
@@ -137,14 +145,17 @@ export async function getBookById(id: string): Promise<Book | null> {
 /**
  * Increment the appropriate sharing counter based on post type
  */
-export async function incrementBookCounter(book: Book, postType: 'giveaway' | 'exchange' | 'loan'): Promise<Book> {
+export async function incrementBookCounter(
+  book: Book,
+  postType: "giveaway" | "exchange" | "loan",
+): Promise<Book> {
   const bookRepo = AppDataSource.getRepository(Book);
 
-  if (postType === 'giveaway') {
+  if (postType === "giveaway") {
     book.timesGifted++;
-  } else if (postType === 'exchange') {
+  } else if (postType === "exchange") {
     book.timesTraded++;
-  } else if (postType === 'loan') {
+  } else if (postType === "loan") {
     book.timesLoaned++;
   }
 

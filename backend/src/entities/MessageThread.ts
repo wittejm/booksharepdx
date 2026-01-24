@@ -9,65 +9,65 @@ import {
   JoinColumn,
   Index,
   Relation,
-} from 'typeorm';
-import type { Post } from './Post.js';
-import type { Message } from './Message.js';
+} from "typeorm";
+import type { Post } from "./Post.js";
+import type { Message } from "./Message.js";
 
 export type MessageThreadStatus =
-  | 'active'
-  | 'declined_by_owner'
-  | 'cancelled_by_requester'
-  | 'post_removed'
-  | 'dismissed'
-  | 'given_to_other'
-  | 'accepted'
-  | 'on_loan';
+  | "active"
+  | "declined_by_owner"
+  | "cancelled_by_requester"
+  | "post_removed"
+  | "dismissed"
+  | "given_to_other"
+  | "accepted"
+  | "on_loan";
 
-@Entity('message_threads')
+@Entity("message_threads")
 export class MessageThread {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column({ type: "varchar" })
   @Index()
   postId: string;
 
-  @ManyToOne('Post', 'messageThreads', { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'postId' })
+  @ManyToOne("Post", "messageThreads", { onDelete: "CASCADE" })
+  @JoinColumn({ name: "postId" })
   post: Relation<Post>;
 
   // Two participants
-  @Column({ type: 'jsonb' })
+  @Column({ type: "jsonb" })
   participants: string[];
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: "timestamp" })
   lastMessageAt: Date;
 
   // Unread count per user
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: "jsonb", default: {} })
   unreadCount: { [userId: string]: number };
 
   // Thread status for request/completion flow
-  @Column({ type: 'varchar', default: 'active' })
+  @Column({ type: "varchar", default: "active" })
   @Index()
   status: MessageThreadStatus;
 
   // Handoff confirmation (gift/trade/loan)
-  @Column({ type: 'boolean', default: false })
+  @Column({ type: "boolean", default: false })
   ownerCompleted: boolean;
 
-  @Column({ type: 'boolean', default: false })
+  @Column({ type: "boolean", default: false })
   requesterCompleted: boolean;
 
   // Return confirmation (loan only)
-  @Column({ type: 'boolean', default: false })
+  @Column({ type: "boolean", default: false })
   ownerConfirmedReturn: boolean;
 
-  @Column({ type: 'boolean', default: false })
+  @Column({ type: "boolean", default: false })
   requesterConfirmedReturn: boolean;
 
   // Loan tracking
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: "timestamp", nullable: true })
   loanDueDate: Date | null;
 
   @CreateDateColumn()
@@ -76,7 +76,7 @@ export class MessageThread {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @OneToMany('Message', 'thread')
+  @OneToMany("Message", "thread")
   messages: Relation<Message[]>;
 
   toJSON() {

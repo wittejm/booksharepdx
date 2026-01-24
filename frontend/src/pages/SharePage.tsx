@@ -1,22 +1,25 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, Navigate } from "react-router-dom";
 import type { Post, MessageThread } from "@booksharepdx/shared";
 import { postService, messageService } from "../services";
 import { useUser } from "../contexts/UserContext";
 import { useInterest } from "../contexts/InterestContext";
+import { useAsync } from "../hooks/useAsync";
 import ShareCard from "../components/ShareCard";
 import InlineShareForm from "../components/InlineShareForm";
 
 type TabType = "active" | "archive";
 
+type ShareData = {
+  posts: Post[];
+  threads: MessageThread[];
+};
+
 export default function SharePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { currentUser } = useUser();
   const { summary: interestSummary } = useInterest();
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("active");
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [threads, setThreads] = useState<MessageThread[]>([]);
   const postRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const hasScrolledToInterest = useRef(false);
 
@@ -26,34 +29,31 @@ export default function SharePage() {
   const focusPostId = searchParams.get("focusPost");
   const showThreadId = searchParams.get("showThread");
 
-  const handleShareSuccess = () => {
-    reloadPosts();
-  };
-
-  const reloadPosts = async (showLoading = false) => {
-    if (!currentUser) return;
-    if (showLoading) setLoading(true);
-    try {
-      const [activePosts, agreedPosts, archivedPosts, allThreads] =
-        await Promise.all([
-          postService.getByUserId(currentUser.id, "active"),
-          postService.getByUserId(currentUser.id, "agreed_upon"),
-          postService.getByUserId(currentUser.id, "archived"),
-          messageService.getThreads(),
-        ]);
-      setPosts([...activePosts, ...agreedPosts, ...archivedPosts]);
-      setThreads(allThreads);
-    } catch (error) {
-      console.error("Failed to load shares:", error);
-    } finally {
-      if (showLoading) setLoading(false);
+  const fetchShareData = useCallback(async (): Promise<ShareData> => {
+    if (!currentUser) {
+      return { posts: [], threads: [] };
     }
-  };
-
-  useEffect(() => {
-    reloadPosts(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const [activePosts, agreedPosts, archivedPosts, threads] =
+      await Promise.all([
+        postService.getByUserId(currentUser.id, "active"),
+        postService.getByUserId(currentUser.id, "agreed_upon"),
+        postService.getByUserId(currentUser.id, "archived"),
+        messageService.getThreads(),
+      ]);
+    return {
+      posts: [...activePosts, ...agreedPosts, ...archivedPosts],
+      threads,
+    };
   }, [currentUser]);
+
+  const {
+    data,
+    loading,
+    refetch: reloadPosts,
+  } = useAsync(fetchShareData, [currentUser], { posts: [], threads: [] });
+
+  const posts = data?.posts ?? [];
+  const threads = data?.threads ?? [];
 
   // Scroll to first post with interest when requested
   useEffect(() => {
@@ -196,7 +196,7 @@ export default function SharePage() {
 
         {/* Inline Share Form */}
         <InlineShareForm
-          onSuccess={handleShareSuccess}
+          onSuccess={reloadPosts}
           autoFocus={shouldAutoFocusShare}
         />
 

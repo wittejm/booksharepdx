@@ -4,9 +4,16 @@ import { AppDataSource } from "../config/database.js";
 import { MessageThread } from "../entities/MessageThread.js";
 import { Message } from "../entities/Message.js";
 import { Post } from "../entities/Post.js";
+import { User } from "../entities/User.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validation.js";
 import { AppError } from "../middleware/errorHandler.js";
+import {
+  notifyBookRequested,
+  notifyRequestDecision,
+  notifyNewMessage,
+  notifyTradeProposal,
+} from "../services/notificationService.js";
 
 const router = Router();
 
@@ -157,6 +164,9 @@ router.post(
       });
 
       await threadRepo.save(thread);
+
+      // Note: Don't send notification here - the first message will trigger the book_requested email
+
       res.status(201).json({ data: thread.toJSON() });
     } catch (error) {
       next(error);
@@ -229,6 +239,65 @@ router.post(
       }
 
       await threadRepo.save(thread);
+
+      // Send email notification to the other participant
+      if (otherParticipant && (type === "user" || type === "trade_proposal")) {
+        const userRepo = AppDataSource.getRepository(User);
+        const postRepo = AppDataSource.getRepository(Post);
+        const [recipient, post] = await Promise.all([
+          userRepo.findOne({ where: { id: otherParticipant } }),
+          postRepo.findOne({ where: { id: thread.postId } }),
+        ]);
+
+        if (recipient && post) {
+          if (type === "trade_proposal" && offeredPostId) {
+            // Trade proposal notification
+            const offeredPost = await postRepo.findOne({
+              where: { id: offeredPostId },
+            });
+            if (offeredPost) {
+              notifyTradeProposal(
+                recipient,
+                req.user!,
+                { title: offeredPost.book.title },
+                { title: post.book.title },
+                threadId,
+              ).catch((err) =>
+                console.error("[NOTIFY] Failed to send trade proposal email:", err),
+              );
+            }
+          } else if (type === "user") {
+            // Check if this is the first message (book request)
+            const messageCount = await messageRepo.count({
+              where: { threadId },
+            });
+
+            if (messageCount === 1) {
+              // First message = book request notification (includes message content)
+              notifyBookRequested(
+                recipient,
+                req.user!,
+                post.book,
+                content,
+                threadId,
+              ).catch((err) =>
+                console.error("[NOTIFY] Failed to send book requested email:", err),
+              );
+            } else {
+              // Subsequent messages (debounced in service)
+              notifyNewMessage(
+                recipient,
+                req.user!,
+                { title: post.book.title },
+                content,
+                threadId,
+              ).catch((err) =>
+                console.error("[NOTIFY] Failed to send new message email:", err),
+              );
+            }
+          }
+        }
+      }
 
       res.status(201).json({ data: message.toJSON() });
     } catch (error) {
@@ -333,6 +402,31 @@ router.patch(
 
         // Update post status to pending
         await postRepo.update(thread.postId, { status: "agreed_upon" });
+      }
+
+      // Notify requester of owner's decision (accepted or declined)
+      if (
+        (status === "accepted" || status === "declined_by_owner") &&
+        thread.post
+      ) {
+        const userRepo = AppDataSource.getRepository(User);
+        const requesterId = thread.participants.find((p) => p !== userId);
+        if (requesterId) {
+          const requester = await userRepo.findOne({
+            where: { id: requesterId },
+          });
+          if (requester) {
+            notifyRequestDecision(
+              requester,
+              req.user!,
+              { title: thread.post.book.title },
+              status === "accepted" ? "accepted" : "declined",
+              threadId,
+            ).catch((err) =>
+              console.error("[NOTIFY] Failed to send request decision email:", err),
+            );
+          }
+        }
       }
 
       res.json({ data: thread.toJSON() });

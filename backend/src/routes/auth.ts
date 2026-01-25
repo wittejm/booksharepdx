@@ -80,6 +80,14 @@ const updateSchema = z
         lng: z.number().optional(),
       })
       .optional(),
+    emailNotifications: z
+      .object({
+        bookRequested: z.boolean().optional(),
+        requestDecision: z.boolean().optional(),
+        newMessage: z.boolean().optional(),
+        tradeProposal: z.boolean().optional(),
+      })
+      .optional(),
   })
   .partial();
 
@@ -422,6 +430,8 @@ router.put(
         user.readingPreferences = req.body.readingPreferences;
       if (req.body.socialLinks !== undefined)
         user.socialLinks = req.body.socialLinks;
+      if (req.body.emailNotifications !== undefined)
+        user.emailNotifications = req.body.emailNotifications;
 
       if (req.body.location) {
         user.locationType = req.body.location.type;

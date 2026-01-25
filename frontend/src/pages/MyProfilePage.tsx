@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
-import type { User } from "@booksharepdx/shared";
+import type { User, EmailNotificationPreferences } from "@booksharepdx/shared";
 import {
   authService,
   blockService,
@@ -14,6 +14,7 @@ import LocationPicker from "../components/LocationPicker";
 import MapPicker from "../components/MapPicker";
 import EditableText from "../components/EditableText";
 import ProfilePictureUploadModal from "../components/ProfilePictureUploadModal";
+import NotificationToggle from "../components/NotificationToggle";
 
 type TabType = "loves" | "lookingFor";
 
@@ -35,6 +36,9 @@ export default function MyProfilePage() {
   const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [statsExpanded, setStatsExpanded] = useState(false);
+  const [notificationLoading, setNotificationLoading] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!currentUser) return;
@@ -196,6 +200,35 @@ export default function MyProfilePage() {
 
     await authService.logout();
     updateCurrentUser(null);
+  };
+
+  const handleNotificationToggle = async (
+    key: keyof EmailNotificationPreferences,
+    enabled: boolean,
+  ) => {
+    if (!currentUser) return;
+
+    setNotificationLoading(key as string);
+    try {
+      const updatedPrefs: EmailNotificationPreferences = {
+        ...currentUser.emailNotifications,
+        [key]: enabled,
+      };
+      const updatedUser = await authService.updateCurrentUser({
+        emailNotifications: updatedPrefs,
+      });
+      if (updatedUser) {
+        updateCurrentUser(updatedUser);
+        showToast(
+          enabled ? "Notifications enabled" : "Notifications disabled",
+          "success",
+        );
+      }
+    } catch {
+      showToast("Failed to update notification settings", "error");
+    } finally {
+      setNotificationLoading(null);
+    }
   };
 
   const formatDate = (timestamp: number) => {
@@ -733,6 +766,57 @@ export default function MyProfilePage() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Email Notifications Section */}
+        <div className="card p-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">
+            Email Notifications
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Choose which emails you'd like to receive.
+          </p>
+
+          <div className="divide-y divide-gray-100">
+            <NotificationToggle
+              label="Book Requests"
+              description="When someone requests one of your books"
+              enabled={currentUser.emailNotifications?.bookRequested !== false}
+              onChange={(enabled) =>
+                handleNotificationToggle("bookRequested", enabled)
+              }
+              loading={notificationLoading === "bookRequested"}
+            />
+            <NotificationToggle
+              label="Request Decisions"
+              description="When an owner accepts or declines your request"
+              enabled={
+                currentUser.emailNotifications?.requestDecision !== false
+              }
+              onChange={(enabled) =>
+                handleNotificationToggle("requestDecision", enabled)
+              }
+              loading={notificationLoading === "requestDecision"}
+            />
+            <NotificationToggle
+              label="New Messages"
+              description="When you receive a new message (max 1 per 5 minutes per conversation)"
+              enabled={currentUser.emailNotifications?.newMessage !== false}
+              onChange={(enabled) =>
+                handleNotificationToggle("newMessage", enabled)
+              }
+              loading={notificationLoading === "newMessage"}
+            />
+            <NotificationToggle
+              label="Trade Proposals"
+              description="When someone sends you a trade proposal"
+              enabled={currentUser.emailNotifications?.tradeProposal !== false}
+              onChange={(enabled) =>
+                handleNotificationToggle("tradeProposal", enabled)
+              }
+              loading={notificationLoading === "tradeProposal"}
+            />
           </div>
         </div>
 

@@ -70,6 +70,10 @@ export class MessageThread {
   @Column({ type: "timestamp", nullable: true })
   loanDueDate: Date | null;
 
+  // Email notification debouncing (max 1 per 5 min per thread)
+  @Column({ type: "timestamp", nullable: true })
+  lastEmailNotifiedAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

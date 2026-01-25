@@ -18,6 +18,7 @@ export interface User {
     reason: string;
   };
   banned?: boolean;
+  emailNotifications?: EmailNotificationPreferences;
 }
 
 export interface UserLocation {
@@ -48,6 +49,14 @@ export interface ReadingPreferences {
 export interface SocialLink {
   label: string;
   url: string;
+}
+
+// Email notification preferences (null/undefined fields = enabled)
+export interface EmailNotificationPreferences {
+  bookRequested?: boolean;
+  requestDecision?: boolean;
+  newMessage?: boolean;
+  tradeProposal?: boolean;
 }
 
 // Post Types

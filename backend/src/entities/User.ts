@@ -87,6 +87,15 @@ export class User {
   @Column({ type: "jsonb", nullable: true })
   socialLinks: { label: string; url: string }[] | null;
 
+  // Email notification preferences (null/undefined = all enabled)
+  @Column({ type: "jsonb", nullable: true })
+  emailNotifications: {
+    bookRequested?: boolean;
+    requestDecision?: boolean;
+    newMessage?: boolean;
+    tradeProposal?: boolean;
+  } | null;
+
   // Moderation
   @Column({ type: "jsonb", nullable: true })
   suspended: { until: number; reason: string } | null;
@@ -142,6 +151,7 @@ export class User {
       role: this.role,
       suspended: this.suspended || undefined,
       banned: this.banned || undefined,
+      emailNotifications: this.emailNotifications || undefined,
     };
   }
 }

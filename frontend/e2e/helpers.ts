@@ -55,6 +55,8 @@ export async function loginAs(page: Page, identifier: string) {
     await profileButton.click();
     await page.locator('button:has-text("Logout")').click();
     await expect(page.locator('a[href="/login"]')).toBeVisible();
+    // Wait for any logout-triggered navigation to complete
+    await page.waitForLoadState("load");
   }
 
   await page.goto("/login", { waitUntil: "domcontentloaded" });
@@ -97,8 +99,6 @@ export async function createUserViaApi(
       email: user.email,
       username: user.username,
       bio: user.bio,
-      location: { neighborhoodId: null },
-      agreedToTerms: true,
     },
   });
   expect(response.ok(), `Failed to create user ${user.username}`).toBe(true);

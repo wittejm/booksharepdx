@@ -145,9 +145,8 @@ test.describe("Gift Flow: Happy Path", () => {
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage();
     await checkBackendHealth(page);
-    await createUser(page, giftTestSharer);
-    await logout(page);
-    await createUser(page, giftTestRequester);
+    await createUserViaApi(page, giftTestSharer);
+    await createUserViaApi(page, giftTestRequester);
     await page.close();
   });
 
@@ -229,9 +228,8 @@ test.describe("Gift Flow: Cancel and Re-request", () => {
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage();
-    await createUser(page, ownerUser);
-    await logout(page);
-    await createUser(page, requesterUser);
+    await createUserViaApi(page, ownerUser);
+    await createUserViaApi(page, requesterUser);
     await page.close();
   });
 
@@ -286,9 +284,8 @@ test.describe("Gift Flow: Decline and Dismiss", () => {
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage();
-    await createUser(page, ownerUser);
-    await logout(page);
-    await createUser(page, requesterUser);
+    await createUserViaApi(page, ownerUser);
+    await createUserViaApi(page, requesterUser);
     await page.close();
   });
 
@@ -334,9 +331,8 @@ test.describe("Gift Flow: Decline Without Dismiss", () => {
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage();
-    await createUser(page, ownerUser);
-    await logout(page);
-    await createUser(page, requesterUser);
+    await createUserViaApi(page, ownerUser);
+    await createUserViaApi(page, requesterUser);
     await page.close();
   });
 
@@ -378,11 +374,9 @@ test.describe("Gift Flow: Multiple Requesters", () => {
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage();
-    await createUser(page, ownerUser);
-    await logout(page);
-    await createUser(page, requester1);
-    await logout(page);
-    await createUser(page, requester2);
+    await createUserViaApi(page, ownerUser);
+    await createUserViaApi(page, requester1);
+    await createUserViaApi(page, requester2);
     await page.close();
   });
 
@@ -455,9 +449,8 @@ test.describe("Gift Flow: Cannot Re-request After Decline", () => {
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage();
-    await createUser(page, ownerUser);
-    await logout(page);
-    await createUser(page, requesterUser);
+    await createUserViaApi(page, ownerUser);
+    await createUserViaApi(page, requesterUser);
     await page.close();
   });
 
@@ -502,9 +495,8 @@ test.describe("Gift Flow: Post Deleted Mid-Conversation", () => {
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage();
-    await createUser(page, ownerUser);
-    await logout(page);
-    await createUser(page, requesterUser);
+    await createUserViaApi(page, ownerUser);
+    await createUserViaApi(page, requesterUser);
     await page.close();
   });
 

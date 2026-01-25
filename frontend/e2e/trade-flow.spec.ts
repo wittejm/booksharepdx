@@ -1,9 +1,8 @@
 import { test, expect, Page } from "@playwright/test";
 import {
   waitForReact,
-  createUser,
+  createUserViaApi,
   loginAs,
-  logout,
   checkBackendHealth,
 } from "./helpers";
 
@@ -83,10 +82,8 @@ test.describe("Trade Flow", () => {
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage();
     await checkBackendHealth(page);
-
-    await createUser(page, tradeTestSharer);
-    await logout(page);
-    await createUser(page, tradeTestRequester);
+    await createUserViaApi(page, tradeTestSharer);
+    await createUserViaApi(page, tradeTestRequester);
     await page.close();
   });
 

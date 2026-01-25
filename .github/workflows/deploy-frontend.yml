@@ -49,6 +49,8 @@ jobs:
         run: cd frontend && npm run build
         env:
           VITE_API_URL: https://api-staging.booksharepdx.com/api
+          # Public anyway - ends up in JS bundle. Restricted to Books API + our domains.
+          VITE_GOOGLE_BOOKS_API_KEY: AIzaSyAiuo1K9bboqZlGT3B5WxSc9OZY8Ok6FZo
 
       - name: Deploy to Cloudflare Pages (Staging)
         uses: cloudflare/wrangler-action@v3
@@ -91,6 +93,8 @@ jobs:
         run: cd frontend && npm run build
         env:
           VITE_API_URL: https://api.booksharepdx.com/api
+          # Public anyway - ends up in JS bundle. Restricted to Books API + our domains.
+          VITE_GOOGLE_BOOKS_API_KEY: AIzaSyAiuo1K9bboqZlGT3B5WxSc9OZY8Ok6FZo
 
       - name: Deploy to Cloudflare Pages (Production)
         uses: cloudflare/wrangler-action@v3

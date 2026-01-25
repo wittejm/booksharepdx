@@ -1,9 +1,8 @@
 import { test, expect, Page } from "@playwright/test";
 import {
   waitForReact,
-  createUser,
+  createUserViaApi,
   loginAs,
-  logout,
   checkBackendHealth,
   deleteAllPostsForCurrentUser,
   LOAD_TIMEOUT,

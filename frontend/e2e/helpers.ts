@@ -87,6 +87,23 @@ export async function checkBackendHealth(page: Page) {
   expect(response.ok()).toBe(true);
 }
 
+// Fast user creation via API (no UI navigation)
+export async function createUserViaApi(
+  page: Page,
+  user: { email: string; username: string; bio: string },
+) {
+  const response = await page.request.post(`${API_URL}/api/auth/signup`, {
+    data: {
+      email: user.email,
+      username: user.username,
+      bio: user.bio,
+      location: { neighborhoodId: null },
+      agreedToTerms: true,
+    },
+  });
+  expect(response.ok(), `Failed to create user ${user.username}`).toBe(true);
+}
+
 export async function deleteAllPostsForCurrentUser(page: Page) {
   // Get current user
   const meResponse = await page.request.get(`${API_URL}/api/auth/me`);

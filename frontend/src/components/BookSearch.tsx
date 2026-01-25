@@ -2,6 +2,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import LoadingSpinner from "./LoadingSpinner";
 import { bookService } from "../services";
 
+// Module-level flag: once rate-limited, always use API key for this session
+let useApiKeyFallback = false;
+
 interface GoogleBook {
   id: string;
   volumeInfo: {
@@ -134,12 +137,19 @@ export default function BookSearch({
       setIsLoading(true);
       setSearchPerformed(true);
       try {
-        let url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchQuery)}&maxResults=8`;
-        if (apiKey) {
-          url += `&key=${apiKey}`;
+        const baseUrl = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchQuery)}&maxResults=8`;
+
+        // Use API key if we've been rate-limited before, otherwise try without
+        let url = useApiKeyFallback && apiKey ? `${baseUrl}&key=${apiKey}` : baseUrl;
+        let response = await fetch(url);
+
+        // If rate-limited and we have a key, remember to always use it and retry
+        if (response.status === 429 && apiKey && !useApiKeyFallback) {
+          useApiKeyFallback = true;
+          url = `${baseUrl}&key=${apiKey}`;
+          response = await fetch(url);
         }
 
-        const response = await fetch(url);
         const data = await response.json();
         setResults(data.items || []);
         setIsOpen(true);

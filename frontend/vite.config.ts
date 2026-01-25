@@ -6,7 +6,7 @@ const API_TARGET = process.env.VITE_API_TARGET || 'http://localhost:3001'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/', // Vercel deploys at root, no need for /booksharepdx/
+  base: '/',
   resolve: {
     alias: {
       '@': '/src',

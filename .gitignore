@@ -54,6 +54,5 @@ lerna-debug.log*
 !package.json
 !package-lock.json
 !tsconfig.json
-!vercel.json
 !*.geojson
 !frontend/src/data/*.json

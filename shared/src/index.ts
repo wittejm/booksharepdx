@@ -3,7 +3,7 @@ export interface User {
   id: string;
   email: string;
   username: string;
-  preferredName?: string;
+  preferredName?: string | null;
   bio: string;
   verified: boolean;
   createdAt: number;

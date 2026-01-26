@@ -42,13 +42,17 @@ export default function ActivityThreadList({
               .map((thread) => {
                 const post = threadPosts[thread.id];
                 const otherUser = threadUsers[thread.id];
-                const unreadCount = thread.unreadCount[currentUser.id] || 0;
+                const isSelected = thread.id === selectedThread?.id;
+                // Optimistic: selected thread shows 0 unread (user is reading it)
+                const unreadCount = isSelected
+                  ? 0
+                  : thread.unreadCount[currentUser.id] || 0;
 
                 if (!post || !otherUser) return null;
 
                 return (
                   <ActivityThreadCard
-                    selected={thread.id === selectedThread?.id}
+                    selected={isSelected}
                     thread={thread}
                     post={post}
                     otherUser={otherUser}

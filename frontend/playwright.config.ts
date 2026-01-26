@@ -11,10 +11,10 @@ export default defineConfig({
     timeout: 2000,
   },
 
-  fullyParallel: false, // Run tests sequentially - they share state
+  fullyParallel: false, // Tests within a file run sequentially (they share state)
   forbidOnly: !!process.env.CI,
   retries: 0, // Fail fast, no retries
-  workers: 1, // Single worker since tests share state
+  workers: process.env.CI ? 2 : 3, // Parallel across test files (each file has unique users)
 
   reporter: [
     ['list'],

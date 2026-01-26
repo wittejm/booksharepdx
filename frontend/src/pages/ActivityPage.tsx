@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import type {
   MessageThread,
@@ -11,9 +11,9 @@ import { messageService, postService, userService } from "../services";
 import { useUser } from "../contexts/UserContext";
 import { useToast } from "../components/useToast";
 import { useConfirm } from "../components/useConfirm";
+import { useAsync } from "../hooks/useAsync";
 import ToastContainer from "../components/ToastContainer";
 import { formatTimestamp } from "../utils/time";
-import { ERROR_MESSAGES } from "../utils/errorMessages";
 import ActivityThreadList from "../components/ActivityThreadList";
 
 export default function ActivityPage() {
@@ -23,24 +23,15 @@ export default function ActivityPage() {
   const navigate = useNavigate();
   const highlightPostId = searchParams.get("postId");
 
-  const [threads, setThreads] = useState<MessageThread[]>([]);
   const [selectedThread, setSelectedThread] = useState<MessageThread | null>(
     null,
   );
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
   const { showToast, toasts, dismiss } = useToast();
   const { confirm, ConfirmDialogComponent } = useConfirm();
-
-  const [threadPosts, setThreadPosts] = useState<{ [threadId: string]: Post }>(
-    {},
-  );
-  const [threadUsers, setThreadUsers] = useState<{ [threadId: string]: User }>(
-    {},
-  );
 
   const [proposalPosts, setProposalPosts] = useState<{
     [postId: string]: Post;
@@ -50,10 +41,76 @@ export default function ActivityPage() {
   // Mobile view state
   const [showConversation, setShowConversation] = useState(false);
 
-  // Load threads on mount
-  useEffect(() => {
-    loadThreads();
+  // Load threads with associated posts and users (parallel fetching)
+  type ActivityData = {
+    threads: MessageThread[];
+    threadPosts: Record<string, Post>;
+    threadUsers: Record<string, User>;
+  };
+
+  const fetchActivityData = useCallback(async (): Promise<ActivityData> => {
+    if (!currentUser) {
+      return { threads: [], threadPosts: {}, threadUsers: {} };
+    }
+
+    const userThreads = await messageService.getThreads();
+
+    // Parallel fetch posts and users for all threads
+    const postPromises = userThreads.map((t) =>
+      postService.getById(t.postId).then((post) => ({ threadId: t.id, post })),
+    );
+    const userPromises = userThreads.map((t) => {
+      const otherUserId = t.participants.find((p) => p !== currentUser.id);
+      if (!otherUserId)
+        return Promise.resolve({ threadId: t.id, user: null as User | null });
+      return userService
+        .getById(otherUserId)
+        .then((user) => ({ threadId: t.id, user }));
+    });
+
+    const [postResults, userResults] = await Promise.all([
+      Promise.all(postPromises),
+      Promise.all(userPromises),
+    ]);
+
+    const threadPosts: Record<string, Post> = {};
+    const threadUsers: Record<string, User> = {};
+
+    postResults.forEach(({ threadId, post }) => {
+      if (post) threadPosts[threadId] = post;
+    });
+    userResults.forEach(({ threadId, user }) => {
+      if (user) threadUsers[threadId] = user;
+    });
+
+    // Filter to only show threads where current user is the REQUESTER (not the post owner)
+    // Activity page is for tracking books you've requested from others
+    const requesterThreads = userThreads.filter((thread) => {
+      const post = threadPosts[thread.id];
+      return post && post.userId !== currentUser.id;
+    });
+
+    // Sort by most recent message
+    const sortedThreads = requesterThreads.sort(
+      (a, b) => b.lastMessageAt - a.lastMessageAt,
+    );
+
+    return { threads: sortedThreads, threadPosts, threadUsers };
   }, [currentUser]);
+
+  const {
+    data: activityData,
+    loading,
+    refetch: refreshThreads,
+  } = useAsync(fetchActivityData, [currentUser], {
+    threads: [],
+    threadPosts: {},
+    threadUsers: {},
+  });
+
+  const threads = activityData?.threads ?? [];
+  const threadPosts = activityData?.threadPosts ?? {};
+  const threadUsers = activityData?.threadUsers ?? {};
 
   // Load posts for trade_proposal messages (to render proposal cards)
   // IMPORTANT - Trade proposal field semantics:
@@ -117,65 +174,6 @@ export default function ActivityPage() {
     }
   }, [highlightPostId, threads]);
 
-  const loadThreads = async () => {
-    if (!currentUser) return;
-
-    setLoading(true);
-    try {
-      const userThreads = await messageService.getThreads();
-
-      // Preload post and user data for each thread
-      const posts: { [threadId: string]: Post } = {};
-      const users: { [threadId: string]: User } = {};
-
-      for (const thread of userThreads) {
-        const post = await postService.getById(thread.postId);
-        if (post) {
-          posts[thread.id] = post;
-        }
-
-        const otherUserId = thread.participants.find(
-          (p) => p !== currentUser.id,
-        );
-        if (otherUserId) {
-          const user = await userService.getById(otherUserId);
-          if (user) {
-            users[thread.id] = user;
-          }
-        }
-      }
-
-      setThreadPosts(posts);
-      setThreadUsers(users);
-
-      // Filter to only show threads where current user is the REQUESTER (not the post owner)
-      // Activity page is for tracking books you've requested from others
-      const requesterThreads = userThreads.filter((thread) => {
-        const post = posts[thread.id];
-        return post && post.userId !== currentUser.id;
-      });
-
-      // Sort by most recent message
-      const sortedThreads = requesterThreads.sort(
-        (a, b) => b.lastMessageAt - a.lastMessageAt,
-      );
-      setThreads(sortedThreads);
-    } catch (error) {
-      const err = error as Error & { code?: string };
-      if (err.code === "SESSION_EXPIRED") {
-        showToast(ERROR_MESSAGES.SESSION_EXPIRED, "error");
-      } else if (err.code === "UNAUTHORIZED") {
-        showToast(ERROR_MESSAGES.UNAUTHORIZED, "error");
-      } else if (err.code === "NETWORK_ERROR") {
-        showToast(ERROR_MESSAGES.NETWORK_ERROR, "error");
-      } else {
-        showToast(ERROR_MESSAGES.GENERIC_LOAD_ERROR, "error");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const selectThread = async (thread: MessageThread) => {
     if (!currentUser) return;
 
@@ -186,17 +184,9 @@ export default function ActivityPage() {
     const threadMessages = await messageService.getMessages(thread.id);
     setMessages(threadMessages);
 
-    // Mark as read
+    // Mark as read and refresh thread list to update unread counts
     await messageService.markAsRead(thread.id);
-
-    // Update thread in list to clear unread count
-    setThreads((prev) =>
-      prev.map((t) =>
-        t.id === thread.id
-          ? { ...t, unreadCount: { ...t.unreadCount, [currentUser.id]: 0 } }
-          : t,
-      ),
-    );
+    await refreshThreads();
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -213,19 +203,8 @@ export default function ActivityPage() {
       setMessages((prev) => [...prev, message]);
       setNewMessage("");
 
-      // Update thread list
-      setThreads((prev) =>
-        prev
-          .map((t) =>
-            t.id === selectedThread.id
-              ? { ...t, lastMessageAt: message.timestamp }
-              : t,
-          )
-          .sort((a, b) => b.lastMessageAt - a.lastMessageAt),
-      );
-
-      // Reload threads to get updated unread counts
-      await loadThreads();
+      // Reload threads to get updated timestamps and unread counts
+      await refreshThreads();
     } catch (error) {
       const err = error as Error & { code?: string };
       if (err.code === "NOT_THREAD_PARTICIPANT") {
@@ -262,7 +241,7 @@ export default function ActivityPage() {
         "cancelled_by_requester",
       );
       showToast("Request cancelled", "info");
-      await loadThreads();
+      await refreshThreads();
       setSelectedThread(null);
       setShowConversation(false);
     } catch (error) {
@@ -279,7 +258,7 @@ export default function ActivityPage() {
     try {
       await messageService.updateThreadStatus(selectedThread.id, "dismissed");
       showToast("Dismissed", "info");
-      await loadThreads();
+      await refreshThreads();
       setSelectedThread(null);
       setShowConversation(false);
     } catch (error) {
@@ -309,7 +288,7 @@ export default function ActivityPage() {
     try {
       await messageService.markComplete(selectedThread.id);
       showToast(isExchange ? "Trade completed!" : "Gift received!", "success");
-      await loadThreads();
+      await refreshThreads();
       // Reload the selected thread to update UI
       const updatedThreads = await messageService.getThreads();
       const updatedThread = updatedThreads.find(
@@ -423,7 +402,7 @@ export default function ActivityPage() {
       } else {
         showToast("Return recorded", "success");
       }
-      await loadThreads();
+      await refreshThreads();
       // Reload the selected thread to update UI
       const updatedThreads = await messageService.getThreads();
       const updatedThread = updatedThreads.find(

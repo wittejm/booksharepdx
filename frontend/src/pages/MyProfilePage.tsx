@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Navigate } from "react-router-dom";
 import type { User, EmailNotificationPreferences } from "@booksharepdx/shared";
 import {
@@ -8,6 +8,7 @@ import {
   neighborhoodService,
 } from "../services";
 import { useUser } from "../contexts/UserContext";
+import { useAsync } from "../hooks/useAsync";
 import { useToast } from "../components/useToast";
 import ToastContainer from "../components/ToastContainer";
 import LocationPicker from "../components/LocationPicker";
@@ -25,8 +26,22 @@ export default function MyProfilePage() {
 
   const [activeTab, setActiveTab] = useState<TabType>("loves");
 
-  // State
-  const [blockedUsers, setBlockedUsers] = useState<User[]>([]);
+  // Load blocked users
+  const fetchBlockedUsers = useCallback(async (): Promise<User[]> => {
+    if (!currentUser) return [];
+    const blockedIds = await blockService.getBlocked(currentUser.id);
+    const users = await Promise.all(
+      blockedIds.map((id) => userService.getById(id)),
+    );
+    return users.filter((u): u is User => u !== null);
+  }, [currentUser]);
+
+  const { data: blockedUsersData, refetch: refetchBlockedUsers } = useAsync(
+    fetchBlockedUsers,
+    [currentUser],
+    [],
+  );
+  const blockedUsers = blockedUsersData ?? [];
 
   // Section expand states
   const [showChangeLocation, setShowChangeLocation] = useState(false);
@@ -39,24 +54,6 @@ export default function MyProfilePage() {
   const [notificationLoading, setNotificationLoading] = useState<string | null>(
     null,
   );
-
-  useEffect(() => {
-    if (!currentUser) return;
-    loadBlockedUsers();
-  }, [currentUser]);
-
-  const loadBlockedUsers = async () => {
-    if (!currentUser) return;
-
-    const blockedIds = await blockService.getBlocked(currentUser.id);
-    const users = await Promise.all(
-      blockedIds.map(async (id) => {
-        const user = await userService.getById(id);
-        return user;
-      }),
-    );
-    setBlockedUsers(users.filter((u): u is User => u !== null));
-  };
 
   const handleSavePreferredName = async (name: string) => {
     if (!currentUser) return;
@@ -114,8 +111,8 @@ export default function MyProfilePage() {
 
     try {
       await blockService.unblock(currentUser.id, userId);
-      setBlockedUsers(blockedUsers.filter((u) => u.id !== userId));
       showToast("User unblocked", "success");
+      await refetchBlockedUsers(); // Refetch to update list (fixes bug where failed unblock still removed user)
     } catch (error) {
       showToast("Failed to unblock user", "error");
     }

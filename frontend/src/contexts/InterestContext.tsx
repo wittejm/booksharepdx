@@ -1,13 +1,8 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-} from "react";
+import { createContext, useContext, useCallback } from "react";
 import type { InterestSummary } from "@booksharepdx/shared";
 import { interestService } from "../services";
 import { useUser } from "./UserContext";
+import { useAsync } from "../hooks/useAsync";
 
 interface InterestContextType {
   summary: InterestSummary;
@@ -34,33 +29,22 @@ export const useInterest = () => useContext(InterestContext);
 
 export function InterestProvider({ children }: { children: React.ReactNode }) {
   const { currentUser } = useUser();
-  const [summary, setSummary] = useState<InterestSummary>(defaultSummary);
-  const [loading, setLoading] = useState(false);
 
-  const refresh = useCallback(async () => {
-    if (!currentUser) {
-      setSummary(defaultSummary);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const data = await interestService.getSummary();
-      setSummary(data);
-    } catch {
-      setSummary(defaultSummary);
-    } finally {
-      setLoading(false);
-    }
+  const fetchInterests = useCallback(async (): Promise<InterestSummary> => {
+    if (!currentUser) return defaultSummary;
+    return interestService.getSummary();
   }, [currentUser]);
 
-  // Fetch on mount and when user changes
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const {
+    data: summary,
+    loading,
+    refetch: refresh,
+  } = useAsync(fetchInterests, [currentUser], defaultSummary);
 
   return (
-    <InterestContext.Provider value={{ summary, loading, refresh }}>
+    <InterestContext.Provider
+      value={{ summary: summary ?? defaultSummary, loading, refresh }}
+    >
       {children}
     </InterestContext.Provider>
   );

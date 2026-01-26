@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useSearchParams, Navigate } from "react-router-dom";
+import { useSearchParams, useParams, useNavigate, Navigate } from "react-router-dom";
 import type { Post, MessageThread } from "@booksharepdx/shared";
 import { postService, messageService } from "../services";
 import { useUser } from "../contexts/UserContext";
@@ -17,17 +17,18 @@ type ShareData = {
 
 export default function SharePage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { threadId: routeThreadId } = useParams<{ threadId?: string }>();
+  const navigate = useNavigate();
   const { currentUser } = useUser();
   const { summary: interestSummary } = useInterest();
   const [activeTab, setActiveTab] = useState<TabType>("active");
   const postRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const hasScrolledToInterest = useRef(false);
+  const hasScrolledToThread = useRef(false);
 
   const shouldAutoFocusShare = searchParams.get("action") === "share";
   const shouldScrollToInterest =
     searchParams.get("scrollToInterest") === "true";
-  const focusPostId = searchParams.get("focusPost");
-  const showThreadId = searchParams.get("showThread");
 
   const fetchShareData = useCallback(async (): Promise<ShareData> => {
     if (!currentUser) {
@@ -54,6 +55,39 @@ export default function SharePage() {
 
   const posts = data?.posts ?? [];
   const threads = data?.threads ?? [];
+
+  // Find the post that contains the route threadId
+  const threadFromRoute = routeThreadId
+    ? threads.find((t) => t.id === routeThreadId)
+    : null;
+  const focusPostId = threadFromRoute?.postId ?? null;
+  const showThreadId = routeThreadId ?? null;
+
+  // Scroll to post containing the thread from route param
+  useEffect(() => {
+    if (
+      routeThreadId &&
+      !loading &&
+      !hasScrolledToThread.current &&
+      focusPostId
+    ) {
+      const element = postRefs.current.get(focusPostId);
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+          element.classList.add("ring-2", "ring-blue-500", "ring-offset-2");
+          setTimeout(() => {
+            element.classList.remove(
+              "ring-2",
+              "ring-blue-500",
+              "ring-offset-2",
+            );
+          }, 2000);
+        }, 100);
+        hasScrolledToThread.current = true;
+      }
+    }
+  }, [routeThreadId, loading, focusPostId]);
 
   // Scroll to first post with interest when requested
   useEffect(() => {
@@ -88,27 +122,6 @@ export default function SharePage() {
       }
     }
   }, [shouldScrollToInterest, loading, interestSummary, setSearchParams]);
-
-  // Scroll to focused post (e.g., after proposing an exchange)
-  useEffect(() => {
-    if (focusPostId && !loading) {
-      const element = postRefs.current.get(focusPostId);
-      if (element) {
-        setTimeout(() => {
-          element.scrollIntoView({ behavior: "smooth", block: "center" });
-          // Highlight effect
-          element.classList.add("ring-2", "ring-blue-500", "ring-offset-2");
-          setTimeout(() => {
-            element.classList.remove(
-              "ring-2",
-              "ring-blue-500",
-              "ring-offset-2",
-            );
-          }, 2000);
-        }, 100);
-      }
-    }
-  }, [focusPostId, loading]);
 
   // Redirect to login if not authenticated
   if (!currentUser) {
@@ -252,12 +265,12 @@ export default function SharePage() {
                   post={post}
                   onUpdate={reloadPosts}
                   autoFocusThreadId={
-                    post.id === focusPostId ? showThreadId : undefined
+                    post.id === focusPostId ? showThreadId ?? undefined : undefined
                   }
                   onAutoFocusComplete={() => {
-                    // Clear the URL params after focusing
-                    if (focusPostId || showThreadId) {
-                      setSearchParams({});
+                    // Clear the URL after focusing (navigate to /share without threadId)
+                    if (routeThreadId) {
+                      navigate("/share", { replace: true });
                     }
                   }}
                 />

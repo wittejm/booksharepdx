@@ -101,18 +101,40 @@ export async function sendBookRequestedEmail(
     requesterName: string;
     bookTitle: string;
     bookAuthor: string;
+    postType: "giveaway" | "exchange" | "loan";
     messagePreview: string;
     threadUrl: string;
   },
 ): Promise<boolean> {
+  const typeLabels = {
+    giveaway: { noun: "gift", verb: "wants", action: "receive" },
+    exchange: { noun: "trade", verb: "wants to trade for", action: "trade for" },
+    loan: { noun: "loan", verb: "wants to borrow", action: "borrow" },
+  };
+  const label = typeLabels[data.postType];
+
+  const subject =
+    data.postType === "exchange"
+      ? `${data.requesterName} wants to trade for "${data.bookTitle}"`
+      : data.postType === "loan"
+        ? `${data.requesterName} wants to borrow "${data.bookTitle}"`
+        : `${data.requesterName} is interested in your gift: "${data.bookTitle}"`;
+
+  const headline =
+    data.postType === "exchange"
+      ? "Someone wants to trade!"
+      : data.postType === "loan"
+        ? "Someone wants to borrow your book!"
+        : "Someone is interested in your gift!";
+
   return sendEmail({
     to,
-    subject: `${data.requesterName} requested your book "${data.bookTitle}"`,
+    subject,
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #2563eb;">Someone wants your book!</h1>
+        <h1 style="color: #2563eb;">${headline}</h1>
         <p>Hi ${data.recipientName},</p>
-        <p><strong>${data.requesterName}</strong> has requested your book:</p>
+        <p><strong>${data.requesterName}</strong> ${label.verb} your book:</p>
         <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
           <p style="margin: 0; font-size: 18px; font-weight: bold;">${data.bookTitle}</p>
           <p style="margin: 4px 0 0 0; color: #666;">by ${data.bookAuthor}</p>
@@ -184,18 +206,26 @@ export async function sendNewMessageEmail(
     recipientName: string;
     senderName: string;
     bookTitle: string;
+    postType: "giveaway" | "exchange" | "loan";
     messagePreview: string;
     threadUrl: string;
   },
 ): Promise<boolean> {
+  const typeLabel =
+    data.postType === "exchange"
+      ? "trade"
+      : data.postType === "loan"
+        ? "loan"
+        : "gift";
+
   return sendEmail({
     to,
-    subject: `New message from ${data.senderName} about "${data.bookTitle}"`,
+    subject: `New message from ${data.senderName} about your ${typeLabel}: "${data.bookTitle}"`,
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #2563eb;">New Message</h1>
         <p>Hi ${data.recipientName},</p>
-        <p><strong>${data.senderName}</strong> sent you a message about <strong>${data.bookTitle}</strong>:</p>
+        <p><strong>${data.senderName}</strong> sent you a message about your ${typeLabel} of <strong>${data.bookTitle}</strong>:</p>
         <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #2563eb;">
           <p style="margin: 0; color: #374151;">${data.messagePreview}</p>
         </div>

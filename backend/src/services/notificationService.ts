@@ -42,10 +42,18 @@ function getDisplayName(user: User): string {
 }
 
 /**
- * Build the URL for a message thread.
+ * Build the URL for a message thread based on the recipient's role.
+ * - Sharers (post owners) go to /share/:threadId
+ * - Requesters go to /activity/:threadId
  */
-function getThreadUrl(threadId: string): string {
-  return `${env.frontendUrl}/messages/${threadId}`;
+function getThreadUrl(
+  threadId: string,
+  recipientRole: "sharer" | "requester",
+): string {
+  if (recipientRole === "sharer") {
+    return `${env.frontendUrl}/share/${threadId}`;
+  }
+  return `${env.frontendUrl}/activity/${threadId}`;
 }
 
 /**
@@ -55,6 +63,7 @@ export async function notifyBookRequested(
   recipient: User,
   requester: User,
   book: { title: string; author: string },
+  postType: "giveaway" | "exchange" | "loan",
   messageContent: string,
   threadId: string,
 ): Promise<void> {
@@ -73,8 +82,9 @@ export async function notifyBookRequested(
     requesterName: getDisplayName(requester),
     bookTitle: book.title,
     bookAuthor: book.author,
+    postType,
     messagePreview,
-    threadUrl: getThreadUrl(threadId),
+    threadUrl: getThreadUrl(threadId, "sharer"), // Recipient is always the sharer (post owner)
   });
 }
 
@@ -97,7 +107,7 @@ export async function notifyRequestDecision(
     ownerName: getDisplayName(owner),
     bookTitle: book.title,
     decision,
-    threadUrl: getThreadUrl(threadId),
+    threadUrl: getThreadUrl(threadId, "requester"), // Recipient is always the requester
   });
 }
 
@@ -109,8 +119,10 @@ export async function notifyNewMessage(
   recipient: User,
   sender: User,
   book: { title: string },
+  postType: "giveaway" | "exchange" | "loan",
   messagePreview: string,
   threadId: string,
+  recipientRole: "sharer" | "requester",
 ): Promise<void> {
   if (!isNotificationEnabled(recipient, "newMessage")) {
     return;
@@ -148,8 +160,9 @@ export async function notifyNewMessage(
     recipientName: getDisplayName(recipient),
     senderName: getDisplayName(sender),
     bookTitle: book.title,
+    postType,
     messagePreview: preview,
-    threadUrl: getThreadUrl(threadId),
+    threadUrl: getThreadUrl(threadId, recipientRole),
   });
 }
 
@@ -162,6 +175,7 @@ export async function notifyTradeProposal(
   offeredBook: { title: string },
   requestedBook: { title: string },
   threadId: string,
+  recipientRole: "sharer" | "requester",
 ): Promise<void> {
   if (!isNotificationEnabled(recipient, "tradeProposal")) {
     return;
@@ -172,6 +186,6 @@ export async function notifyTradeProposal(
     proposerName: getDisplayName(proposer),
     offeredBookTitle: offeredBook.title,
     requestedBookTitle: requestedBook.title,
-    threadUrl: getThreadUrl(threadId),
+    threadUrl: getThreadUrl(threadId, recipientRole),
   });
 }

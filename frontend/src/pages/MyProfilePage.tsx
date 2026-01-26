@@ -63,11 +63,10 @@ export default function MyProfilePage() {
 
     try {
       const updatedUser = await authService.updateCurrentUser({
-        preferredName: name || undefined,
+        preferredName: name || null,
       });
       if (updatedUser) {
         updateCurrentUser(updatedUser);
-        showToast("Name updated", "success");
       }
     } catch {
       showToast("Failed to update name", "error");
@@ -219,10 +218,6 @@ export default function MyProfilePage() {
       });
       if (updatedUser) {
         updateCurrentUser(updatedUser);
-        showToast(
-          enabled ? "Notifications enabled" : "Notifications disabled",
-          "success",
-        );
       }
     } catch {
       showToast("Failed to update notification settings", "error");
@@ -230,6 +225,40 @@ export default function MyProfilePage() {
       setNotificationLoading(null);
     }
   };
+
+  const handleToggleAllNotifications = async (enabled: boolean) => {
+    if (!currentUser) return;
+
+    setNotificationLoading("all");
+    try {
+      const updatedPrefs: EmailNotificationPreferences = {
+        bookRequested: enabled,
+        requestDecision: enabled,
+        newMessage: enabled,
+        tradeProposal: enabled,
+      };
+      const updatedUser = await authService.updateCurrentUser({
+        emailNotifications: updatedPrefs,
+      });
+      if (updatedUser) {
+        updateCurrentUser(updatedUser);
+      }
+    } catch {
+      showToast("Failed to update notification settings", "error");
+    } finally {
+      setNotificationLoading(null);
+    }
+  };
+
+  const notificationStates = [
+    currentUser?.emailNotifications?.bookRequested !== false,
+    currentUser?.emailNotifications?.requestDecision !== false,
+    currentUser?.emailNotifications?.newMessage !== false,
+    currentUser?.emailNotifications?.tradeProposal !== false,
+  ];
+  const enabledCount = notificationStates.filter(Boolean).length;
+  const allNotificationsEnabled = enabledCount === 4;
+  const someNotificationsEnabled = enabledCount > 0 && enabledCount < 4;
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -295,7 +324,7 @@ export default function MyProfilePage() {
                   value={currentUser.preferredName || ""}
                   onSave={handleSavePreferredName}
                   placeholder="Add your name"
-                  emptyText={currentUser.username}
+                  emptyText={`@${currentUser.username}`}
                   className="text-2xl md:text-3xl font-bold text-gray-900"
                   inputClassName="text-2xl md:text-3xl font-bold"
                 />
@@ -779,6 +808,19 @@ export default function MyProfilePage() {
           </p>
 
           <div className="divide-y divide-gray-100">
+            <NotificationToggle
+              label="All Notifications"
+              description="Enable or disable all email notifications"
+              enabled={allNotificationsEnabled}
+              indeterminate={someNotificationsEnabled}
+              onChange={handleToggleAllNotifications}
+              loading={notificationLoading === "all"}
+            />
+            <div className="pt-2">
+              <p className="text-xs text-gray-400 uppercase tracking-wide py-2">
+                Individual Settings
+              </p>
+            </div>
             <NotificationToggle
               label="Book Requests"
               description="When someone requests one of your books"

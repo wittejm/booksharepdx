@@ -250,6 +250,10 @@ router.post(
         ]);
 
         if (recipient && post) {
+          // Determine recipient's role based on post ownership
+          const recipientRole: "sharer" | "requester" =
+            otherParticipant === post.userId ? "sharer" : "requester";
+
           if (type === "trade_proposal" && offeredPostId) {
             // Trade proposal notification
             const offeredPost = await postRepo.findOne({
@@ -262,6 +266,7 @@ router.post(
                 { title: offeredPost.book.title },
                 { title: post.book.title },
                 threadId,
+                recipientRole,
               ).catch((err) =>
                 console.error("[NOTIFY] Failed to send trade proposal email:", err),
               );
@@ -278,6 +283,7 @@ router.post(
                 recipient,
                 req.user!,
                 post.book,
+                post.type,
                 content,
                 threadId,
               ).catch((err) =>
@@ -289,8 +295,10 @@ router.post(
                 recipient,
                 req.user!,
                 { title: post.book.title },
+                post.type,
                 content,
                 threadId,
+                recipientRole,
               ).catch((err) =>
                 console.error("[NOTIFY] Failed to send new message email:", err),
               );

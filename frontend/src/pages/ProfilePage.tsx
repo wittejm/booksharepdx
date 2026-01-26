@@ -207,7 +207,7 @@ export default function ProfilePage() {
             <div className="flex-1 w-full md:w-auto">
               <div className="mb-2">
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-                  {user.preferredName || user.username}
+                  {user.preferredName || `@${user.username}`}
                 </h1>
                 {user.preferredName && (
                   <div className="text-gray-500 text-sm">@{user.username}</div>

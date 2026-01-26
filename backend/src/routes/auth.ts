@@ -51,7 +51,7 @@ const updateSchema = z
       .max(30)
       .regex(/^[a-zA-Z0-9_-]+$/)
       .optional(),
-    preferredName: z.string().max(50).optional(),
+    preferredName: z.string().max(50).nullable().optional(),
     bio: z.string().optional(),
     profilePicture: z.string().optional(),
     readingPreferences: z

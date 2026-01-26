@@ -152,6 +152,14 @@ function AppRoutes() {
                   }
                 />
                 <Route
+                  path="/share/:threadId"
+                  element={
+                    <ProtectedRoute>
+                      <SharePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/my-profile"
                   element={
                     <ProtectedRoute>

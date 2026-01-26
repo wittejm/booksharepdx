@@ -40,6 +40,9 @@ export default function EditableText({
   }, [isEditing]);
 
   const handleSave = async () => {
+    // Prevent duplicate saves (e.g., Enter key + blur)
+    if (saving) return;
+
     const trimmedValue = editValue.trim();
 
     // Don't save if unchanged

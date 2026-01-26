@@ -1,27 +1,18 @@
 import { test, expect, Page } from "@playwright/test";
 import {
   waitForReact,
-  createUserViaApi,
-  loginAs,
+  useStoredAuth,
   checkBackendHealth,
+  testUsers,
 } from "./helpers";
 
 // NOTE TO CLAUDE: KEEP LOW TIMEOUTS BECAUSE THIS APP IS SUPPOSED TO BE FAST
 // NOTE TO CLAUDE: FAILFAST EVERY ISSUE IN THE TEST, DON'T IGNORE THE ERROR AND MOVE ON
 // NOTE TO CLAUDE: NEVER use `if (await locator.isVisible())` - just call the action directly
 
-// Unique users for this test file
-const tradeTimestamp = Date.now();
-const tradeTestSharer = {
-  email: `tradesharer${tradeTimestamp}@example.com`,
-  username: `tradesharer${tradeTimestamp}`,
-  bio: "Trade flow test sharer",
-};
-const tradeTestRequester = {
-  email: `traderequester${tradeTimestamp}@example.com`,
-  username: `traderequester${tradeTimestamp}`,
-  bio: "Trade flow test requester",
-};
+// Use shared users from global setup
+const tradeTestSharer = testUsers.tradeSharer;
+const tradeTestRequester = testUsers.tradeRequester;
 
 const tradeTestOwnerBook = {
   title: "The Great Gatsby",
@@ -79,16 +70,15 @@ async function sendRequestForBook(
 test.describe("Trade Flow", () => {
   test.describe.configure({ mode: "serial" });
 
+  // Users created in global-setup, just check backend health
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage();
     await checkBackendHealth(page);
-    await createUserViaApi(page, tradeTestSharer);
-    await createUserViaApi(page, tradeTestRequester);
     await page.close();
   });
 
   test("Owner creates exchange post", async ({ page }) => {
-    await loginAs(page, tradeTestSharer.username);
+    await useStoredAuth(page, "tradeSharer");
     await createExchangePost(
       page,
       tradeTestOwnerBook.title,
@@ -97,7 +87,7 @@ test.describe("Trade Flow", () => {
   });
 
   test("Requester creates exchange post", async ({ page }) => {
-    await loginAs(page, tradeTestRequester.username);
+    await useStoredAuth(page, "tradeRequester");
     await createExchangePost(
       page,
       tradeTestRequesterBook.title,
@@ -106,7 +96,7 @@ test.describe("Trade Flow", () => {
   });
 
   test("Requester requests owner's book", async ({ page }) => {
-    await loginAs(page, tradeTestRequester.username);
+    await useStoredAuth(page, "tradeRequester");
     await sendRequestForBook(
       page,
       tradeTestSharer.username,
@@ -117,7 +107,7 @@ test.describe("Trade Flow", () => {
   test("Owner sees interest and navigates to requester profile", async ({
     page,
   }) => {
-    await loginAs(page, tradeTestSharer.username);
+    await useStoredAuth(page, "tradeSharer");
     await page.goto("/share");
     await waitForReact(page);
 
@@ -131,7 +121,7 @@ test.describe("Trade Flow", () => {
   });
 
   test("Owner proposes exchange", async ({ page }) => {
-    await loginAs(page, tradeTestSharer.username);
+    await useStoredAuth(page, "tradeSharer");
     await page.goto(`/profile/${tradeTestRequester.username}`);
     await waitForReact(page);
 
@@ -140,7 +130,7 @@ test.describe("Trade Flow", () => {
   });
 
   test("Requester accepts trade proposal", async ({ page }) => {
-    await loginAs(page, tradeTestRequester.username);
+    await useStoredAuth(page, "tradeRequester");
     await page.goto("/activity");
     await waitForReact(page);
 
@@ -151,7 +141,7 @@ test.describe("Trade Flow", () => {
   });
 
   test("Both users see confirm buttons", async ({ page }) => {
-    await loginAs(page, tradeTestRequester.username);
+    await useStoredAuth(page, "tradeRequester");
     await page.goto("/activity");
     await waitForReact(page);
 
@@ -162,7 +152,7 @@ test.describe("Trade Flow", () => {
       page.getByRole("button", { name: "Trade Completed" }),
     ).toBeVisible();
 
-    await loginAs(page, tradeTestSharer.username);
+    await useStoredAuth(page, "tradeSharer");
     await page.goto("/share");
     await waitForReact(page);
 
@@ -182,7 +172,7 @@ test.describe("Trade Flow", () => {
   });
 
   test("Owner confirms completion", async ({ page }) => {
-    await loginAs(page, tradeTestSharer.username);
+    await useStoredAuth(page, "tradeSharer");
     await page.goto("/share");
     await waitForReact(page);
 
@@ -191,7 +181,7 @@ test.describe("Trade Flow", () => {
   });
 
   test("Requester confirms receipt", async ({ page }) => {
-    await loginAs(page, tradeTestRequester.username);
+    await useStoredAuth(page, "tradeRequester");
     await page.goto("/activity");
     await waitForReact(page);
 
@@ -205,7 +195,7 @@ test.describe("Trade Flow", () => {
   });
 
   test("Book moved to owner archive", async ({ page }) => {
-    await loginAs(page, tradeTestSharer.username);
+    await useStoredAuth(page, "tradeSharer");
     await page.goto("/share");
     await waitForReact(page);
 

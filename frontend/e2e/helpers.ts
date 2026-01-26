@@ -1,22 +1,69 @@
-import { Page, expect } from "@playwright/test";
+import { Page, expect, BrowserContext } from "@playwright/test";
+import * as path from "path";
+import * as fs from "fs";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const API_URL = process.env.API_URL || "http://localhost:3001";
 
 // NOTE TO CLAUDE: KEEP LOW TIMEOUTS BECAUSE THIS APP IS SUPPOSED TO BE FAST
 export const LOAD_TIMEOUT = 2000;
 
-// Unique test users for this run
-const timestamp = Date.now();
-export const testOwner = {
-  email: `owner${timestamp}@example.com`,
-  username: `owner${timestamp}`,
-  bio: "I love sharing books with my Portland neighbors.",
+// Auth state file paths
+export const AUTH_DIR = path.join(__dirname, ".auth");
+export const authFiles = {
+  giftSharer: path.join(AUTH_DIR, "gift-sharer.json"),
+  giftRequester: path.join(AUTH_DIR, "gift-requester.json"),
+  tradeSharer: path.join(AUTH_DIR, "trade-sharer.json"),
+  tradeRequester: path.join(AUTH_DIR, "trade-requester.json"),
 };
-export const testRequester = {
-  email: `requester${timestamp}@example.com`,
-  username: `requester${timestamp}`,
-  bio: "Always looking for good reads!",
-};
+
+export type AuthUserKey = keyof typeof authFiles;
+
+// Load test users from global setup
+function loadTestUsers() {
+  const usersFile = path.join(__dirname, ".test-users.json");
+  if (fs.existsSync(usersFile)) {
+    return JSON.parse(fs.readFileSync(usersFile, "utf-8"));
+  }
+  // Fallback for when global setup hasn't run (e.g., running single test)
+  const timestamp = Date.now();
+  return {
+    giftSharer: {
+      email: `giftsharer${timestamp}@example.com`,
+      username: `giftsharer${timestamp}`,
+      bio: "Gift flow test sharer",
+    },
+    giftRequester: {
+      email: `giftrequester${timestamp}@example.com`,
+      username: `giftrequester${timestamp}`,
+      bio: "Gift flow test requester",
+    },
+    tradeSharer: {
+      email: `tradesharer${timestamp}@example.com`,
+      username: `tradesharer${timestamp}`,
+      bio: "Trade flow test sharer",
+    },
+    tradeRequester: {
+      email: `traderequester${timestamp}@example.com`,
+      username: `traderequester${timestamp}`,
+      bio: "Trade flow test requester",
+    },
+    coreOwner: {
+      email: `owner${timestamp}@example.com`,
+      username: `owner${timestamp}`,
+      bio: "I love sharing books with my Portland neighbors.",
+    },
+  };
+}
+
+export const testUsers = loadTestUsers();
+
+// Legacy exports for core.spec.ts (which tests auth flow via UI)
+export const testOwner = testUsers.coreOwner;
+export const testRequester = testUsers.giftRequester;
 
 export async function waitForReact(page: Page) {
   await page.waitForLoadState("domcontentloaded");
@@ -77,6 +124,24 @@ export async function loginAs(page: Page, identifier: string) {
   // Wait for login to complete AND verify we're actually logged in
   await expect(page).not.toHaveURL(/\/login/, { timeout: LOAD_TIMEOUT });
   await expect(profileButton).toBeVisible({ timeout: LOAD_TIMEOUT });
+}
+
+// Fast auth using stored state (skips UI login)
+export async function useStoredAuth(page: Page, userKey: AuthUserKey) {
+  const authFile = authFiles[userKey];
+
+  if (!fs.existsSync(authFile)) {
+    // Fallback to UI login if auth file doesn't exist
+    const user = testUsers[userKey];
+    return loginAs(page, user.username);
+  }
+
+  // Clear existing auth
+  await page.context().clearCookies();
+
+  // Load stored state
+  const state = JSON.parse(fs.readFileSync(authFile, "utf-8"));
+  await page.context().addCookies(state.cookies);
 }
 
 export async function logout(page: Page) {

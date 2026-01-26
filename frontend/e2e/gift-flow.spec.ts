@@ -3,8 +3,10 @@ import {
   waitForReact,
   createUserViaApi,
   loginAs,
+  useStoredAuth,
   checkBackendHealth,
   deleteAllPostsForCurrentUser,
+  testUsers,
   LOAD_TIMEOUT,
 } from "./helpers";
 
@@ -12,18 +14,12 @@ import {
 // NOTE TO CLAUDE: FAILFAST EVERY ISSUE IN THE TEST, DON'T IGNORE THE ERROR AND MOVE ON
 // NOTE TO CLAUDE: NEVER use `if (await locator.isVisible())` - just call the action directly
 
-// Unique users for this test file
+// Use shared users from global setup for happy path
+const giftTestSharer = testUsers.giftSharer;
+const giftTestRequester = testUsers.giftRequester;
+
+// Timestamp for edge case tests that need unique users
 const giftTimestamp = Date.now();
-const giftTestSharer = {
-  email: `giftsharer${giftTimestamp}@example.com`,
-  username: `giftsharer${giftTimestamp}`,
-  bio: "Gift flow test sharer",
-};
-const giftTestRequester = {
-  email: `giftrequester${giftTimestamp}@example.com`,
-  username: `giftrequester${giftTimestamp}`,
-  bio: "Gift flow test requester",
-};
 
 async function createGiveawayPost(
   page: Page,
@@ -142,37 +138,36 @@ test.describe("Gift Flow: Happy Path", () => {
 
   const giftTestBook = { title: "To Kill a Mockingbird", author: "Harper Lee" };
 
+  // Users created in global-setup, just check backend health
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage();
     await checkBackendHealth(page);
-    await createUserViaApi(page, giftTestSharer);
-    await createUserViaApi(page, giftTestRequester);
     await page.close();
   });
 
   test("Owner creates giveaway post", async ({ page }) => {
-    await loginAs(page, giftTestSharer.username);
+    await useStoredAuth(page, "giftSharer");
     await createGiveawayPost(page, giftTestBook.title, giftTestBook.author);
   });
 
   test("Requester requests book", async ({ page }) => {
-    await loginAs(page, giftTestRequester.username);
+    await useStoredAuth(page, "giftRequester");
     await sendRequestForBook(page, giftTestSharer.username, giftTestBook.title);
   });
 
   test("Owner accepts request", async ({ page }) => {
-    await loginAs(page, giftTestSharer.username);
+    await useStoredAuth(page, "giftSharer");
     await acceptRequest(page);
   });
 
   test("Thread status is accepted", async ({ page }) => {
-    await loginAs(page, giftTestRequester.username);
+    await useStoredAuth(page, "giftRequester");
     await openThread(page, giftTestBook.title);
     await expect(page.getByText("Your request was accepted")).toBeVisible();
   });
 
   test("Owner confirms completion", async ({ page }) => {
-    await loginAs(page, giftTestSharer.username);
+    await useStoredAuth(page, "giftSharer");
     await page.goto("/share");
     await waitForReact(page);
 
@@ -181,7 +176,7 @@ test.describe("Gift Flow: Happy Path", () => {
   });
 
   test("Requester confirms receipt", async ({ page }) => {
-    await loginAs(page, giftTestRequester.username);
+    await useStoredAuth(page, "giftRequester");
     await page.goto("/activity");
     await waitForReact(page);
 
@@ -193,7 +188,7 @@ test.describe("Gift Flow: Happy Path", () => {
   });
 
   test("Book in owner archive", async ({ page }) => {
-    await loginAs(page, giftTestSharer.username);
+    await useStoredAuth(page, "giftSharer");
     await page.goto("/share");
     await waitForReact(page);
 
@@ -205,7 +200,7 @@ test.describe("Gift Flow: Happy Path", () => {
 
   test.afterAll(async ({ browser }) => {
     const page = await browser.newPage();
-    await loginAs(page, giftTestSharer.username);
+    await useStoredAuth(page, "giftSharer");
     await deleteAllPostsForCurrentUser(page);
     await page.close();
   });

@@ -338,8 +338,10 @@ export default function ActivityPage() {
         setSelectedThread(updatedThread);
       }
     } catch (error) {
-      console.error("Failed to accept proposal:", error);
-      showToast("Failed to accept exchange proposal", "error");
+      showToast(
+        "Failed to accept exchange proposal: " + (error as Error).message,
+        "error"
+      );
     } finally {
       setRespondingToProposal(false);
     }
@@ -375,8 +377,10 @@ export default function ActivityPage() {
       );
       showToast("Exchange proposal declined", "info");
     } catch (error) {
-      console.error("Failed to decline proposal:", error);
-      showToast("Failed to decline exchange proposal", "error");
+      showToast(
+        "Failed to decline exchange proposal: " + (error as Error).message,
+        "error"
+      );
     } finally {
       setRespondingToProposal(false);
     }

@@ -140,8 +140,10 @@ export default function PostCard({
       // Navigate back to shares page, focused on the post with the thread open
       navigate(`/share?focusPost=${myPost.id}&showThread=${threadId}`);
     } catch (error) {
-      console.error("Failed to propose exchange:", error);
-      showToast("Failed to send exchange proposal", "error");
+      showToast(
+        "Failed to send exchange proposal: " + (error as Error).message,
+        "error"
+      );
     } finally {
       setProposingExchange(false);
     }

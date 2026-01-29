@@ -8,6 +8,7 @@ import {
   messageService,
 } from "../services";
 import { useConfirm } from "./useConfirm";
+import { useConfirmAction } from "../hooks/useConfirmAction";
 import { useToast } from "./useToast";
 import { useUser } from "../contexts/UserContext";
 import { useInterest } from "../contexts/InterestContext";
@@ -56,6 +57,8 @@ export default function ShareCard({
   };
   const { summary: interestSummary } = useInterest();
   const { confirm, alert, ConfirmDialogComponent } = useConfirm();
+  const { confirmAction, ConfirmDialogComponent: ConfirmActionDialog } =
+    useConfirmAction();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
@@ -292,8 +295,7 @@ export default function ShareCard({
       );
       onUpdate?.();
     } catch (error) {
-      console.error("Failed to accept:", error);
-      showToast("Failed to accept request", "error");
+      showToast("Failed to accept request: " + (error as Error).message, "error");
     } finally {
       setActionLoading(null);
     }
@@ -323,8 +325,7 @@ export default function ShareCard({
       setShowLoanOffer(null);
       onUpdate?.();
     } catch (error) {
-      console.error("Failed to offer loan:", error);
-      showToast("Failed to offer loan", "error");
+      showToast("Failed to offer loan: " + (error as Error).message, "error");
     } finally {
       setActionLoading(null);
     }
@@ -352,8 +353,7 @@ export default function ShareCard({
       setShowLoanOffer(null);
       onUpdate?.();
     } catch (error) {
-      console.error("Failed to convert to gift:", error);
-      showToast("Failed to convert to gift", "error");
+      showToast("Failed to convert to gift: " + (error as Error).message, "error");
     } finally {
       setActionLoading(null);
     }
@@ -391,8 +391,7 @@ export default function ShareCard({
       setBorrowerUser(null);
       onUpdate?.();
     } catch (error) {
-      console.error("Failed to record return:", error);
-      showToast("Failed to record return", "error");
+      showToast("Failed to record return: " + (error as Error).message, "error");
     } finally {
       setActionLoading(null);
     }
@@ -416,8 +415,7 @@ export default function ShareCard({
       showToast("Request declined", "info");
       await loadInterests(); // Refresh the list
     } catch (error) {
-      console.error("Failed to decline:", error);
-      showToast("Failed to decline request", "error");
+      showToast("Failed to decline request: " + (error as Error).message, "error");
     } finally {
       setActionLoading(null);
     }
@@ -440,28 +438,29 @@ export default function ShareCard({
       showToast("Your gift has been archived", "success");
       onUpdate?.();
     } catch (error) {
-      console.error("Failed to complete gift:", error);
-      showToast("Failed to mark as completed", "error");
+      showToast("Failed to mark as completed: " + (error as Error).message, "error");
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleMarkAsGiven = async () => {
-    const confirmed = await confirm({
-      title: "Mark as Given",
-      message: "Mark this book as given away?",
-      confirmText: "Mark as Given",
-      variant: "info",
-    });
-    if (!confirmed) return;
-
-    await postService.update(post.id, {
-      status: "archived",
-      archivedAt: Date.now(),
-    });
-    setShowMenu(false);
-    onUpdate?.();
+    await confirmAction(
+      {
+        title: "Mark as Given",
+        message: "Mark this book as given away?",
+        confirmText: "Mark as Given",
+        variant: "info",
+      },
+      () =>
+        postService.update(post.id, { status: "archived", archivedAt: Date.now() }),
+      "Book marked as given",
+      "Failed to mark as given",
+      () => {
+        setShowMenu(false);
+        onUpdate?.();
+      }
+    );
   };
 
   const handleDelete = async () => {
@@ -477,40 +476,46 @@ export default function ShareCard({
       return;
     }
 
-    const confirmed = await confirm({
-      title: "Delete Post",
-      message:
-        "Are you sure you want to delete this post? This action cannot be undone.",
-      confirmText: "Delete",
-      variant: "danger",
-    });
-    if (!confirmed) return;
-
-    await postService.delete(post.id);
-    setShowMenu(false);
-    onUpdate?.();
+    await confirmAction(
+      {
+        title: "Delete Post",
+        message:
+          "Are you sure you want to delete this post? This action cannot be undone.",
+        confirmText: "Delete",
+        variant: "danger",
+      },
+      () => postService.delete(post.id),
+      "Post deleted",
+      "Failed to delete post",
+      () => {
+        setShowMenu(false);
+        onUpdate?.();
+      }
+    );
   };
 
   const handleReactivate = async () => {
-    const confirmed = await confirm({
-      title: "Reactivate Post",
-      message: "Make this book available again?",
-      confirmText: "Reactivate",
-      variant: "info",
-    });
-    if (!confirmed) return;
-
-    await postService.update(post.id, {
-      status: "active",
-      archivedAt: undefined,
-    });
-    setShowMenu(false);
-    onUpdate?.();
+    await confirmAction(
+      {
+        title: "Reactivate Post",
+        message: "Make this book available again?",
+        confirmText: "Reactivate",
+        variant: "info",
+      },
+      () => postService.update(post.id, { status: "active", archivedAt: undefined }),
+      "Post reactivated",
+      "Failed to reactivate post",
+      () => {
+        setShowMenu(false);
+        onUpdate?.();
+      }
+    );
   };
 
   return (
     <>
       {ConfirmDialogComponent}
+      {ConfirmActionDialog}
 
       {/* Loan Offer Modal */}
       {showLoanOffer && (

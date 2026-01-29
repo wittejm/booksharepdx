@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { blockService } from "../services";
 import { useUser } from "../contexts/UserContext";
-import { useConfirm } from "./useConfirm";
+import { useConfirmAction } from "../hooks/useConfirmAction";
 
 interface PostCardMenuProps {
   postId: string;
@@ -21,23 +21,27 @@ export default function PostCardMenu({
 }: PostCardMenuProps) {
   const navigate = useNavigate();
   const { currentUser } = useUser();
-  const { confirm, ConfirmDialogComponent } = useConfirm();
+  const { confirmAction, ConfirmDialogComponent } = useConfirmAction();
   const [showMenu, setShowMenu] = useState(false);
 
   const handleBlock = async () => {
     if (!currentUser) return;
 
-    const confirmed = await confirm({
-      title: "Block User",
-      message: "Block this user? You will no longer see their posts.",
-      confirmText: "Block",
-      variant: "warning",
-    });
-    if (!confirmed) return;
-
-    await blockService.block(currentUser.id, postUserId);
-    setShowMenu(false);
-    navigate(0);
+    await confirmAction(
+      {
+        title: "Block User",
+        message: "Block this user? You will no longer see their posts.",
+        confirmText: "Block",
+        variant: "warning",
+      },
+      () => blockService.block(currentUser.id, postUserId),
+      "User blocked",
+      "Failed to block user",
+      () => {
+        setShowMenu(false);
+        navigate(0);
+      }
+    );
   };
 
   return (

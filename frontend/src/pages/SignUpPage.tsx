@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import type { User } from "@booksharepdx/shared";
 import { authService } from "../services";
 import { useUser } from "../contexts/UserContext";
 import { isValidEmail } from "../utils/validation";
+import { broadcastLogin } from "../utils/pendingAuth";
+import { useAuthRedirect } from "../hooks/useAuthRedirect";
 
 export default function SignUpPage() {
   const [formData, setFormData] = useState({
@@ -18,8 +20,8 @@ export default function SignUpPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [emailSent, setEmailSent] = useState(false);
 
-  const navigate = useNavigate();
   const { updateCurrentUser } = useUser();
+  const { handlePostLoginRedirect } = useAuthRedirect("/");
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -85,7 +87,8 @@ export default function SignUpPage() {
 
       // Direct login (dev mode) - result is a User
       updateCurrentUser(result as User);
-      navigate("/location-selection");
+      broadcastLogin();
+      handlePostLoginRedirect();
     } catch (error) {
       const err = error as Error & { code?: string };
       const code = err.code;

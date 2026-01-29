@@ -18,10 +18,10 @@ import LandingPage from "./pages/LandingPage";
 import BrowsePage from "./pages/BrowsePage";
 import LoginPage from "./pages/LoginPage";
 import SignUpPage from "./pages/SignUpPage";
-import LocationSelectionPage from "./pages/LocationSelectionPage";
 import ActivityPage from "./pages/ActivityPage";
 import SharePage from "./pages/SharePage";
 import ProfilePage from "./pages/ProfilePage";
+import GettingStartedPage from "./pages/GettingStartedPage";
 // Note: SettingsPage removed - settings are now in MyProfilePage
 
 // Lazy-loaded pages (code splitting)
@@ -100,11 +100,7 @@ function AppRoutes() {
                 <Route
                   path="/"
                   element={
-                    currentUser ? (
-                      <Navigate to="/browse" replace />
-                    ) : (
-                      <LandingPage />
-                    )
+                    currentUser ? <GettingStartedPage /> : <LandingPage />
                   }
                 />
                 <Route path="/login" element={<LoginPage />} />
@@ -112,14 +108,6 @@ function AppRoutes() {
                 <Route
                   path="/verify-magic-link"
                   element={<VerifyMagicLinkPage />}
-                />
-                <Route
-                  path="/location-selection"
-                  element={
-                    <ProtectedRoute>
-                      <LocationSelectionPage />
-                    </ProtectedRoute>
-                  }
                 />
                 <Route path="/about" element={<AboutPage />} />
 

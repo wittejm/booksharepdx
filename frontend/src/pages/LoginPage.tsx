@@ -1,16 +1,11 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { authService } from "../services";
 import { useUser } from "../contexts/UserContext";
 import type { User } from "@booksharepdx/shared";
 import { ERROR_MESSAGES } from "../utils/errorMessages";
-import {
-  getPendingAction,
-  clearPendingAction,
-  buildRedirectUrl,
-  broadcastLogin,
-  onCrossTabLogin,
-} from "../utils/pendingAuth";
+import { broadcastLogin } from "../utils/pendingAuth";
+import { useAuthRedirect } from "../hooks/useAuthRedirect";
 
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState("");
@@ -20,40 +15,8 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const sessionExpired = searchParams.get("expired") === "true";
 
-  const navigate = useNavigate();
-  const { currentUser, updateCurrentUser } = useUser();
-
-  // Redirect if already logged in
-  useEffect(() => {
-    if (currentUser) {
-      handlePostLoginRedirect();
-    }
-  }, [currentUser]);
-
-  // Listen for login events from other tabs (e.g., magic link clicked in another tab)
-  useEffect(() => {
-    const cleanup = onCrossTabLogin(async () => {
-      // Another tab logged in, fetch the current user and redirect
-      const user = await authService.getCurrentUser();
-      if (user) {
-        updateCurrentUser(user);
-        handlePostLoginRedirect();
-      }
-    });
-    return cleanup;
-  }, []);
-
-  // Handle redirect after login, checking for pending actions
-  const handlePostLoginRedirect = () => {
-    const pendingAction = getPendingAction();
-    if (pendingAction) {
-      const redirectUrl = buildRedirectUrl(pendingAction);
-      clearPendingAction();
-      navigate(redirectUrl);
-    } else {
-      navigate("/browse");
-    }
-  };
+  const { updateCurrentUser } = useUser();
+  const { handlePostLoginRedirect } = useAuthRedirect("/browse");
 
   const validateForm = () => {
     if (!identifier.trim()) {

@@ -6,6 +6,7 @@ import {
   logout,
   checkBackendHealth,
   testOwner,
+  deleteAllPostsForCurrentUser,
 } from "./helpers";
 
 // NOTE TO CLAUDE: KEEP LOW TIMEOUTS BECAUSE THIS APP IS SUPPOSED TO BE FAST
@@ -63,6 +64,59 @@ test.describe("Core Tests", () => {
 
     // Should navigate away from login or show "check email" message
     await expect(page).not.toHaveURL(/\/login/);
+  });
+
+  test("Getting Started Page - Shows for new user without posts", async ({
+    page,
+  }) => {
+    await loginAs(page, testOwner.username);
+
+    // Delete all posts to simulate a new user
+    await deleteAllPostsForCurrentUser(page);
+
+    // Navigate to home
+    await page.goto("/");
+    await waitForReact(page);
+
+    // Should see Getting Started page, not redirect to browse
+    await expect(page.locator("text=Welcome to BookShare PDX")).toBeVisible();
+    await expect(page.locator("text=Set your location")).toBeVisible();
+    await expect(page.locator("text=Share a book")).toBeVisible();
+  });
+
+  test("Getting Started Page - Redirects to browse when user has posts", async ({
+    page,
+  }) => {
+    await loginAs(page, testOwner.username);
+
+    // First ensure no posts, then create one
+    await deleteAllPostsForCurrentUser(page);
+
+    // Create a post via the share page
+    await page.goto("/share?action=share");
+    await waitForReact(page);
+
+    // Click manual entry link and fill in details
+    await page.locator("button:has-text(\"Can't find your book?\")").click();
+    await page.fill('input[placeholder="Enter book title"]', "Test Book");
+    await page.fill('input[placeholder="Enter author name"]', "Test Author");
+    await page.locator('button:has-text("Use This Book")').click();
+
+    // Now in details step - submit the share
+    await page.locator('button:has-text("Share Book")').click();
+
+    // Wait for post to be created (form collapses, post appears in list)
+    await expect(page.locator("text=Test Book").first()).toBeVisible();
+
+    // Now navigate to home - should redirect to browse
+    await page.goto("/");
+    await waitForReact(page);
+
+    // Should be on browse page, not getting started
+    await expect(page).toHaveURL(/\/browse/);
+    await expect(
+      page.locator("text=Welcome to BookShare PDX"),
+    ).not.toBeVisible();
   });
 
   test("Browse Page", async ({ page }) => {

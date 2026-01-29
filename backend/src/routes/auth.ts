@@ -130,7 +130,7 @@ router.post("/signup", validateBody(signupSchema), async (req, res, next) => {
       verified: !EMAIL_VERIFICATION_ENABLED, // Auto-verify when email verification is disabled
       role: "user",
       locationType: "neighborhood",
-      neighborhoodId: null, // Not selected - user chooses on LocationSelectionPage
+      neighborhoodId: null, // Not selected - user chooses during onboarding
     });
 
     await userRepo.save(user);

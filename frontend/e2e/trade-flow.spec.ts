@@ -53,10 +53,15 @@ async function sendRequestForBook(
   await page.goto(`/profile/${ownerUsername}`);
   await waitForReact(page);
 
+  // Wait for the book card to load by finding the heading
   await expect(
-    page.getByText(bookTitle, { exact: false }).first(),
+    page.getByRole("heading", { name: bookTitle }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Request", exact: true }).click();
+  // Find the Request button within the card containing this book
+  const bookCard = page.locator("div").filter({
+    has: page.getByRole("heading", { name: bookTitle }),
+  });
+  await bookCard.getByRole("button", { name: "Request", exact: true }).click();
   await page
     .getByPlaceholder(/interested in this book/i)
     .fill(`Hi! I'm interested in "${bookTitle}". Would love to trade!`);

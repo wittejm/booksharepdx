@@ -138,6 +138,10 @@ test.describe("Trade Flow", () => {
       .getByRole("button", { name: new RegExp(tradeTestOwnerBook.title) })
       .click();
     await page.getByRole("button", { name: "Accept" }).click();
+    // Verify accept completed - should now see Trade Completed button
+    await expect(
+      page.getByRole("button", { name: "Trade Completed" }),
+    ).toBeVisible();
   });
 
   test("Both users see confirm buttons", async ({ page }) => {

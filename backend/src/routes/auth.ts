@@ -124,7 +124,8 @@ router.post("/signup", validateBody(signupSchema), async (req, res, next) => {
     // Create user
     const user = userRepo.create({
       email: email.toLowerCase(),
-      username,
+      username: username.toLowerCase(),
+      displayUsername: username,
       preferredName: preferredName || null,
       bio,
       verified: !EMAIL_VERIFICATION_ENABLED, // Auto-verify when email verification is disabled
@@ -405,8 +406,8 @@ router.put(
       const userRepo = AppDataSource.getRepository(User);
       const user = req.user!;
 
-      // Check if username is being changed and is taken
-      if (req.body.username && req.body.username !== user.username) {
+      // Check if username is being changed and is taken (case-insensitive)
+      if (req.body.username && req.body.username.toLowerCase() !== user.username) {
         const existing = await userRepo.findOne({
           where: { username: req.body.username.toLowerCase() },
         });
@@ -420,7 +421,10 @@ router.put(
       }
 
       // Update fields
-      if (req.body.username) user.username = req.body.username;
+      if (req.body.username) {
+        user.username = req.body.username.toLowerCase();
+        user.displayUsername = req.body.username;
+      }
       if (req.body.preferredName !== undefined)
         user.preferredName = req.body.preferredName || null;
       if (req.body.bio !== undefined) user.bio = req.body.bio;

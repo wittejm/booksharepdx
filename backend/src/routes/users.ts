@@ -42,13 +42,13 @@ router.get("/:id", optionalAuth, async (req, res, next) => {
   }
 });
 
-// GET /api/users/username/:username - Get user by username
+// GET /api/users/username/:username - Get user by username (case-insensitive)
 router.get("/username/:username", optionalAuth, async (req, res, next) => {
   try {
     const { username } = req.params;
     const userRepo = AppDataSource.getRepository(User);
 
-    const user = await userRepo.findOne({ where: { username } });
+    const user = await userRepo.findOne({ where: { username: username.toLowerCase() } });
     if (!user) {
       throw new AppError(
         `No user found with username "${username}". Please check the spelling or the user may have changed their username.`,
@@ -89,9 +89,24 @@ router.put("/:id", requireAuth, async (req, res, next) => {
       );
     }
 
-    // Apply updates
+    // Handle username update specially (case-insensitive uniqueness)
+    if (req.body.username && req.body.username.toLowerCase() !== user.username) {
+      const existing = await userRepo.findOne({
+        where: { username: req.body.username.toLowerCase() },
+      });
+      if (existing) {
+        throw new AppError(
+          `The username "${req.body.username}" is already taken.`,
+          400,
+          "USERNAME_TAKEN",
+        );
+      }
+      user.username = req.body.username.toLowerCase();
+      user.displayUsername = req.body.username;
+    }
+
+    // Apply other updates
     const allowedFields = [
-      "username",
       "bio",
       "profilePicture",
       "readingPreferences",

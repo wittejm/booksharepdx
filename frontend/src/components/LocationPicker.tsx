@@ -56,6 +56,7 @@ export default function LocationPicker({
   const [addressLoading, setAddressLoading] = useState(false);
   const [addressError, setAddressError] = useState("");
   const [neighborhoodError, setNeighborhoodError] = useState("");
+  const [skipPin, setSkipPin] = useState(false);
 
   const neighborhoods = neighborhoodService.getAll();
 
@@ -234,14 +235,23 @@ export default function LocationPicker({
         )}
       </div>
 
-      {selectedNeighborhood && (
+      {selectedNeighborhood && !skipPin && (
         <div className="bg-gray-50 rounded-lg p-6 space-y-4 border border-gray-200">
-          <p className="text-sm text-gray-600 italic">
-            <p>
-              This could be an intersection, or a nearby landmark if you prefer
+          <div className="flex items-start justify-between">
+            <p className="text-sm text-gray-600 italic">
+              Optionally, drop a pin at an intersection or nearby landmark.
             </p>
-            <p>Click and drag to move the window. Click to drop a pin</p>
-          </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSkipPin(true);
+                setPreciseLocation(null);
+              }}
+              className="text-sm text-gray-500 hover:text-gray-700 whitespace-nowrap ml-4"
+            >
+              Skip this
+            </button>
+          </div>
 
           {(() => {
             const neighborhood = neighborhoods.find(
@@ -282,6 +292,19 @@ export default function LocationPicker({
               </>
             );
           })()}
+        </div>
+      )}
+
+      {selectedNeighborhood && skipPin && (
+        <div className="text-sm text-gray-500">
+          Using neighborhood only.{" "}
+          <button
+            type="button"
+            onClick={() => setSkipPin(false)}
+            className="text-primary-600 hover:text-primary-700"
+          >
+            Add a pin instead
+          </button>
         </div>
       )}
 

@@ -25,7 +25,10 @@ export class User {
 
   @Column({ type: "varchar", unique: true })
   @Index()
-  username: string;
+  username: string; // Always lowercase, used for lookups and URLs
+
+  @Column({ type: "varchar" })
+  displayUsername: string; // Original casing for display
 
   @Column({ type: "varchar", nullable: true })
   preferredName: string | null;
@@ -121,7 +124,7 @@ export class User {
     return {
       id: this.id,
       email: this.email,
-      username: this.username,
+      username: this.displayUsername, // Return display version for UI
       preferredName: this.preferredName || undefined,
       bio: this.bio,
       verified: this.verified,

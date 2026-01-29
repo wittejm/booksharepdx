@@ -8,6 +8,7 @@ describe("User entity", () => {
       user.id = "test-uuid";
       user.email = "test@example.com";
       user.username = "testuser";
+      user.displayUsername = "TestUser";
       user.bio = "Test bio";
       user.verified = true;
       user.role = "user";
@@ -34,7 +35,7 @@ describe("User entity", () => {
 
       expect(json.id).toBe("test-uuid");
       expect(json.email).toBe("test@example.com");
-      expect(json.username).toBe("testuser");
+      expect(json.username).toBe("TestUser"); // displayUsername
       expect(json.bio).toBe("Test bio");
       expect(json.verified).toBe(true);
       expect(json.role).toBe("user");
@@ -56,6 +57,7 @@ describe("User entity", () => {
       user.id = "test-uuid";
       user.email = "test@example.com";
       user.username = "testuser";
+      user.displayUsername = "testuser";
       user.bio = "";
       user.verified = false;
       user.role = "user";
@@ -87,6 +89,7 @@ describe("User entity", () => {
       user.id = "test-uuid";
       user.email = "test@example.com";
       user.username = "testuser";
+      user.displayUsername = "testuser";
       user.bio = "";
       user.verified = false;
       user.role = "user";
@@ -121,6 +124,7 @@ describe("User entity", () => {
       user.id = "test-uuid";
       user.email = "test@example.com";
       user.username = "testuser";
+      user.displayUsername = "testuser";
       user.bio = "";
       user.verified = false;
       user.role = "user";

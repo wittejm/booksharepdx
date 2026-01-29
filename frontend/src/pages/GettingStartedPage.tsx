@@ -96,8 +96,7 @@ export default function GettingStartedPage() {
                   Set your location
                 </h2>
                 <p className="text-gray-600 text-sm mb-4">
-                  This helps neighbors find your books. We only show your
-                  neighborhood, not your exact address.
+                  This helps neighbors know you're nearby.
                 </p>
 
                 {hasLocation ? (

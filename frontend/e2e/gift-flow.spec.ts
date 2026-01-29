@@ -398,18 +398,21 @@ test.describe("Gift Flow: Multiple Requesters", () => {
       .click();
     // Wait for interest panel to load and find req1's row
     await expect(page.getByText(requester1.username)).toBeVisible();
-    // Click Accept on the row containing req1
+    // Click Accept on the row containing req1 - use the link to find the specific row
     const req1Row = page
-      .locator("div")
-      .filter({ hasText: requester1.username })
-      .first();
-    await req1Row.getByRole("button", { name: "Accept" }).first().click();
+      .locator(".bg-gray-50.rounded-lg")
+      .filter({ has: page.getByRole("link", { name: requester1.username }) });
+    await req1Row.getByRole("button", { name: "Accept" }).click();
     await page
       .getByRole("dialog")
       .getByRole("button", { name: /yes, give/i })
       .click();
-    // Wait for dialog to close and status to update
+    // Wait for dialog to close and verify accept completed
     await expect(page.getByRole("dialog")).not.toBeVisible();
+    // Verify the status update shows the gift is pending handoff
+    await expect(
+      page.getByText(new RegExp(`Giving to ${requester1.username}`)),
+    ).toBeVisible();
   });
 
   test("Second requester sees given to someone else", async ({ page }) => {

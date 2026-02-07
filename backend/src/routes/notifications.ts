@@ -15,7 +15,6 @@ const createNotificationSchema = z.object({
     "exchange_confirmed",
     "exchange_declined",
     "message",
-    "moderator_action",
   ]),
   content: z.string(),
   relatedId: z.string().uuid().optional(),

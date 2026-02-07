@@ -1,221 +1,343 @@
 import { test, expect, Page } from "@playwright/test";
 import {
   waitForReact,
-  useStoredAuth,
+  createUserViaApi,
+  loginAs,
   checkBackendHealth,
-  testUsers,
+  createPostViaApi,
+  createThreadViaApi,
+  getCurrentUserViaApi,
+  proposeTradeViaApi,
+  acceptTradeViaApi,
+  completeThreadViaApi,
 } from "./helpers";
 
 // NOTE TO CLAUDE: KEEP LOW TIMEOUTS BECAUSE THIS APP IS SUPPOSED TO BE FAST
 // NOTE TO CLAUDE: FAILFAST EVERY ISSUE IN THE TEST, DON'T IGNORE THE ERROR AND MOVE ON
 // NOTE TO CLAUDE: NEVER use `if (await locator.isVisible())` - just call the action directly
 
-// Use shared users from global setup
-const tradeTestSharer = testUsers.tradeSharer;
-const tradeTestRequester = testUsers.tradeRequester;
+// Each test creates its own unique users with timestamp
+function createTestUsers(prefix: string) {
+  const ts = Date.now();
+  return {
+    owner: {
+      email: `${prefix}_owner${ts}@example.com`,
+      username: `${prefix}_owner${ts}`,
+      bio: "Test owner",
+    },
+    requester: {
+      email: `${prefix}_req${ts}@example.com`,
+      username: `${prefix}_req${ts}`,
+      bio: "Test requester",
+    },
+  };
+}
 
-const tradeTestOwnerBook = {
-  title: "The Great Gatsby",
-  author: "F. Scott Fitzgerald",
+// Common test books for trades
+const tradeBooks = {
+  gatsby: { title: "The Great Gatsby", author: "F. Scott Fitzgerald" },
+  nineteen84: { title: "Nineteen Eighty-Four", author: "George Orwell" },
+  catcher: { title: "The Catcher in the Rye", author: "J.D. Salinger" },
+  grapes: { title: "The Grapes of Wrath", author: "John Steinbeck" },
 };
 
-const tradeTestRequesterBook = {
-  title: "Nineteen Eighty-Four",
-  author: "George Orwell",
-};
+test.beforeAll(async ({ browser }) => {
+  const page = await browser.newPage();
+  await checkBackendHealth(page);
+  await page.close();
+});
 
-async function createExchangePost(
-  page: Page,
-  bookTitle: string,
-  bookAuthor: string,
-): Promise<void> {
+// ============================================================================
+// TRADE FLOW TESTS - Each test is independent and can run in parallel
+// ============================================================================
+
+test("Owner creates exchange post", async ({ page }) => {
+  const users = createTestUsers("create_ex");
+  await createUserViaApi(page, users.owner);
+  await loginAs(page, users.owner.username);
+
   await page.goto("/share");
   await waitForReact(page);
 
   await page.getByRole("button", { name: "Share a Book" }).click();
-  await page.getByPlaceholder(/search for a book/i).fill(bookTitle);
-  await page.getByText(bookAuthor).first().click();
+  await page.getByPlaceholder(/search for a book/i).fill(tradeBooks.gatsby.title);
+  await page.getByText(tradeBooks.gatsby.author).first().click();
   await page.getByRole("button", { name: "Exchange" }).click();
   await page.getByRole("button", { name: "Share Book" }).click();
 
-  // Wait for the share form to close and post to appear
   await expect(page.getByPlaceholder(/search for a book/i)).not.toBeVisible();
-  await expect(
-    page.getByText(bookTitle, { exact: false }).first(),
-  ).toBeVisible();
-}
+  await expect(page.getByText(tradeBooks.gatsby.title, { exact: false }).first()).toBeVisible();
+});
 
-async function sendRequestForBook(
-  page: Page,
-  ownerUsername: string,
-  bookTitle: string,
-): Promise<void> {
-  await page.goto(`/profile/${ownerUsername}`);
+test("Requester can request owner's exchange book", async ({ page }) => {
+  // SETUP via API
+  const users = createTestUsers("req_ex");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  await createPostViaApi(page, { ...tradeBooks.gatsby, type: "exchange" });
+
+  // UI TEST
+  await loginAs(page, users.requester.username);
+  await page.goto(`/profile/${users.owner.username}`);
   await waitForReact(page);
 
-  // Wait for the book card to load by finding the heading
-  await expect(
-    page.getByRole("heading", { name: bookTitle }),
-  ).toBeVisible();
-  // Find the Request button within the card containing this book
+  await expect(page.getByRole("heading", { name: tradeBooks.gatsby.title })).toBeVisible();
   const bookCard = page.locator("div").filter({
-    has: page.getByRole("heading", { name: bookTitle }),
+    has: page.getByRole("heading", { name: tradeBooks.gatsby.title }),
   });
   await bookCard.getByRole("button", { name: "Request", exact: true }).click();
   await page
     .getByPlaceholder(/interested in this book/i)
-    .fill(`Hi! I'm interested in "${bookTitle}". Would love to trade!`);
+    .fill(`Hi! I'm interested in "${tradeBooks.gatsby.title}". Would love to trade!`);
   await page.getByRole("button", { name: "Send" }).click();
 
-  await expect(
-    page.getByPlaceholder(/interested in this book/i),
-  ).not.toBeVisible();
-}
+  await expect(page.getByPlaceholder(/interested in this book/i)).not.toBeVisible();
+});
 
-test.describe("Trade Flow", () => {
-  test.describe.configure({ mode: "serial" });
+test("Owner sees interest and can navigate to requester profile", async ({ page }) => {
+  // SETUP via API
+  const users = createTestUsers("nav_prof");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const post = await createPostViaApi(page, { ...tradeBooks.gatsby, type: "exchange" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  await createPostViaApi(page, { ...tradeBooks.nineteen84, type: "exchange" });
+  await createThreadViaApi(page, post.id, ownerData.id, "I'd like to trade for this!");
 
-  // Users created in global-setup, just check backend health
-  test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage();
-    await checkBackendHealth(page);
-    await page.close();
-  });
+  // UI TEST
+  await loginAs(page, users.owner.username);
+  await page.goto("/share");
+  await waitForReact(page);
 
-  test("Owner creates exchange post", async ({ page }) => {
-    await useStoredAuth(page, "tradeSharer");
-    await createExchangePost(
-      page,
-      tradeTestOwnerBook.title,
-      tradeTestOwnerBook.author,
-    );
-  });
+  await page.getByText("Someone is interested!").click();
+  await page.getByRole("link", { name: "View Books" }).click();
+  await waitForReact(page);
 
-  test("Requester creates exchange post", async ({ page }) => {
-    await useStoredAuth(page, "tradeRequester");
-    await createExchangePost(
-      page,
-      tradeTestRequesterBook.title,
-      tradeTestRequesterBook.author,
-    );
-  });
+  await expect(page.getByText(users.requester.username, { exact: false }).first()).toBeVisible();
+});
 
-  test("Requester requests owner's book", async ({ page }) => {
-    await useStoredAuth(page, "tradeRequester");
-    await sendRequestForBook(
-      page,
-      tradeTestSharer.username,
-      tradeTestOwnerBook.title,
-    );
-  });
+test("Owner can propose exchange from requester's profile", async ({ page }) => {
+  // SETUP via API
+  const users = createTestUsers("propose");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const ownerPost = await createPostViaApi(page, { ...tradeBooks.gatsby, type: "exchange" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  await createPostViaApi(page, { ...tradeBooks.nineteen84, type: "exchange" });
+  await createThreadViaApi(page, ownerPost.id, ownerData.id, "I'd like to trade for this!");
 
-  test("Owner sees interest and navigates to requester profile", async ({
+  // UI TEST
+  await loginAs(page, users.owner.username);
+  await page.goto(`/profile/${users.requester.username}`);
+  await waitForReact(page);
+
+  await page.getByRole("button", { name: "Exchange" }).click();
+  await page.getByRole("button", { name: "Propose Exchange" }).click();
+
+  await expect(page.getByRole("button", { name: "Exchange" })).not.toBeVisible();
+});
+
+test("Requester can accept trade proposal", async ({ page }) => {
+  // SETUP via API (avoid "accept" in username as it matches buttons)
+  const users = createTestUsers("takeprop");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const ownerPost = await createPostViaApi(page, { ...tradeBooks.gatsby, type: "exchange" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  const requesterPost = await createPostViaApi(page, { ...tradeBooks.nineteen84, type: "exchange" });
+  const { thread } = await createThreadViaApi(
     page,
-  }) => {
-    await useStoredAuth(page, "tradeSharer");
-    await page.goto("/share");
-    await waitForReact(page);
+    ownerPost.id,
+    ownerData.id,
+    "I'd like to trade for this!",
+  );
+  await loginAs(page, users.owner.username);
+  await proposeTradeViaApi(page, thread.id, ownerPost.id, requesterPost.id);
 
-    await page.getByText("Someone is interested!").click();
-    await page.getByRole("link", { name: "View Books" }).click();
-    await waitForReact(page);
+  // UI TEST
+  await loginAs(page, users.requester.username);
+  await page.goto("/activity");
+  await waitForReact(page);
 
-    await expect(
-      page.getByText(tradeTestRequester.username, { exact: false }).first(),
-    ).toBeVisible();
-  });
+  await page.getByRole("button", { name: new RegExp(tradeBooks.gatsby.title) }).click();
+  // Accept the trade proposal - use exact match to avoid matching avatar buttons
+  await page.getByRole("button", { name: "Accept", exact: true }).click();
 
-  test("Owner proposes exchange", async ({ page }) => {
-    await useStoredAuth(page, "tradeSharer");
-    await page.goto(`/profile/${tradeTestRequester.username}`);
-    await waitForReact(page);
+  await expect(page.getByRole("button", { name: "Trade Completed" })).toBeVisible();
+});
 
-    await page.getByRole("button", { name: "Exchange" }).click();
-    await page.getByRole("button", { name: "Propose Exchange" }).click();
-  });
+test("Both users see confirm buttons after trade acceptance", async ({ page }) => {
+  // SETUP via API - complete trade acceptance
+  const users = createTestUsers("confirm_tr");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const ownerPost = await createPostViaApi(page, { ...tradeBooks.gatsby, type: "exchange" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  const requesterPost = await createPostViaApi(page, { ...tradeBooks.nineteen84, type: "exchange" });
+  const { thread } = await createThreadViaApi(
+    page,
+    ownerPost.id,
+    ownerData.id,
+    "I'd like to trade for this!",
+  );
+  await loginAs(page, users.owner.username);
+  const proposal = await proposeTradeViaApi(page, thread.id, ownerPost.id, requesterPost.id);
+  await loginAs(page, users.requester.username);
+  await acceptTradeViaApi(page, thread.id, proposal.id);
 
-  test("Requester accepts trade proposal", async ({ page }) => {
-    await useStoredAuth(page, "tradeRequester");
-    await page.goto("/activity");
-    await waitForReact(page);
+  // UI TEST - Check requester sees Trade Completed
+  await page.goto("/activity");
+  await waitForReact(page);
+  await page.getByRole("button", { name: new RegExp(tradeBooks.gatsby.title) }).click();
+  await expect(page.getByRole("button", { name: "Trade Completed" })).toBeVisible();
 
-    await page
-      .getByRole("button", { name: new RegExp(tradeTestOwnerBook.title) })
-      .click();
-    await page.getByRole("button", { name: "Accept" }).click();
-    // Verify accept completed - should now see Trade Completed button
-    await expect(
-      page.getByRole("button", { name: "Trade Completed" }),
-    ).toBeVisible();
-  });
+  // Check owner sees Gift Completed
+  await loginAs(page, users.owner.username);
+  await page.goto("/share");
+  await waitForReact(page);
+  await expect(page.getByRole("button", { name: "Gift Completed" })).toBeVisible();
+});
 
-  test("Both users see confirm buttons", async ({ page }) => {
-    await useStoredAuth(page, "tradeRequester");
-    await page.goto("/activity");
-    await waitForReact(page);
+test("Book no longer appears in browse after trade accepted", async ({ page }) => {
+  // SETUP via API - complete trade acceptance
+  const users = createTestUsers("browse_tr");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const ownerPost = await createPostViaApi(page, { ...tradeBooks.gatsby, type: "exchange" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  const requesterPost = await createPostViaApi(page, { ...tradeBooks.nineteen84, type: "exchange" });
+  const { thread } = await createThreadViaApi(
+    page,
+    ownerPost.id,
+    ownerData.id,
+    "I'd like to trade for this!",
+  );
+  await loginAs(page, users.owner.username);
+  const proposal = await proposeTradeViaApi(page, thread.id, ownerPost.id, requesterPost.id);
+  await loginAs(page, users.requester.username);
+  await acceptTradeViaApi(page, thread.id, proposal.id);
 
-    await page
-      .getByRole("button", { name: new RegExp(tradeTestOwnerBook.title) })
-      .click();
-    await expect(
-      page.getByRole("button", { name: "Trade Completed" }),
-    ).toBeVisible();
+  // UI TEST
+  await page.goto("/browse");
+  await waitForReact(page);
 
-    await useStoredAuth(page, "tradeSharer");
-    await page.goto("/share");
-    await waitForReact(page);
+  await page.getByPlaceholder(/title|search/i).fill(tradeBooks.gatsby.title);
+  await expect(page.getByRole("link", { name: users.owner.username })).not.toBeVisible();
+});
 
-    await expect(
-      page.getByRole("button", { name: "Gift Completed" }),
-    ).toBeVisible();
-  });
+test("Owner can confirm trade completion", async ({ page }) => {
+  // SETUP via API - complete trade acceptance
+  const users = createTestUsers("owner_conf");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const ownerPost = await createPostViaApi(page, { ...tradeBooks.gatsby, type: "exchange" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  const requesterPost = await createPostViaApi(page, { ...tradeBooks.nineteen84, type: "exchange" });
+  const { thread } = await createThreadViaApi(
+    page,
+    ownerPost.id,
+    ownerData.id,
+    "I'd like to trade for this!",
+  );
+  await loginAs(page, users.owner.username);
+  const proposal = await proposeTradeViaApi(page, thread.id, ownerPost.id, requesterPost.id);
+  await loginAs(page, users.requester.username);
+  await acceptTradeViaApi(page, thread.id, proposal.id);
 
-  test("Book no longer appears in browse feed", async ({ page }) => {
-    await page.goto("/browse");
-    await waitForReact(page);
+  // UI TEST
+  await loginAs(page, users.owner.username);
+  await page.goto("/share");
+  await waitForReact(page);
 
-    await page.getByPlaceholder(/title|search/i).fill(tradeTestOwnerBook.title);
-    await expect(
-      page.getByText(tradeTestOwnerBook.title, { exact: false }).first(),
-    ).not.toBeVisible();
-  });
+  await page.getByRole("button", { name: "Gift Completed" }).click();
+  await page.getByRole("button", { name: /yes, i gave it|yes/i }).click();
 
-  test("Owner confirms completion", async ({ page }) => {
-    await useStoredAuth(page, "tradeSharer");
-    await page.goto("/share");
-    await waitForReact(page);
+  await expect(page.getByRole("button", { name: "Gift Completed" })).not.toBeVisible();
+});
 
-    await page.getByRole("button", { name: "Gift Completed" }).click();
-    await page.getByRole("button", { name: /yes, i gave it|yes/i }).click();
-  });
+test("Requester can confirm trade receipt", async ({ page }) => {
+  // SETUP via API - complete trade acceptance + owner confirms
+  const users = createTestUsers("req_conf");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const ownerPost = await createPostViaApi(page, { ...tradeBooks.gatsby, type: "exchange" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  const requesterPost = await createPostViaApi(page, { ...tradeBooks.nineteen84, type: "exchange" });
+  const { thread } = await createThreadViaApi(
+    page,
+    ownerPost.id,
+    ownerData.id,
+    "I'd like to trade for this!",
+  );
+  await loginAs(page, users.owner.username);
+  const proposal = await proposeTradeViaApi(page, thread.id, ownerPost.id, requesterPost.id);
+  await loginAs(page, users.requester.username);
+  await acceptTradeViaApi(page, thread.id, proposal.id);
+  await loginAs(page, users.owner.username);
+  await completeThreadViaApi(page, thread.id);
 
-  test("Requester confirms receipt", async ({ page }) => {
-    await useStoredAuth(page, "tradeRequester");
-    await page.goto("/activity");
-    await waitForReact(page);
+  // UI TEST
+  await loginAs(page, users.requester.username);
+  await page.goto("/activity");
+  await waitForReact(page);
 
-    await page
-      .getByRole("button", { name: new RegExp(tradeTestOwnerBook.title) })
-      .click();
-    await page.getByRole("button", { name: "Trade Completed" }).click();
-    await page
-      .getByRole("button", { name: /yes, trade completed|yes/i })
-      .click();
-  });
+  await page.getByRole("button", { name: new RegExp(tradeBooks.gatsby.title) }).click();
+  await page.getByRole("button", { name: "Trade Completed" }).click();
+  await page.getByRole("button", { name: /yes, trade completed|yes/i }).click();
 
-  test("Book moved to owner archive", async ({ page }) => {
-    await useStoredAuth(page, "tradeSharer");
-    await page.goto("/share");
-    await waitForReact(page);
+  await expect(page.getByRole("button", { name: "Trade Completed" })).not.toBeVisible();
+});
 
-    await page.getByRole("button", { name: "Active" }).click();
-    await expect(
-      page.getByText(tradeTestOwnerBook.title, { exact: false }).first(),
-    ).not.toBeVisible();
+test("Completed trade moves to owner archive", async ({ page }) => {
+  // SETUP via API - complete entire trade flow
+  const users = createTestUsers("archive_tr");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const ownerPost = await createPostViaApi(page, { ...tradeBooks.gatsby, type: "exchange" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  const requesterPost = await createPostViaApi(page, { ...tradeBooks.nineteen84, type: "exchange" });
+  const { thread } = await createThreadViaApi(
+    page,
+    ownerPost.id,
+    ownerData.id,
+    "I'd like to trade for this!",
+  );
+  await loginAs(page, users.owner.username);
+  const proposal = await proposeTradeViaApi(page, thread.id, ownerPost.id, requesterPost.id);
+  await loginAs(page, users.requester.username);
+  await acceptTradeViaApi(page, thread.id, proposal.id);
+  await loginAs(page, users.owner.username);
+  await completeThreadViaApi(page, thread.id);
+  await loginAs(page, users.requester.username);
+  await completeThreadViaApi(page, thread.id);
 
-    await page.getByRole("button", { name: "Archive" }).click();
-    await expect(
-      page.getByText(tradeTestOwnerBook.title, { exact: false }).first(),
-    ).toBeVisible();
-  });
+  // UI TEST
+  await loginAs(page, users.owner.username);
+  await page.goto("/share");
+  await waitForReact(page);
+
+  // Click the Active tab to verify book isn't there
+  await page.getByRole("button", { name: /^Active/ }).click();
+  await expect(page.getByText(tradeBooks.gatsby.title, { exact: false }).first()).not.toBeVisible();
+
+  // Click the Archive tab (matches "Archive" or "Archive (N)")
+  await page.getByRole("button", { name: /^Archive/ }).click();
+  await expect(page.getByText(tradeBooks.gatsby.title, { exact: false }).first()).toBeVisible();
 });

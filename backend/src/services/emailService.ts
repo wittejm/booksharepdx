@@ -241,6 +241,33 @@ export async function sendNewMessageEmail(
   });
 }
 
+export async function sendFeedbackEmail(
+  data: {
+    message: string;
+    userName: string;
+    userEmail: string;
+    userId: string;
+    pageUrl?: string;
+  },
+): Promise<boolean> {
+  return sendEmail({
+    to: "hello@booksharepdx.com",
+    subject: `[Feedback] from ${data.userName}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #2563eb;">User Feedback</h1>
+        <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
+          <p style="margin: 0; color: #374151; white-space: pre-wrap;">${data.message}</p>
+        </div>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 16px 0;" />
+        <p style="color: #666; font-size: 14px; margin: 4px 0;"><strong>From:</strong> ${data.userName} (${data.userEmail})</p>
+        <p style="color: #666; font-size: 14px; margin: 4px 0;"><strong>User ID:</strong> ${data.userId}</p>
+        ${data.pageUrl ? `<p style="color: #666; font-size: 14px; margin: 4px 0;"><strong>Page:</strong> ${data.pageUrl}</p>` : ""}
+      </div>
+    `,
+  });
+}
+
 export async function sendTradeProposalEmail(
   to: string,
   data: {

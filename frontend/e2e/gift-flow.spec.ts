@@ -3,10 +3,15 @@ import {
   waitForReact,
   createUserViaApi,
   loginAs,
-  useStoredAuth,
   checkBackendHealth,
-  deleteAllPostsForCurrentUser,
-  testUsers,
+  createPostViaApi,
+  createThreadViaApi,
+  acceptRequestViaApi,
+  declineRequestViaApi,
+  cancelRequestViaApi,
+  completeThreadViaApi,
+  getCurrentUserViaApi,
+  deletePostViaApi,
   LOAD_TIMEOUT,
 } from "./helpers";
 
@@ -14,516 +19,531 @@ import {
 // NOTE TO CLAUDE: FAILFAST EVERY ISSUE IN THE TEST, DON'T IGNORE THE ERROR AND MOVE ON
 // NOTE TO CLAUDE: NEVER use `if (await locator.isVisible())` - just call the action directly
 
-// Use shared users from global setup for happy path
-const giftTestSharer = testUsers.giftSharer;
-const giftTestRequester = testUsers.giftRequester;
+// Each test creates its own unique users with timestamp
+function createTestUsers(prefix: string) {
+  const ts = Date.now();
+  return {
+    owner: {
+      email: `${prefix}_owner${ts}@example.com`,
+      username: `${prefix}_owner${ts}`,
+      bio: "Test owner",
+    },
+    requester: {
+      email: `${prefix}_req${ts}@example.com`,
+      username: `${prefix}_req${ts}`,
+      bio: "Test requester",
+    },
+  };
+}
 
-// Timestamp for edge case tests that need unique users
-const giftTimestamp = Date.now();
+// Common test books
+const testBooks = {
+  mockingbird: { title: "To Kill a Mockingbird", author: "Harper Lee" },
+  pride: { title: "Pride and Prejudice", author: "Jane Austen" },
+  brave: { title: "Brave New World", author: "Aldous Huxley" },
+  fahrenheit: { title: "Fahrenheit 451", author: "Ray Bradbury" },
+  hobbit: { title: "The Hobbit", author: "J.R.R. Tolkien" },
+  animal: { title: "Animal Farm", author: "George Orwell" },
+  flies: { title: "Lord of the Flies", author: "William Golding" },
+};
 
-async function createGiveawayPost(
-  page: Page,
-  bookTitle: string,
-  bookAuthor: string,
-): Promise<void> {
+test.beforeAll(async ({ browser }) => {
+  const page = await browser.newPage();
+  await checkBackendHealth(page);
+  await page.close();
+});
+
+// ============================================================================
+// GIFT FLOW TESTS - Each test is independent and can run in parallel
+// ============================================================================
+
+test("Owner creates giveaway post", async ({ page }) => {
+  const users = createTestUsers("create");
+  await createUserViaApi(page, users.owner);
+  await loginAs(page, users.owner.username);
+
   await page.goto("/share");
   await waitForReact(page);
 
   await page.getByRole("button", { name: "Share a Book" }).click();
-  await page.getByPlaceholder(/search for a book/i).fill(bookTitle);
-  await page.getByText(bookAuthor).first().click();
+  await page.getByPlaceholder(/search for a book/i).fill(testBooks.mockingbird.title);
+  await page.getByText(testBooks.mockingbird.author).first().click();
   await page.getByRole("button", { name: "Share Book" }).click();
 
-  // Wait for the share form to close and post to appear
   await expect(page.getByPlaceholder(/search for a book/i)).not.toBeVisible();
   await expect(
-    page.getByText(bookTitle, { exact: false }).first(),
+    page.getByRole("heading", { name: testBooks.mockingbird.title }),
   ).toBeVisible();
-}
+});
 
-async function sendRequestForBook(
-  page: Page,
-  ownerUsername: string,
-  bookTitle: string,
-): Promise<void> {
-  await page.goto(`/profile/${ownerUsername}`);
+test("Requester can request a book", async ({ page }) => {
+  // SETUP via API
+  const users = createTestUsers("request");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  await createPostViaApi(page, { ...testBooks.mockingbird, type: "giveaway" });
+
+  // UI TEST
+  await loginAs(page, users.requester.username);
+  await page.goto(`/profile/${users.owner.username}`);
   await waitForReact(page);
 
   await expect(
-    page.getByText(bookTitle, { exact: false }).first(),
+    page.getByRole("heading", { name: testBooks.mockingbird.title }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Request", exact: true }).click();
   await page
     .getByPlaceholder(/interested in this book/i)
-    .fill(`Hi! I'm interested in "${bookTitle}".`);
+    .fill(`Hi! I'm interested in "${testBooks.mockingbird.title}".`);
   await page.getByRole("button", { name: "Send" }).click();
 
   await expect(
-    page.getByPlaceholder(/interested in this book/i),
-  ).not.toBeVisible();
-}
+    page.getByRole("link", { name: /you requested this/i }),
+  ).toBeVisible();
+});
 
-async function cancelRequest(page: Page, bookTitle: string): Promise<void> {
+test("Owner can accept a book request", async ({ page }) => {
+  // SETUP via API (avoid "accept" in username as it matches buttons)
+  const users = createTestUsers("giftacc");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const post = await createPostViaApi(page, { ...testBooks.mockingbird, type: "giveaway" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  await createThreadViaApi(page, post.id, ownerData.id, "I'd like this book!");
+
+  // UI TEST
+  await loginAs(page, users.owner.username);
+  await page.goto("/share");
+  await waitForReact(page);
+
+  await page.getByText("Someone is interested!").click();
+  // Wait for interest panel to load, then click Accept
+  await expect(page.getByRole("button", { name: "Accept", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Accept", exact: true }).click();
+  // Wait for dialog to appear before clicking inside it
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /yes, give/i })
+    .click();
+
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "Gift Completed" })).toBeVisible();
+});
+
+test("Requester sees accepted request status", async ({ page }) => {
+  // SETUP via API
+  const users = createTestUsers("status");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const post = await createPostViaApi(page, { ...testBooks.mockingbird, type: "giveaway" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  const { thread } = await createThreadViaApi(page, post.id, ownerData.id, "I'd like this book!");
+  await loginAs(page, users.owner.username);
+  await acceptRequestViaApi(page, thread.id);
+
+  // UI TEST
+  await loginAs(page, users.requester.username);
+  await page.goto("/activity");
+  await waitForReact(page);
+  await page.getByRole("button", { name: new RegExp(testBooks.mockingbird.title) }).click();
+
+  await expect(page.getByText("Your request was accepted")).toBeVisible();
+});
+
+test("Owner can confirm gift completion", async ({ page }) => {
+  // SETUP via API
+  const users = createTestUsers("confirm");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const post = await createPostViaApi(page, { ...testBooks.mockingbird, type: "giveaway" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  const { thread } = await createThreadViaApi(page, post.id, ownerData.id, "I'd like this book!");
+  await loginAs(page, users.owner.username);
+  await acceptRequestViaApi(page, thread.id);
+
+  // UI TEST
+  await page.goto("/share");
+  await waitForReact(page);
+
+  await page.getByRole("button", { name: "Gift Completed" }).click();
+  await page.getByRole("button", { name: "Yes, I gave it" }).click();
+
+  await expect(page.getByRole("button", { name: "Gift Completed" })).not.toBeVisible();
+});
+
+test("Requester can confirm gift receipt", async ({ page }) => {
+  // SETUP via API
+  const users = createTestUsers("receipt");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const post = await createPostViaApi(page, { ...testBooks.mockingbird, type: "giveaway" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  const { thread } = await createThreadViaApi(page, post.id, ownerData.id, "I'd like this book!");
+  await loginAs(page, users.owner.username);
+  await acceptRequestViaApi(page, thread.id);
+  await completeThreadViaApi(page, thread.id); // Owner confirms
+
+  // UI TEST
+  await loginAs(page, users.requester.username);
   await page.goto("/activity");
   await waitForReact(page);
 
-  await page.getByRole("button", { name: new RegExp(bookTitle) }).click();
+  await page.getByRole("button", { name: new RegExp(testBooks.mockingbird.title) }).click();
+  await page.getByRole("button", { name: "Gift Received" }).click();
+  await page.getByRole("button", { name: /yes/i }).click();
+
+  await expect(page.getByRole("button", { name: "Gift Received" })).not.toBeVisible();
+});
+
+test("Completed gift appears in owner archive", async ({ page }) => {
+  // SETUP via API - complete the entire gift flow
+  const users = createTestUsers("archive");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const post = await createPostViaApi(page, { ...testBooks.mockingbird, type: "giveaway" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  const { thread } = await createThreadViaApi(page, post.id, ownerData.id, "I'd like this book!");
+  await loginAs(page, users.owner.username);
+  await acceptRequestViaApi(page, thread.id);
+  await completeThreadViaApi(page, thread.id);
+  await loginAs(page, users.requester.username);
+  await completeThreadViaApi(page, thread.id);
+
+  // UI TEST
+  await loginAs(page, users.owner.username);
+  await page.goto("/share");
+  await waitForReact(page);
+
+  // Click the Archive tab (matches "Archive" or "Archive (N)")
+  await page.getByRole("button", { name: /^Archive/ }).click();
+  await expect(
+    page.getByText(testBooks.mockingbird.title, { exact: false }).first(),
+  ).toBeVisible();
+});
+
+test("Requester can cancel request", async ({ page }) => {
+  // SETUP via API
+  const users = createTestUsers("cancel");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const post = await createPostViaApi(page, { ...testBooks.pride, type: "giveaway" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  await createThreadViaApi(page, post.id, ownerData.id, "I'd like this book!");
+
+  // UI TEST
+  await page.goto("/activity");
+  await waitForReact(page);
+
+  await page.getByRole("button", { name: new RegExp(testBooks.pride.title) }).click();
   await page.getByRole("button", { name: "Cancel Request" }).first().click();
-  // Click the confirmation button in the dialog
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Cancel Request" })
     .click();
-  // Wait for dialog to close before continuing
-  await expect(page.getByRole("dialog")).not.toBeVisible();
-}
 
-async function declineRequest(page: Page, bookTitle: string): Promise<void> {
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+});
+
+test("Requester can re-request after canceling", async ({ page }) => {
+  // SETUP via API
+  const users = createTestUsers("rerequest");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const post = await createPostViaApi(page, { ...testBooks.pride, type: "giveaway" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  const { thread } = await createThreadViaApi(page, post.id, ownerData.id, "I'd like this book!");
+  await cancelRequestViaApi(page, thread.id);
+
+  // UI TEST - re-request via owner's profile
+  await page.goto(`/profile/${users.owner.username}`);
+  await waitForReact(page);
+
+  await expect(
+    page.getByRole("heading", { name: testBooks.pride.title }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Request", exact: true }).click();
+  await page
+    .getByPlaceholder(/interested in this book/i)
+    .fill("Changed my mind, I'd still like this book!");
+  await page.getByRole("button", { name: "Send" }).click();
+
+  await expect(
+    page.getByRole("link", { name: /you requested this/i }),
+  ).toBeVisible();
+});
+
+test("Cancel history is preserved in thread", async ({ page }) => {
+  // SETUP via API - cancel then re-request
+  const users = createTestUsers("history");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const post = await createPostViaApi(page, { ...testBooks.pride, type: "giveaway" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  const { thread } = await createThreadViaApi(page, post.id, ownerData.id, "First request");
+  await cancelRequestViaApi(page, thread.id);
+  // Re-request by sending a new message to the same thread (reopens it)
+  const API_URL = process.env.API_URL || "http://localhost:3001";
+  await page.request.post(
+    `${API_URL}/api/messages/threads/${thread.id}/messages`,
+    { data: { content: "Actually, I still want it!", type: "user" } },
+  );
+
+  // UI TEST
+  await page.goto("/activity");
+  await waitForReact(page);
+  await page.getByRole("button", { name: new RegExp(testBooks.pride.title) }).click();
+
+  await expect(page.getByText("Request cancelled")).toBeVisible();
+});
+
+test("Owner can decline a request", async ({ page }) => {
+  // SETUP via API (avoid "decline" in username as it matches buttons)
+  const users = createTestUsers("decl");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const post = await createPostViaApi(page, { ...testBooks.brave, type: "giveaway" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  await createThreadViaApi(page, post.id, ownerData.id, "I'd like this book!");
+
+  // UI TEST
+  await loginAs(page, users.owner.username);
   await page.goto("/share");
   await waitForReact(page);
 
-  // Verify the right book is shown
-  await expect(page.getByText(bookTitle).first()).toBeVisible();
-  // Click on the "Someone is interested!" button
+  await expect(page.getByText(testBooks.brave.title).first()).toBeVisible();
   await page.getByText("Someone is interested!").first().click();
-  // Wait for the interest row with Accept button to be visible (indicates data is loaded)
-  await expect(
-    page.getByRole("button", { name: "Accept", exact: true }),
-  ).toBeVisible();
-  // Click the inline Decline button (in the interest list, not a dialog)
+  await expect(page.getByRole("button", { name: "Accept", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Decline", exact: true }).click();
-  // Wait for confirmation dialog and click Decline
   await expect(page.getByRole("dialog")).toBeVisible();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Decline", exact: true })
     .click();
-  // Wait for dialog to close before continuing
-  await expect(page.getByRole("dialog")).not.toBeVisible();
-}
 
-async function dismissDeclinedRequest(
-  page: Page,
-  bookTitle: string,
-): Promise<void> {
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+});
+
+test("Requester sees declined status and can dismiss", async ({ page }) => {
+  // SETUP via API (avoid "dismiss" in username as it matches buttons)
+  const users = createTestUsers("seesdecl");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const post = await createPostViaApi(page, { ...testBooks.brave, type: "giveaway" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  const { thread } = await createThreadViaApi(page, post.id, ownerData.id, "I'd like this book!");
+  await loginAs(page, users.owner.username);
+  await declineRequestViaApi(page, thread.id);
+
+  // UI TEST
+  await loginAs(page, users.requester.username);
   await page.goto("/activity");
   await waitForReact(page);
 
-  await page.getByRole("button", { name: new RegExp(bookTitle) }).click();
-  await page.getByRole("button", { name: "Dismiss" }).click();
-}
+  await page.getByRole("button", { name: new RegExp(testBooks.brave.title) }).click();
+  await expect(page.getByText("Your request was declined")).toBeVisible();
+  await page.getByRole("button", { name: "Dismiss", exact: true }).click();
 
-async function acceptRequest(page: Page): Promise<void> {
+  await expect(page.getByPlaceholder(/type a message/i)).not.toBeVisible();
+});
+
+test("Declined request banner remains visible without dismiss", async ({ page }) => {
+  // SETUP via API
+  const users = createTestUsers("nodismiss");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const post = await createPostViaApi(page, { ...testBooks.fahrenheit, type: "giveaway" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  const { thread } = await createThreadViaApi(page, post.id, ownerData.id, "I'd like this book!");
+  await loginAs(page, users.owner.username);
+  await declineRequestViaApi(page, thread.id);
+
+  // UI TEST
+  await loginAs(page, users.requester.username);
+  await page.goto("/activity");
+  await waitForReact(page);
+  await page.getByRole("button", { name: new RegExp(testBooks.fahrenheit.title) }).click();
+
+  await expect(page.getByText("Your request was declined")).toBeVisible();
+});
+
+test("Multiple requesters: owner can accept first requester", async ({ page }) => {
+  // SETUP via API
+  const ts = Date.now();
+  const owner = {
+    email: `multi_owner${ts}@example.com`,
+    username: `multi_owner${ts}`,
+    bio: "Test owner",
+  };
+  const requester1 = {
+    email: `multi_req1${ts}@example.com`,
+    username: `multi_req1${ts}`,
+    bio: "First requester",
+  };
+  const requester2 = {
+    email: `multi_req2${ts}@example.com`,
+    username: `multi_req2${ts}`,
+    bio: "Second requester",
+  };
+
+  await createUserViaApi(page, owner);
+  await createUserViaApi(page, requester1);
+  await createUserViaApi(page, requester2);
+  await loginAs(page, owner.username);
+  const post = await createPostViaApi(page, { ...testBooks.hobbit, type: "giveaway" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, requester1.username);
+  await createThreadViaApi(page, post.id, ownerData.id, "I'd like this book! - Req 1");
+  await loginAs(page, requester2.username);
+  await createThreadViaApi(page, post.id, ownerData.id, "I'd like this book! - Req 2");
+
+  // UI TEST
+  await loginAs(page, owner.username);
   await page.goto("/share");
   await waitForReact(page);
 
-  await page.getByText("Someone is interested!").click();
-  await page.getByRole("button", { name: "Accept" }).click();
+  await expect(page.getByText(/2 people/i)).toBeVisible();
+  await page.getByRole("button", { name: /\d+ people/i }).first().click();
+  await expect(page.getByText(requester1.username)).toBeVisible();
+
+  const req1Row = page
+    .locator(".bg-gray-50.rounded-lg")
+    .filter({ has: page.getByRole("link", { name: requester1.username }) });
+  await req1Row.getByRole("button", { name: "Accept" }).click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: /yes, give/i })
     .click();
-  // Wait for dialog to close before continuing
+
   await expect(page.getByRole("dialog")).not.toBeVisible();
-}
-
-async function openThread(page: Page, bookTitle: string): Promise<void> {
-  await page.goto("/activity");
-  await waitForReact(page);
-  await page.getByRole("button", { name: new RegExp(bookTitle) }).click();
-}
-
-test.describe("Gift Flow: Happy Path", () => {
-  test.describe.configure({ mode: "serial" });
-
-  const giftTestBook = { title: "To Kill a Mockingbird", author: "Harper Lee" };
-
-  // Users created in global-setup, just check backend health
-  test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage();
-    await checkBackendHealth(page);
-    await page.close();
-  });
-
-  test("Owner creates giveaway post", async ({ page }) => {
-    await useStoredAuth(page, "giftSharer");
-    await createGiveawayPost(page, giftTestBook.title, giftTestBook.author);
-  });
-
-  test("Requester requests book", async ({ page }) => {
-    await useStoredAuth(page, "giftRequester");
-    await sendRequestForBook(page, giftTestSharer.username, giftTestBook.title);
-  });
-
-  test("Owner accepts request", async ({ page }) => {
-    await useStoredAuth(page, "giftSharer");
-    await acceptRequest(page);
-  });
-
-  test("Thread status is accepted", async ({ page }) => {
-    await useStoredAuth(page, "giftRequester");
-    await openThread(page, giftTestBook.title);
-    await expect(page.getByText("Your request was accepted")).toBeVisible();
-  });
-
-  test("Owner confirms completion", async ({ page }) => {
-    await useStoredAuth(page, "giftSharer");
-    await page.goto("/share");
-    await waitForReact(page);
-
-    await page.getByRole("button", { name: "Gift Completed" }).click();
-    await page.getByRole("button", { name: "Yes, I gave it" }).click();
-  });
-
-  test("Requester confirms receipt", async ({ page }) => {
-    await useStoredAuth(page, "giftRequester");
-    await page.goto("/activity");
-    await waitForReact(page);
-
-    await page
-      .getByRole("button", { name: new RegExp(giftTestBook.title) })
-      .click();
-    await page.getByRole("button", { name: "Gift Received" }).click();
-    await page.getByRole("button", { name: /yes/i }).click();
-  });
-
-  test("Book in owner archive", async ({ page }) => {
-    await useStoredAuth(page, "giftSharer");
-    await page.goto("/share");
-    await waitForReact(page);
-
-    await page.getByRole("button", { name: "Archive" }).click();
-    await expect(
-      page.getByText(giftTestBook.title, { exact: false }).first(),
-    ).toBeVisible();
-  });
-
-  test.afterAll(async ({ browser }) => {
-    const page = await browser.newPage();
-    await useStoredAuth(page, "giftSharer");
-    await deleteAllPostsForCurrentUser(page);
-    await page.close();
-  });
+  await expect(
+    page.getByText(new RegExp(`Giving to ${requester1.username}`)),
+  ).toBeVisible();
 });
 
-test.describe("Gift Flow: Cancel and Re-request", () => {
-  test.describe.configure({ mode: "serial" });
-
-  const testBook = { title: "Pride and Prejudice", author: "Jane Austen" };
-  const ownerUser = {
-    email: `owner_cancel${giftTimestamp}@example.com`,
-    username: `owner_cancel${giftTimestamp}`,
-    bio: "Test owner for cancel flow",
-  };
-  const requesterUser = {
-    email: `req_cancel${giftTimestamp}@example.com`,
-    username: `req_cancel${giftTimestamp}`,
-    bio: "Test requester for cancel flow",
-  };
-
-  test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage();
-    await createUserViaApi(page, ownerUser);
-    await createUserViaApi(page, requesterUser);
-    await page.close();
-  });
-
-  test("Owner creates giveaway", async ({ page }) => {
-    await loginAs(page, ownerUser.username);
-    await createGiveawayPost(page, testBook.title, testBook.author);
-  });
-
-  test("Requester requests then cancels", async ({ page }) => {
-    await loginAs(page, requesterUser.username);
-    await sendRequestForBook(page, ownerUser.username, testBook.title);
-    await cancelRequest(page, testBook.title);
-
-    // After cancelling, thread should disappear from activity list
-    await page.goto("/activity");
-    await waitForReact(page);
-    await expect(
-      page.getByRole("button", { name: new RegExp(testBook.title) }),
-    ).not.toBeVisible();
-  });
-
-  test("Requester re-requests and thread reopens", async ({ page }) => {
-    await loginAs(page, requesterUser.username);
-    // Re-request via the owner's profile (since cancelled thread is gone from activity)
-    await sendRequestForBook(page, ownerUser.username, testBook.title);
-
-    await openThread(page, testBook.title);
-    await expect(page.getByPlaceholder(/type a message/i)).toBeVisible();
-  });
-
-  test("Cancel history preserved", async ({ page }) => {
-    await loginAs(page, requesterUser.username);
-    await openThread(page, testBook.title);
-    await expect(page.getByText("Request cancelled")).toBeVisible();
-  });
-});
-
-test.describe("Gift Flow: Decline and Dismiss", () => {
-  test.describe.configure({ mode: "serial" });
-
-  const testBook = { title: "Brave New World", author: "Aldous Huxley" };
-  const ownerUser = {
-    email: `dd_owner${giftTimestamp}@example.com`,
-    username: `dd_owner${giftTimestamp}`,
-    bio: "Test owner",
-  };
-  const requesterUser = {
-    email: `dd_req${giftTimestamp}@example.com`,
-    username: `dd_req${giftTimestamp}`,
-    bio: "Test requester",
-  };
-
-  test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage();
-    await createUserViaApi(page, ownerUser);
-    await createUserViaApi(page, requesterUser);
-    await page.close();
-  });
-
-  test("Owner declines request", async ({ page }) => {
-    await loginAs(page, ownerUser.username);
-    await createGiveawayPost(page, testBook.title, testBook.author);
-
-    await loginAs(page, requesterUser.username);
-    await sendRequestForBook(page, ownerUser.username, testBook.title);
-
-    await loginAs(page, ownerUser.username);
-    await declineRequest(page, testBook.title);
-  });
-
-  test("Requester sees decline and dismisses", async ({ page }) => {
-    await loginAs(page, requesterUser.username);
-    await page.goto("/activity");
-    await waitForReact(page);
-
-    // Click on the thread to see the status message
-    await page
-      .getByRole("button", { name: new RegExp(testBook.title) })
-      .click();
-    await expect(page.getByText("Your request was declined")).toBeVisible();
-    await page.getByRole("button", { name: "Dismiss", exact: true }).click();
-  });
-});
-
-test.describe("Gift Flow: Decline Without Dismiss", () => {
-  test.describe.configure({ mode: "serial" });
-
-  const testBook = { title: "Fahrenheit 451", author: "Ray Bradbury" };
-  const ownerUser = {
-    email: `owner_nodismiss${giftTimestamp}@example.com`,
-    username: `owner_nodismiss${giftTimestamp}`,
-    bio: "Test owner",
-  };
-  const requesterUser = {
-    email: `req_nodismiss${giftTimestamp}@example.com`,
-    username: `req_nodismiss${giftTimestamp}`,
-    bio: "Test requester",
-  };
-
-  test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage();
-    await createUserViaApi(page, ownerUser);
-    await createUserViaApi(page, requesterUser);
-    await page.close();
-  });
-
-  test("Decline banner remains visible", async ({ page }) => {
-    await loginAs(page, ownerUser.username);
-    await createGiveawayPost(page, testBook.title, testBook.author);
-
-    await loginAs(page, requesterUser.username);
-    await sendRequestForBook(page, ownerUser.username, testBook.title);
-
-    await loginAs(page, ownerUser.username);
-    await declineRequest(page, testBook.title);
-
-    await loginAs(page, requesterUser.username);
-    await openThread(page, testBook.title);
-    await expect(page.getByText("Your request was declined")).toBeVisible();
-  });
-});
-
-test.describe("Gift Flow: Multiple Requesters", () => {
-  test.describe.configure({ mode: "serial" });
-
-  const testBook = { title: "The Hobbit", author: "J.R.R. Tolkien" };
-  const ownerUser = {
-    email: `owner_multi${giftTimestamp}@example.com`,
-    username: `owner_multi${giftTimestamp}`,
+test("Second requester sees 'given to someone else' after owner accepts another", async ({
+  page,
+}) => {
+  // SETUP via API
+  const ts = Date.now();
+  const owner = {
+    email: `other_owner${ts}@example.com`,
+    username: `other_owner${ts}`,
     bio: "Test owner",
   };
   const requester1 = {
-    email: `req1_multi${giftTimestamp}@example.com`,
-    username: `req1_multi${giftTimestamp}`,
+    email: `other_req1${ts}@example.com`,
+    username: `other_req1${ts}`,
     bio: "First requester",
   };
   const requester2 = {
-    email: `req2_multi${giftTimestamp}@example.com`,
-    username: `req2_multi${giftTimestamp}`,
+    email: `other_req2${ts}@example.com`,
+    username: `other_req2${ts}`,
     bio: "Second requester",
   };
 
-  test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage();
-    await createUserViaApi(page, ownerUser);
-    await createUserViaApi(page, requester1);
-    await createUserViaApi(page, requester2);
-    await page.close();
-  });
+  await createUserViaApi(page, owner);
+  await createUserViaApi(page, requester1);
+  await createUserViaApi(page, requester2);
+  await loginAs(page, owner.username);
+  const post = await createPostViaApi(page, { ...testBooks.hobbit, type: "giveaway" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, requester1.username);
+  const { thread: thread1 } = await createThreadViaApi(
+    page,
+    post.id,
+    ownerData.id,
+    "I'd like this book! - Req 1",
+  );
+  await loginAs(page, requester2.username);
+  await createThreadViaApi(page, post.id, ownerData.id, "I'd like this book! - Req 2");
+  await loginAs(page, owner.username);
+  await acceptRequestViaApi(page, thread1.id);
 
-  test("Both requesters request the book", async ({ page }) => {
-    await loginAs(page, ownerUser.username);
-    await createGiveawayPost(page, testBook.title, testBook.author);
+  // UI TEST
+  await loginAs(page, requester2.username);
+  await page.goto("/activity");
+  await waitForReact(page);
 
-    await loginAs(page, requester1.username);
-    await sendRequestForBook(page, ownerUser.username, testBook.title);
-
-    await loginAs(page, requester2.username);
-    await sendRequestForBook(page, ownerUser.username, testBook.title);
-  });
-
-  test("Owner accepts first requester", async ({ page }) => {
-    await loginAs(page, ownerUser.username);
-    await page.goto("/share");
-    await waitForReact(page);
-
-    // Click the interest button on the card (not the banner)
-    await page
-      .getByRole("button", { name: /people are interested/i })
-      .first()
-      .click();
-    // Wait for interest panel to load and find req1's row
-    await expect(page.getByText(requester1.username)).toBeVisible();
-    // Click Accept on the row containing req1 - use the link to find the specific row
-    const req1Row = page
-      .locator(".bg-gray-50.rounded-lg")
-      .filter({ has: page.getByRole("link", { name: requester1.username }) });
-    await req1Row.getByRole("button", { name: "Accept" }).click();
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: /yes, give/i })
-      .click();
-    // Wait for dialog to close and verify accept completed
-    await expect(page.getByRole("dialog")).not.toBeVisible();
-    // Verify the status update shows the gift is pending handoff
-    await expect(
-      page.getByText(new RegExp(`Giving to ${requester1.username}`)),
-    ).toBeVisible();
-  });
-
-  test("Second requester sees given to someone else", async ({ page }) => {
-    await loginAs(page, requester2.username);
-    await page.goto("/activity");
-    await waitForReact(page);
-
-    // Click on the thread to see the status message
-    await page
-      .getByRole("button", { name: new RegExp(testBook.title) })
-      .click();
-    await expect(
-      page.getByText("This book was given to someone else"),
-    ).toBeVisible({ timeout: LOAD_TIMEOUT });
+  await page.getByRole("button", { name: new RegExp(testBooks.hobbit.title) }).click();
+  await expect(page.getByText("This book was given to someone else")).toBeVisible({
+    timeout: LOAD_TIMEOUT,
   });
 });
 
-test.describe("Gift Flow: Cannot Re-request After Decline", () => {
-  test.describe.configure({ mode: "serial" });
+test("Cannot re-request after being declined", async ({ page }) => {
+  // SETUP via API - owner declines, requester dismisses
+  const users = createTestUsers("norereq");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const post = await createPostViaApi(page, { ...testBooks.animal, type: "giveaway" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  const { thread } = await createThreadViaApi(page, post.id, ownerData.id, "I'd like this book!");
+  await loginAs(page, users.owner.username);
+  await declineRequestViaApi(page, thread.id);
+  await loginAs(page, users.requester.username);
+  // Dismiss the thread via API
+  const API_URL = process.env.API_URL || "http://localhost:3001";
+  await page.request.patch(
+    `${API_URL}/api/messages/threads/${thread.id}/status`,
+    { data: { status: "dismissed" } },
+  );
 
-  const testBook = { title: "Animal Farm", author: "George Orwell" };
-  const ownerUser = {
-    email: `owner_norereq${giftTimestamp}@example.com`,
-    username: `owner_norereq${giftTimestamp}`,
-    bio: "Test owner",
-  };
-  const requesterUser = {
-    email: `req_norereq${giftTimestamp}@example.com`,
-    username: `req_norereq${giftTimestamp}`,
-    bio: "Test requester",
-  };
+  // UI TEST - after dismissing, thread is viewable but can't send messages
+  await page.goto("/activity");
+  await waitForReact(page);
+  await page.getByRole("button", { name: new RegExp(testBooks.animal.title) }).click();
 
-  test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage();
-    await createUserViaApi(page, ownerUser);
-    await createUserViaApi(page, requesterUser);
-    await page.close();
-  });
-
-  test("Thread stays dismissed after re-request attempt", async ({ page }) => {
-    await loginAs(page, ownerUser.username);
-    await createGiveawayPost(page, testBook.title, testBook.author);
-
-    await loginAs(page, requesterUser.username);
-    await sendRequestForBook(page, ownerUser.username, testBook.title);
-
-    await loginAs(page, ownerUser.username);
-    await declineRequest(page, testBook.title);
-
-    await loginAs(page, requesterUser.username);
-    await dismissDeclinedRequest(page, testBook.title);
-
-    // After dismissing, thread is viewable but can't send messages (no input field)
-    await openThread(page, testBook.title);
-    // Verify the thread is selected (conversation panel shows)
-    await expect(page.getByText("Conversation with")).toBeVisible();
-    // Verify no message input (dismissed threads don't allow messaging)
-    await expect(
-      page.locator('input[placeholder*="message" i]'),
-    ).not.toBeVisible();
-  });
+  await expect(page.getByText("Conversation with")).toBeVisible();
+  await expect(page.locator('input[placeholder*="message" i]')).not.toBeVisible();
 });
 
-test.describe("Gift Flow: Post Deleted Mid-Conversation", () => {
-  test.describe.configure({ mode: "serial" });
+test("Requester sees 'post removed' when owner deletes post mid-conversation", async ({
+  page,
+}) => {
+  // SETUP via API
+  const users = createTestUsers("deleted");
+  await createUserViaApi(page, users.owner);
+  await createUserViaApi(page, users.requester);
+  await loginAs(page, users.owner.username);
+  const post = await createPostViaApi(page, { ...testBooks.flies, type: "giveaway" });
+  const ownerData = await getCurrentUserViaApi(page);
+  await loginAs(page, users.requester.username);
+  await createThreadViaApi(page, post.id, ownerData.id, "I'd like this book!");
+  await loginAs(page, users.owner.username);
+  await deletePostViaApi(page, post.id);
 
-  const testBook = { title: "Lord of the Flies", author: "William Golding" };
-  const ownerUser = {
-    email: `owner_deleted${giftTimestamp}@example.com`,
-    username: `owner_deleted${giftTimestamp}`,
-    bio: "Test owner",
-  };
-  const requesterUser = {
-    email: `req_deleted${giftTimestamp}@example.com`,
-    username: `req_deleted${giftTimestamp}`,
-    bio: "Test requester",
-  };
+  // UI TEST
+  await loginAs(page, users.requester.username);
+  await page.goto("/activity");
+  await waitForReact(page);
 
-  test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage();
-    await createUserViaApi(page, ownerUser);
-    await createUserViaApi(page, requesterUser);
-    await page.close();
-  });
-
-  test("Requester sees post removed message", async ({ page }) => {
-    await loginAs(page, ownerUser.username);
-    await createGiveawayPost(page, testBook.title, testBook.author);
-
-    await loginAs(page, requesterUser.username);
-    await sendRequestForBook(page, ownerUser.username, testBook.title);
-
-    await loginAs(page, ownerUser.username);
-    await page.goto("/share");
-    await waitForReact(page);
-
-    await page.getByLabel("Post menu").first().click();
-    await page.getByRole("button", { name: "Delete", exact: true }).click();
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: "Delete", exact: true })
-      .click();
-    // Wait for dialog to close before continuing
-    await expect(page.getByRole("dialog")).not.toBeVisible();
-
-    await loginAs(page, requesterUser.username);
-    await page.goto("/activity");
-    await waitForReact(page);
-
-    await expect(
-      page.getByText(/removed|deleted|no longer available/i).first(),
-    ).toBeVisible();
-  });
+  await expect(
+    page.getByText(/removed|deleted|no longer available/i).first(),
+  ).toBeVisible();
 });

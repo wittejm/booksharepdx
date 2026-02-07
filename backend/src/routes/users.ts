@@ -2,13 +2,16 @@ import { Router } from "express";
 import { AppDataSource } from "../config/database.js";
 import { User } from "../entities/User.js";
 import { requireAuth, optionalAuth } from "../middleware/auth.js";
-import { requireModerator } from "../middleware/roleCheck.js";
 import { AppError } from "../middleware/errorHandler.js";
 
 const router = Router();
 
-// GET /api/users - List all users (moderators only)
-router.get("/", requireAuth, requireModerator, async (req, res, next) => {
+// GET /api/users - List all users (admin only)
+router.get("/", requireAuth, async (req, res, next) => {
+  if (req.user!.role !== "admin") {
+    return next(new AppError("Admin access required.", 403, "FORBIDDEN"));
+  }
+
   try {
     const userRepo = AppDataSource.getRepository(User);
     const users = await userRepo.find({

@@ -13,8 +13,7 @@ export type NotificationType =
   | "exchange_proposed"
   | "exchange_confirmed"
   | "exchange_declined"
-  | "message"
-  | "moderator_action";
+  | "message";
 
 @Entity("notifications")
 export class Notification {
@@ -40,7 +39,7 @@ export class Notification {
   read: boolean;
 
   @Column({ type: "varchar", nullable: true })
-  relatedId: string | null; // post, message, or report id
+  relatedId: string | null; // post or message id
 
   @CreateDateColumn()
   timestamp: Date;

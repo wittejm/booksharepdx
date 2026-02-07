@@ -444,6 +444,13 @@ export const interestService = {
   },
 };
 
+// Feedback Service
+export const feedbackService = {
+  submit: async (message: string, pageUrl?: string): Promise<void> => {
+    await apiClient.post("/feedback", { message, pageUrl });
+  },
+};
+
 // Book Service - for book matching/deduplication
 export const bookService = {
   // Find similar books for manual entry confirmation

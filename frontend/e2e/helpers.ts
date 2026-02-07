@@ -1,69 +1,11 @@
-import { Page, expect, BrowserContext } from "@playwright/test";
-import * as path from "path";
-import * as fs from "fs";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { Page, expect } from "@playwright/test";
 
 const API_URL = process.env.API_URL || "http://localhost:3001";
 
 // NOTE TO CLAUDE: KEEP LOW TIMEOUTS BECAUSE THIS APP IS SUPPOSED TO BE FAST
 export const LOAD_TIMEOUT = 2000;
-
-// Auth state file paths
-export const AUTH_DIR = path.join(__dirname, ".auth");
-export const authFiles = {
-  giftSharer: path.join(AUTH_DIR, "gift-sharer.json"),
-  giftRequester: path.join(AUTH_DIR, "gift-requester.json"),
-  tradeSharer: path.join(AUTH_DIR, "trade-sharer.json"),
-  tradeRequester: path.join(AUTH_DIR, "trade-requester.json"),
-};
-
-export type AuthUserKey = keyof typeof authFiles;
-
-// Load test users from global setup
-function loadTestUsers() {
-  const usersFile = path.join(__dirname, ".test-users.json");
-  if (fs.existsSync(usersFile)) {
-    return JSON.parse(fs.readFileSync(usersFile, "utf-8"));
-  }
-  // Fallback for when global setup hasn't run (e.g., running single test)
-  const timestamp = Date.now();
-  return {
-    giftSharer: {
-      email: `giftsharer${timestamp}@example.com`,
-      username: `giftsharer${timestamp}`,
-      bio: "Gift flow test sharer",
-    },
-    giftRequester: {
-      email: `giftrequester${timestamp}@example.com`,
-      username: `giftrequester${timestamp}`,
-      bio: "Gift flow test requester",
-    },
-    tradeSharer: {
-      email: `tradesharer${timestamp}@example.com`,
-      username: `tradesharer${timestamp}`,
-      bio: "Trade flow test sharer",
-    },
-    tradeRequester: {
-      email: `traderequester${timestamp}@example.com`,
-      username: `traderequester${timestamp}`,
-      bio: "Trade flow test requester",
-    },
-    coreOwner: {
-      email: `owner${timestamp}@example.com`,
-      username: `owner${timestamp}`,
-      bio: "I love sharing books with my Portland neighbors.",
-    },
-  };
-}
-
-export const testUsers = loadTestUsers();
-
-// Legacy exports for core.spec.ts (which tests auth flow via UI)
-export const testOwner = testUsers.coreOwner;
-export const testRequester = testUsers.giftRequester;
+// API calls get slightly more time - network requests have more variance than UI
+const API_TIMEOUT = 5000;
 
 export async function waitForReact(page: Page) {
   await page.waitForLoadState("domcontentloaded");
@@ -72,7 +14,10 @@ export async function waitForReact(page: Page) {
   });
 }
 
-export async function createUser(page: Page, user: typeof testOwner) {
+export async function createUser(
+  page: Page,
+  user: { email: string; username: string; bio: string },
+) {
   // Ensure page is settled before navigation
   await page.waitForLoadState("load");
   await page.goto("/signup", { waitUntil: "domcontentloaded" });
@@ -126,24 +71,6 @@ export async function loginAs(page: Page, identifier: string) {
   await expect(profileButton).toBeVisible({ timeout: LOAD_TIMEOUT });
 }
 
-// Fast auth using stored state (skips UI login)
-export async function useStoredAuth(page: Page, userKey: AuthUserKey) {
-  const authFile = authFiles[userKey];
-
-  if (!fs.existsSync(authFile)) {
-    // Fallback to UI login if auth file doesn't exist
-    const user = testUsers[userKey];
-    return loginAs(page, user.username);
-  }
-
-  // Clear existing auth
-  await page.context().clearCookies();
-
-  // Load stored state
-  const state = JSON.parse(fs.readFileSync(authFile, "utf-8"));
-  await page.context().addCookies(state.cookies);
-}
-
 export async function logout(page: Page) {
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await waitForReact(page);
@@ -178,8 +105,19 @@ export async function createUserViaApi(
       username: user.username,
       bio: user.bio,
     },
+    timeout: API_TIMEOUT,
   });
   expect(response.ok(), `Failed to create user ${user.username}`).toBe(true);
+}
+
+// Fast login via API - sets cookies directly without UI navigation
+// Only works in dev mode (EMAIL_VERIFICATION_ENABLED=false)
+export async function loginViaApi(page: Page, identifier: string) {
+  const response = await page.request.post(`${API_URL}/api/auth/send-magic-link`, {
+    data: { identifier },
+    timeout: API_TIMEOUT,
+  });
+  expect(response.ok(), `Failed to login ${identifier}`).toBe(true);
 }
 
 export async function deleteAllPostsForCurrentUser(page: Page) {
@@ -201,4 +139,273 @@ export async function deleteAllPostsForCurrentUser(page: Page) {
   for (const post of posts) {
     await page.request.delete(`${API_URL}/api/posts/${post.id}`);
   }
+}
+
+// ============================================================================
+// API Helpers for Independent Tests
+// These functions allow tests to set up state quickly via API calls instead of UI
+// ============================================================================
+
+export interface PostData {
+  id: string;
+  userId: string;
+  bookId: string;
+  type: "giveaway" | "exchange" | "loan";
+  status: string;
+  book: {
+    id: string;
+    title: string;
+    author: string;
+  };
+}
+
+export interface ThreadData {
+  id: string;
+  postId: string;
+  participants: string[];
+  status: string;
+}
+
+export interface MessageData {
+  id: string;
+  threadId: string;
+  senderId: string;
+  content: string;
+  type: string;
+}
+
+export interface UserData {
+  id: string;
+  username: string;
+  email: string;
+}
+
+// Get current user's ID and username via API
+export async function getCurrentUserViaApi(page: Page): Promise<UserData> {
+  const response = await page.request.get(`${API_URL}/api/auth/me`, {
+    timeout: API_TIMEOUT,
+  });
+  expect(response.ok(), "Failed to get current user").toBe(true);
+  const { data } = await response.json();
+  return { id: data.id, username: data.username, email: data.email };
+}
+
+// Create a book post via API
+export async function createPostViaApi(
+  page: Page,
+  options: {
+    title: string;
+    author: string;
+    type: "giveaway" | "exchange" | "loan";
+  },
+): Promise<PostData> {
+  const response = await page.request.post(`${API_URL}/api/posts`, {
+    data: {
+      book: {
+        title: options.title,
+        author: options.author,
+      },
+      type: options.type,
+    },
+    timeout: API_TIMEOUT,
+  });
+  expect(response.ok(), `Failed to create post for "${options.title}"`).toBe(
+    true,
+  );
+  const { data } = await response.json();
+  return data;
+}
+
+// Create a message thread (express interest in a book) via API
+export async function createThreadViaApi(
+  page: Page,
+  postId: string,
+  ownerId: string,
+  message: string,
+): Promise<{ thread: ThreadData; message: MessageData }> {
+  // First create the thread
+  const threadResponse = await page.request.post(
+    `${API_URL}/api/messages/threads`,
+    {
+      data: {
+        postId,
+        recipientId: ownerId,
+      },
+      timeout: API_TIMEOUT,
+    },
+  );
+  expect(threadResponse.ok(), "Failed to create thread").toBe(true);
+  const { data: thread } = await threadResponse.json();
+
+  // Then send the first message
+  const messageResponse = await page.request.post(
+    `${API_URL}/api/messages/threads/${thread.id}/messages`,
+    {
+      data: {
+        content: message,
+        type: "user",
+      },
+      timeout: API_TIMEOUT,
+    },
+  );
+  expect(messageResponse.ok(), "Failed to send message").toBe(true);
+  const { data: messageData } = await messageResponse.json();
+
+  return { thread, message: messageData };
+}
+
+// Accept a book request (owner action) via API
+export async function acceptRequestViaApi(
+  page: Page,
+  threadId: string,
+): Promise<ThreadData> {
+  const response = await page.request.patch(
+    `${API_URL}/api/messages/threads/${threadId}/status`,
+    {
+      data: { status: "accepted" },
+      timeout: API_TIMEOUT,
+    },
+  );
+  expect(response.ok(), "Failed to accept request").toBe(true);
+  const { data } = await response.json();
+  return data;
+}
+
+// Decline a book request (owner action) via API
+export async function declineRequestViaApi(
+  page: Page,
+  threadId: string,
+): Promise<ThreadData> {
+  const response = await page.request.patch(
+    `${API_URL}/api/messages/threads/${threadId}/status`,
+    {
+      data: { status: "declined_by_owner" },
+      timeout: API_TIMEOUT,
+    },
+  );
+  expect(response.ok(), "Failed to decline request").toBe(true);
+  const { data } = await response.json();
+  return data;
+}
+
+// Cancel a request (requester action) via API
+export async function cancelRequestViaApi(
+  page: Page,
+  threadId: string,
+): Promise<ThreadData> {
+  const response = await page.request.patch(
+    `${API_URL}/api/messages/threads/${threadId}/status`,
+    {
+      data: { status: "cancelled_by_requester" },
+      timeout: API_TIMEOUT,
+    },
+  );
+  expect(response.ok(), "Failed to cancel request").toBe(true);
+  const { data } = await response.json();
+  return data;
+}
+
+// Propose a trade (exchange) via API
+export async function proposeTradeViaApi(
+  page: Page,
+  threadId: string,
+  offeredPostId: string,
+  requestedPostId: string,
+): Promise<MessageData> {
+  const response = await page.request.post(
+    `${API_URL}/api/messages/threads/${threadId}/messages`,
+    {
+      data: {
+        content: "",
+        type: "trade_proposal",
+        offeredPostId,
+        requestedPostId,
+      },
+      timeout: API_TIMEOUT,
+    },
+  );
+  expect(response.ok(), "Failed to propose trade").toBe(true);
+  const { data } = await response.json();
+  return data;
+}
+
+// Accept a trade proposal via API
+export async function acceptTradeViaApi(
+  page: Page,
+  threadId: string,
+  messageId: string,
+): Promise<{ proposalMessage: MessageData; thread: ThreadData }> {
+  const response = await page.request.post(
+    `${API_URL}/api/messages/threads/${threadId}/respond-proposal`,
+    {
+      data: {
+        messageId,
+        response: "accept",
+      },
+      timeout: API_TIMEOUT,
+    },
+  );
+  expect(response.ok(), "Failed to accept trade").toBe(true);
+  const { data } = await response.json();
+  return data;
+}
+
+// Decline a trade proposal via API
+export async function declineTradeViaApi(
+  page: Page,
+  threadId: string,
+  messageId: string,
+): Promise<{ proposalMessage: MessageData; thread: ThreadData }> {
+  const response = await page.request.post(
+    `${API_URL}/api/messages/threads/${threadId}/respond-proposal`,
+    {
+      data: {
+        messageId,
+        response: "decline",
+      },
+      timeout: API_TIMEOUT,
+    },
+  );
+  expect(response.ok(), "Failed to decline trade").toBe(true);
+  const { data } = await response.json();
+  return data;
+}
+
+// Mark gift/trade as complete via API
+export async function completeThreadViaApi(
+  page: Page,
+  threadId: string,
+): Promise<ThreadData> {
+  const response = await page.request.post(
+    `${API_URL}/api/messages/threads/${threadId}/complete`,
+    { timeout: API_TIMEOUT },
+  );
+  expect(response.ok(), "Failed to complete thread").toBe(true);
+  const { data } = await response.json();
+  return data;
+}
+
+// Delete a post via API
+export async function deletePostViaApi(page: Page, postId: string): Promise<void> {
+  const response = await page.request.delete(`${API_URL}/api/posts/${postId}`, {
+    timeout: API_TIMEOUT,
+  });
+  expect(response.ok(), "Failed to delete post").toBe(true);
+}
+
+// Dismiss a thread (for declined/cancelled requests) via API
+export async function dismissThreadViaApi(
+  page: Page,
+  threadId: string,
+): Promise<ThreadData> {
+  const response = await page.request.patch(
+    `${API_URL}/api/messages/threads/${threadId}/status`,
+    {
+      data: { status: "dismissed" },
+      timeout: API_TIMEOUT,
+    },
+  );
+  expect(response.ok(), "Failed to dismiss thread").toBe(true);
+  const { data } = await response.json();
+  return data;
 }

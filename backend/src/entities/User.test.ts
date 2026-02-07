@@ -26,7 +26,6 @@ describe("User entity", () => {
       user.socialLinks = [
         { label: "Goodreads", url: "https://goodreads.com/user" },
       ];
-      user.suspended = null;
       user.banned = false;
       user.createdAt = new Date("2024-01-01T00:00:00Z");
       user.updatedAt = new Date("2024-01-02T00:00:00Z");
@@ -72,7 +71,6 @@ describe("User entity", () => {
       user.profilePicture = null;
       user.readingPreferences = null;
       user.socialLinks = null;
-      user.suspended = null;
       user.banned = false;
       user.createdAt = new Date();
       user.updatedAt = new Date();
@@ -82,41 +80,6 @@ describe("User entity", () => {
       expect(json.location.type).toBe("pin");
       expect(json.location.lat).toBe(45.5);
       expect(json.location.lng).toBe(-122.6);
-    });
-
-    it("should handle suspended user", () => {
-      const user = new User();
-      user.id = "test-uuid";
-      user.email = "test@example.com";
-      user.username = "testuser";
-      user.displayUsername = "testuser";
-      user.bio = "";
-      user.verified = false;
-      user.role = "user";
-      user.locationType = "neighborhood";
-      user.neighborhoodId = "buckman";
-      user.locationLat = null;
-      user.locationLng = null;
-      user.booksGiven = 0;
-      user.booksReceived = 0;
-      user.booksLoaned = 0;
-      user.booksBorrowed = 0;
-      user.booksTraded = 0;
-      user.profilePicture = null;
-      user.readingPreferences = null;
-      user.socialLinks = null;
-      user.suspended = {
-        until: Date.now() + 86400000,
-        reason: "Violation of terms",
-      };
-      user.banned = false;
-      user.createdAt = new Date();
-      user.updatedAt = new Date();
-
-      const json = user.toJSON();
-
-      expect(json.suspended).toBeDefined();
-      expect(json.suspended?.reason).toBe("Violation of terms");
     });
 
     it("should convert createdAt to timestamp", () => {
@@ -140,7 +103,6 @@ describe("User entity", () => {
       user.profilePicture = null;
       user.readingPreferences = null;
       user.socialLinks = null;
-      user.suspended = null;
       user.banned = false;
       user.createdAt = new Date("2024-06-15T12:00:00Z");
       user.updatedAt = new Date();
@@ -158,9 +120,6 @@ describe("User entity", () => {
 
       user.role = "user";
       expect(user.role).toBe("user");
-
-      user.role = "moderator";
-      expect(user.role).toBe("moderator");
 
       user.role = "admin";
       expect(user.role).toBe("admin");

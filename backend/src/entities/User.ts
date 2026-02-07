@@ -11,7 +11,7 @@ import {
 import type { Post } from "./Post.js";
 import type { Message } from "./Message.js";
 
-export type UserRole = "user" | "moderator" | "admin";
+export type UserRole = "user" | "admin";
 export type LocationType = "neighborhood" | "pin";
 
 @Entity("users")
@@ -99,10 +99,6 @@ export class User {
     tradeProposal?: boolean;
   } | null;
 
-  // Moderation
-  @Column({ type: "jsonb", nullable: true })
-  suspended: { until: number; reason: string } | null;
-
   @Column({ type: "boolean", default: false })
   banned: boolean;
 
@@ -152,7 +148,6 @@ export class User {
       readingPreferences: this.readingPreferences || undefined,
       socialLinks: this.socialLinks || undefined,
       role: this.role,
-      suspended: this.suspended || undefined,
       banned: this.banned || undefined,
       emailNotifications: this.emailNotifications || undefined,
     };

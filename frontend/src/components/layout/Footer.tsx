@@ -1,21 +1,32 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Modal from "../Modal";
+import { feedbackService } from "../../services/apiService";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportText, setReportText] = useState("");
   const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmitReport = () => {
-    // For now, just show confirmation - could integrate with Discord webhook or email later
-    setReportSubmitted(true);
-    setTimeout(() => {
-      setShowReportModal(false);
-      setReportText("");
-      setReportSubmitted(false);
-    }, 2000);
+  const handleSubmitReport = async () => {
+    setSubmitting(true);
+    setReportError("");
+    try {
+      await feedbackService.submit(reportText, window.location.href);
+      setReportSubmitted(true);
+      setTimeout(() => {
+        setShowReportModal(false);
+        setReportText("");
+        setReportSubmitted(false);
+      }, 2000);
+    } catch {
+      setReportError("Failed to send. Please try again or reach out on Discord.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -67,6 +78,7 @@ export default function Footer() {
           setShowReportModal(false);
           setReportText("");
           setReportSubmitted(false);
+          setReportError("");
         }}
         title="Report a Problem"
         size="md"
@@ -112,11 +124,15 @@ export default function Footer() {
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
             />
+            {reportError && (
+              <p className="text-sm text-red-600">{reportError}</p>
+            )}
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => {
                   setShowReportModal(false);
                   setReportText("");
+                  setReportError("");
                 }}
                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
               >
@@ -124,10 +140,10 @@ export default function Footer() {
               </button>
               <button
                 onClick={handleSubmitReport}
-                disabled={!reportText.trim()}
+                disabled={!reportText.trim() || submitting}
                 className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Submit
+                {submitting ? "Sending..." : "Submit"}
               </button>
             </div>
           </div>

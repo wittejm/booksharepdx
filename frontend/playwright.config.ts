@@ -12,10 +12,10 @@ export default defineConfig({
     timeout: 2000,
   },
 
-  fullyParallel: false, // Tests within a file run sequentially (they share state)
+  fullyParallel: true, // Enable parallel execution - tests are now independent
   forbidOnly: !!process.env.CI,
   retries: 0, // Fail fast, no retries
-  workers: process.env.CI ? 2 : 3, // Parallel across test files (each file has unique users)
+  workers: 1, // Serial execution - parallel causes timeouts on localhost
 
   reporter: [
     ['list'],
@@ -28,7 +28,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'off',
 
-    // Fast timeouts
+    // Fast timeouts - this is localhost, should be snappy
     actionTimeout: 2000,
     navigationTimeout: 2000,
   },

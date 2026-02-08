@@ -7,6 +7,7 @@ interface SendEmailOptions {
   to: string;
   subject: string;
   html: string;
+  text?: string;
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
@@ -24,6 +25,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
       to: options.to,
       subject: options.subject,
       html: options.html,
+      ...(options.text && { text: options.text }),
     });
 
     if (error) {
@@ -45,20 +47,13 @@ export async function sendMagicLinkEmail(
   return sendEmail({
     to,
     subject: "Sign in to BookSharePDX",
+    text: `Sign in to BookSharePDX\n\nClick the link below to sign in. This link expires in 30 minutes.\n\n${magicLinkUrl}\n\nIf you didn't request this, you can safely ignore it.\n\n— BookSharePDX`,
     html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #2563eb;">Sign in to BookSharePDX</h1>
-        <p>Click the button below to sign in to your account. This link expires in 30 minutes.</p>
-        <a href="${magicLinkUrl}"
-           style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
-          Sign In
-        </a>
-        <p style="color: #666; font-size: 14px;">
-          If you didn't request this email, you can safely ignore it.
-        </p>
-        <p style="color: #666; font-size: 14px;">
-          Or copy and paste this link: ${magicLinkUrl}
-        </p>
+      <div style="font-family: sans-serif; max-width: 600px;">
+        <p>Click the link below to sign in to your account. This link expires in 30 minutes.</p>
+        <p><a href="${magicLinkUrl}">Sign in to BookSharePDX</a></p>
+        <p style="color: #999; font-size: 13px;">If you didn't request this, you can safely ignore it.</p>
+        <p style="color: #999; font-size: 12px;">— BookSharePDX</p>
       </div>
     `,
   });
@@ -72,21 +67,14 @@ export async function sendWelcomeEmail(
   return sendEmail({
     to,
     subject: "Welcome to BookSharePDX!",
+    text: `Welcome to BookSharePDX, ${username}!\n\nThanks for joining. Please verify your email to get started:\n\n${verifyUrl}\n\nThis link expires in 30 minutes.\n\n— BookSharePDX`,
     html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #2563eb;">Welcome to BookSharePDX, ${username}!</h1>
-        <p>Thanks for joining our community of book lovers in Portland.</p>
-        <p>Please verify your email address to get started:</p>
-        <a href="${verifyUrl}"
-           style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
-          Verify Email
-        </a>
-        <p style="color: #666; font-size: 14px;">
-          This link expires in 30 minutes.
-        </p>
-        <p style="color: #666; font-size: 14px;">
-          Or copy and paste this link: ${verifyUrl}
-        </p>
+      <div style="font-family: sans-serif; max-width: 600px;">
+        <p>Welcome to BookSharePDX, ${username}!</p>
+        <p>Thanks for joining. Please verify your email to get started:</p>
+        <p><a href="${verifyUrl}">Verify your email address</a></p>
+        <p style="color: #999; font-size: 13px;">This link expires in 30 minutes.</p>
+        <p style="color: #999; font-size: 12px;">— BookSharePDX</p>
       </div>
     `,
   });
@@ -120,36 +108,18 @@ export async function sendBookRequestedEmail(
         ? `${data.requesterName} wants to borrow "${data.bookTitle}"`
         : `${data.requesterName} is interested in your gift: "${data.bookTitle}"`;
 
-  const headline =
-    data.postType === "exchange"
-      ? "Someone wants to trade!"
-      : data.postType === "loan"
-        ? "Someone wants to borrow your book!"
-        : "Someone is interested in your gift!";
-
   return sendEmail({
     to,
     subject,
+    text: `Hi ${data.recipientName},\n\n${data.requesterName} ${label.verb} your book "${data.bookTitle}" by ${data.bookAuthor}.\n\nTheir message:\n"${data.messagePreview}"\n\nView the request: ${data.threadUrl}\n\n— BookSharePDX`,
     html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #2563eb;">${headline}</h1>
+      <div style="font-family: sans-serif; max-width: 600px;">
         <p>Hi ${data.recipientName},</p>
-        <p><strong>${data.requesterName}</strong> ${label.verb} your book:</p>
-        <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
-          <p style="margin: 0; font-size: 18px; font-weight: bold;">${data.bookTitle}</p>
-          <p style="margin: 4px 0 0 0; color: #666;">by ${data.bookAuthor}</p>
-        </div>
-        <p><strong>Their message:</strong></p>
-        <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #2563eb;">
-          <p style="margin: 0; color: #374151;">${data.messagePreview}</p>
-        </div>
-        <a href="${data.threadUrl}"
-           style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
-          View Request
-        </a>
-        <p style="color: #666; font-size: 14px;">
-          You can manage your email notification preferences in your profile settings.
-        </p>
+        <p><strong>${data.requesterName}</strong> ${label.verb} your book "<strong>${data.bookTitle}</strong>" by ${data.bookAuthor}.</p>
+        <p>Their message:</p>
+        <blockquote style="margin: 8px 0; padding-left: 12px; border-left: 2px solid #ccc; color: #555;">${data.messagePreview}</blockquote>
+        <p><a href="${data.threadUrl}">View the request</a></p>
+        <p style="color: #999; font-size: 12px;">— BookSharePDX</p>
       </div>
     `,
   });
@@ -167,34 +137,29 @@ export async function sendRequestDecisionEmail(
 ): Promise<boolean> {
   const isAccepted = data.decision === "accepted";
   const subject = isAccepted
-    ? `Great news! ${data.ownerName} accepted your request for "${data.bookTitle}"`
+    ? `${data.ownerName} accepted your request for "${data.bookTitle}"`
     : `${data.ownerName} declined your request for "${data.bookTitle}"`;
 
-  const headline = isAccepted
-    ? "Your request was accepted!"
-    : "Your request was declined";
+  const htmlMessage = isAccepted
+    ? `<strong>${data.ownerName}</strong> accepted your request for "<strong>${data.bookTitle}</strong>." Head to the conversation to coordinate the handoff!`
+    : `<strong>${data.ownerName}</strong> declined your request for "<strong>${data.bookTitle}</strong>."`;
 
-  const message = isAccepted
-    ? `<strong>${data.ownerName}</strong> has accepted your request for <strong>${data.bookTitle}</strong>. Head to the conversation to coordinate the handoff!`
-    : `<strong>${data.ownerName}</strong> has declined your request for <strong>${data.bookTitle}</strong>. Don't worry, there are plenty of other books available!`;
+  const textMessage = isAccepted
+    ? `${data.ownerName} accepted your request for "${data.bookTitle}." Head to the conversation to coordinate the handoff!`
+    : `${data.ownerName} declined your request for "${data.bookTitle}."`;
 
-  const buttonText = isAccepted ? "Coordinate Handoff" : "View Conversation";
+  const linkText = isAccepted ? "Coordinate handoff" : "View conversation";
 
   return sendEmail({
     to,
     subject,
+    text: `Hi ${data.recipientName},\n\n${textMessage}\n\n${linkText}: ${data.threadUrl}\n\n— BookSharePDX`,
     html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: ${isAccepted ? "#16a34a" : "#dc2626"};">${headline}</h1>
+      <div style="font-family: sans-serif; max-width: 600px;">
         <p>Hi ${data.recipientName},</p>
-        <p>${message}</p>
-        <a href="${data.threadUrl}"
-           style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
-          ${buttonText}
-        </a>
-        <p style="color: #666; font-size: 14px;">
-          You can manage your email notification preferences in your profile settings.
-        </p>
+        <p>${htmlMessage}</p>
+        <p><a href="${data.threadUrl}">${linkText}</a></p>
+        <p style="color: #999; font-size: 12px;">— BookSharePDX</p>
       </div>
     `,
   });
@@ -220,22 +185,15 @@ export async function sendNewMessageEmail(
 
   return sendEmail({
     to,
-    subject: `New message from ${data.senderName} about your ${typeLabel}: "${data.bookTitle}"`,
+    subject: `New message from ${data.senderName} about "${data.bookTitle}"`,
+    text: `Hi ${data.recipientName},\n\n${data.senderName} sent you a message about your ${typeLabel} of "${data.bookTitle}":\n\n"${data.messagePreview}"\n\nReply: ${data.threadUrl}\n\n— BookSharePDX`,
     html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #2563eb;">New Message</h1>
+      <div style="font-family: sans-serif; max-width: 600px;">
         <p>Hi ${data.recipientName},</p>
-        <p><strong>${data.senderName}</strong> sent you a message about your ${typeLabel} of <strong>${data.bookTitle}</strong>:</p>
-        <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #2563eb;">
-          <p style="margin: 0; color: #374151;">${data.messagePreview}</p>
-        </div>
-        <a href="${data.threadUrl}"
-           style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
-          Reply
-        </a>
-        <p style="color: #666; font-size: 14px;">
-          You can manage your email notification preferences in your profile settings.
-        </p>
+        <p><strong>${data.senderName}</strong> sent you a message about your ${typeLabel} of "<strong>${data.bookTitle}</strong>":</p>
+        <blockquote style="margin: 8px 0; padding-left: 12px; border-left: 2px solid #ccc; color: #555;">${data.messagePreview}</blockquote>
+        <p><a href="${data.threadUrl}">Reply</a></p>
+        <p style="color: #999; font-size: 12px;">— BookSharePDX</p>
       </div>
     `,
   });
@@ -253,16 +211,13 @@ export async function sendFeedbackEmail(
   return sendEmail({
     to: "hello@booksharepdx.com",
     subject: `[Feedback] from ${data.userName}`,
+    text: `User Feedback\n\n${data.message}\n\nFrom: ${data.userName} (${data.userEmail})\nUser ID: ${data.userId}${data.pageUrl ? `\nPage: ${data.pageUrl}` : ""}`,
     html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #2563eb;">User Feedback</h1>
-        <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
-          <p style="margin: 0; color: #374151; white-space: pre-wrap;">${data.message}</p>
-        </div>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 16px 0;" />
-        <p style="color: #666; font-size: 14px; margin: 4px 0;"><strong>From:</strong> ${data.userName} (${data.userEmail})</p>
-        <p style="color: #666; font-size: 14px; margin: 4px 0;"><strong>User ID:</strong> ${data.userId}</p>
-        ${data.pageUrl ? `<p style="color: #666; font-size: 14px; margin: 4px 0;"><strong>Page:</strong> ${data.pageUrl}</p>` : ""}
+      <div style="font-family: sans-serif; max-width: 600px;">
+        <p><strong>User Feedback</strong></p>
+        <p style="white-space: pre-wrap;">${data.message}</p>
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 16px 0;" />
+        <p style="color: #999; font-size: 13px;">From: ${data.userName} (${data.userEmail})<br>User ID: ${data.userId}${data.pageUrl ? `<br>Page: ${data.pageUrl}` : ""}</p>
       </div>
     `,
   });
@@ -281,22 +236,14 @@ export async function sendTradeProposalEmail(
   return sendEmail({
     to,
     subject: `${data.proposerName} proposed a trade for "${data.requestedBookTitle}"`,
+    text: `Hi ${data.recipientName},\n\n${data.proposerName} wants to trade with you!\n\nThey're offering: ${data.offeredBookTitle}\nFor your book: ${data.requestedBookTitle}\n\nView the proposal: ${data.threadUrl}\n\n— BookSharePDX`,
     html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #2563eb;">Trade Proposal</h1>
+      <div style="font-family: sans-serif; max-width: 600px;">
         <p>Hi ${data.recipientName},</p>
         <p><strong>${data.proposerName}</strong> wants to trade with you!</p>
-        <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
-          <p style="margin: 0 0 8px 0;"><strong>They're offering:</strong> ${data.offeredBookTitle}</p>
-          <p style="margin: 0;"><strong>For your book:</strong> ${data.requestedBookTitle}</p>
-        </div>
-        <a href="${data.threadUrl}"
-           style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
-          View Trade Proposal
-        </a>
-        <p style="color: #666; font-size: 14px;">
-          You can manage your email notification preferences in your profile settings.
-        </p>
+        <p>They're offering: <strong>${data.offeredBookTitle}</strong><br>For your book: <strong>${data.requestedBookTitle}</strong></p>
+        <p><a href="${data.threadUrl}">View the proposal</a></p>
+        <p style="color: #999; font-size: 12px;">— BookSharePDX</p>
       </div>
     `,
   });

@@ -24,7 +24,7 @@ export const env = {
   // Email (Resend)
   resendApiKey: process.env.RESEND_API_KEY || "",
   emailFrom:
-    process.env.EMAIL_FROM || "BookSharePDX <noreply@booksharepdx.com>",
+    process.env.EMAIL_FROM || "BookSharePDX <hello@booksharepdx.com>",
 
   // Storage
   storageProvider: process.env.STORAGE_PROVIDER || "local",

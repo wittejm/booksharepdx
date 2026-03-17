@@ -27,7 +27,7 @@ export class User {
   @Index()
   username: string; // Always lowercase, used for lookups and URLs
 
-  @Column({ type: "varchar" })
+  @Column({ type: "varchar", default: "" })
   displayUsername: string; // Original casing for display
 
   @Column({ type: "varchar", nullable: true })

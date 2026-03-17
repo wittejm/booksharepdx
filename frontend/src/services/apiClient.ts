@@ -98,6 +98,21 @@ class ApiClient {
     }
 
     if (!response.ok) {
+      // Detect proxy errors (Vite proxy returns 500 with HTML when backend is down)
+      const contentType = response.headers.get("content-type") || "";
+      if (
+        response.status >= 500 &&
+        !contentType.includes("application/json")
+      ) {
+        const error = new ApiError(
+          ERROR_MESSAGES.NETWORK_ERROR,
+          "NETWORK_ERROR",
+          0,
+        );
+        showGlobalToast(error.getUserMessage(), "error");
+        throw error;
+      }
+
       let errorBody: {
         error?: { message?: string; code?: string; details?: unknown };
       };

@@ -168,7 +168,7 @@ export default function PostCard({
       )}
 
       <div className="p-4">
-        <BookDisplay book={post.book} showTypeBadge={false}>
+        <BookDisplay book={post.book} showTypeBadge={false} comment={post.comment}>
           {/* Type Badge and Request/Exchange Button */}
           <div className="flex items-center justify-between mt-1 mb-2 pr-3">
             <TypeBadge type={post.type} />

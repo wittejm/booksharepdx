@@ -4,8 +4,7 @@
 
 export const ERROR_MESSAGES = {
   // Network/Connection errors
-  NETWORK_ERROR:
-    "Unable to connect to the server. This is likely a server configuration error.",
+  NETWORK_ERROR: "No response from the API server. It may be offline or still starting up.",
 
   // Auth errors
   SESSION_EXPIRED: "Your session has expired. Please log in again.",
@@ -26,7 +25,7 @@ export const ERROR_MESSAGES = {
   // Server errors by status code
   SERVER_ERROR: "An unexpected server error occurred. Please try again later.",
   SERVICE_UNAVAILABLE:
-    "The service is temporarily unavailable. Please try again later.",
+    "No response from the API server. It may be offline or still starting up.",
 } as const;
 
 /**

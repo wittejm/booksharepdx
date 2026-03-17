@@ -682,7 +682,7 @@ export default function ShareCard({
         </div>
 
         <div className="p-4">
-          <BookDisplay book={post.book} type={post.type} status={post.status}>
+          <BookDisplay book={post.book} type={post.type} status={post.status} comment={post.comment}>
             {/* Trading partner badge for exchange posts with agreedExchange */}
             {post.type === "exchange" &&
               tradingPartner &&

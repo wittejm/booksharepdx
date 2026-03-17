@@ -34,6 +34,7 @@ export default function InlineShareForm({
     "giveaway",
   );
   const [loanDuration, setLoanDuration] = useState<number>(30); // default 30 days
+  const [comment, setComment] = useState("");
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -67,6 +68,7 @@ export default function InlineShareForm({
         },
         type: shareType,
         ...(shareType === "loan" && { loanDuration }),
+        ...(comment.trim() && { comment: comment.trim() }),
       });
 
       showToast("Book shared successfully!", "success");
@@ -77,6 +79,7 @@ export default function InlineShareForm({
       setStep("collapsed");
       setShareType("giveaway");
       setLoanDuration(30);
+      setComment("");
 
       onSuccess?.();
     } catch (err) {
@@ -263,7 +266,6 @@ export default function InlineShareForm({
                     Trade for another book
                   </div>
                 </button>
-                {/*}
                 <button
                   type="button"
                   onClick={() => setShareType('loan')}
@@ -276,7 +278,6 @@ export default function InlineShareForm({
                   <div className="font-medium">Loan</div>
                   <div className="text-xs text-gray-500">Lend temporarily</div>
                 </button>
-                */}
               </div>
 
               {/* Loan duration dropdown */}
@@ -311,6 +312,26 @@ export default function InlineShareForm({
                   onChange={setSelectedGenres}
                   placeholder="Select genres..."
                 />
+              </div>
+
+              {/* Comment */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Something you liked about the book: (optional)
+                </label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Something you liked about the book:"
+                  maxLength={280}
+                  rows={2}
+                  className="input w-full resize-none"
+                />
+                {comment.length > 0 && (
+                  <p className="text-xs text-gray-400 mt-1 text-right">
+                    {comment.length}/280
+                  </p>
+                )}
               </div>
 
               {/* Submit button */}

@@ -161,7 +161,11 @@ export default function SharePage() {
     // - 'agreed_upon' posts where ownerCompleted is false
     const activePosts = posts.filter((p) => {
       if (p.status === "active") return true;
-      if (p.status === "agreed_upon") return !isOwnerCompleted(p);
+      if (p.status === "agreed_upon") {
+        // Trade acceptor's post goes straight to archive (they have no action on it)
+        if (p.agreedExchange && p.agreedExchange.sharerPostId === p.id) return false;
+        return !isOwnerCompleted(p);
+      }
       return false;
     });
     // Sort: agreed_upon first (need action), then posts with interest, then others
@@ -186,7 +190,11 @@ export default function SharePage() {
     // Also include any manually archived posts (status === 'archived')
     return posts.filter((p) => {
       if (p.status === "archived") return true;
-      if (p.status === "agreed_upon") return isOwnerCompleted(p);
+      if (p.status === "agreed_upon") {
+        // Trade acceptor's post is immediately archived
+        if (p.agreedExchange && p.agreedExchange.sharerPostId === p.id) return true;
+        return isOwnerCompleted(p);
+      }
       return false;
     });
   };

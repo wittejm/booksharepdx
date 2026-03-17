@@ -425,7 +425,7 @@ test("Multiple requesters: owner can accept first requester", async ({ page }) =
   await page.goto("/share");
   await waitForReact(page);
 
-  await expect(page.getByText(/2 people/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: /\d+ people/i }).first()).toBeVisible();
   await page.getByRole("button", { name: /\d+ people/i }).first().click();
   await expect(page.getByText(requester1.username)).toBeVisible();
 

@@ -38,7 +38,7 @@ export default function Footer() {
           </p>
           <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
             <a
-              href="https://discord.gg/KsN2rapS"
+              href="hhttps://discord.gg/zkRP8eurZ9"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors text-sm"
@@ -108,7 +108,7 @@ export default function Footer() {
               Found a bug or having an issue with another user? Let us know. You can also reach us
               on{" "}
               <a
-                href="https://discord.gg/KsN2rapS"
+                href="https://discord.gg/zkRP8eurZ9"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-600 hover:underline"

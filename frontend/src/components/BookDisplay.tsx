@@ -5,6 +5,7 @@ interface BookDisplayProps {
   book: BookInfo;
   type?: "giveaway" | "exchange" | "loan";
   status?: "active" | "agreed_upon" | "archived";
+  comment?: string;
   showTypeBadge?: boolean;
   children?: React.ReactNode; // For additional badges or buttons
 }
@@ -17,6 +18,7 @@ export default function BookDisplay({
   book,
   type,
   status,
+  comment,
   showTypeBadge = true,
   children,
 }: BookDisplayProps) {
@@ -48,6 +50,11 @@ export default function BookDisplay({
         <p className="text-sm text-gray-500 mt-1">
           <GenreDisplay genre={book.genre} />
         </p>
+
+        {/* Poster comment */}
+        {comment && (
+          <p className="text-sm text-gray-500 italic mt-1">"{comment}"</p>
+        )}
 
         {/* Type Badge */}
         {showTypeBadge && type && (

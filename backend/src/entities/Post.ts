@@ -64,6 +64,9 @@ export class Post {
   @Column({ type: "int", nullable: true })
   loanDuration: number | null;
 
+  @Column({ type: "varchar", nullable: true })
+  comment: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
@@ -85,6 +88,7 @@ export class Post {
       archivedAt: this.archivedAt?.getTime(),
       givenTo: this.givenTo || undefined,
       loanDuration: this.loanDuration || undefined,
+      comment: this.comment || undefined,
     };
   }
 }

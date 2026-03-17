@@ -9,6 +9,7 @@ import type {
 } from "@booksharepdx/shared";
 import { messageService, postService, userService } from "../services";
 import { useUser } from "../contexts/UserContext";
+import { useActivity } from "../contexts/ActivityContext";
 import { useToast } from "../components/useToast";
 import { useConfirm } from "../components/useConfirm";
 import { useAsync } from "../hooks/useAsync";
@@ -22,6 +23,7 @@ export default function ActivityPage() {
   const { currentUser } = useUser();
   const navigate = useNavigate();
   const highlightPostId = searchParams.get("postId");
+  const { refresh: refreshActivityBadge } = useActivity();
 
   const [selectedThread, setSelectedThread] = useState<MessageThread | null>(
     null,
@@ -242,6 +244,7 @@ export default function ActivityPage() {
       );
       showToast("Request cancelled", "info");
       await refreshThreads();
+      refreshActivityBadge();
       setSelectedThread(null);
       setShowConversation(false);
     } catch (error) {
@@ -259,6 +262,7 @@ export default function ActivityPage() {
       await messageService.updateThreadStatus(selectedThread.id, "dismissed");
       showToast("Dismissed", "info");
       await refreshThreads();
+      refreshActivityBadge();
       setSelectedThread(null);
       setShowConversation(false);
     } catch (error) {
@@ -289,6 +293,7 @@ export default function ActivityPage() {
       await messageService.markComplete(selectedThread.id);
       showToast(isExchange ? "Trade completed!" : "Gift received!", "success");
       await refreshThreads();
+      refreshActivityBadge();
       // Reload the selected thread to update UI
       const updatedThreads = await messageService.getThreads();
       const updatedThread = updatedThreads.find(
@@ -407,6 +412,7 @@ export default function ActivityPage() {
         showToast("Return recorded", "success");
       }
       await refreshThreads();
+      refreshActivityBadge();
       // Reload the selected thread to update UI
       const updatedThreads = await messageService.getThreads();
       const updatedThread = updatedThreads.find(
@@ -565,6 +571,11 @@ export default function ActivityPage() {
                       <p className="text-sm text-gray-600 truncate">
                         by {threadPosts[selectedThread.id].book.author}
                       </p>
+                      {threadPosts[selectedThread.id].comment && (
+                        <p className="text-sm text-gray-500 italic truncate">
+                          "{threadPosts[selectedThread.id].comment}"
+                        </p>
+                      )}
                       <p className="text-sm text-gray-500 mt-1">
                         Conversation with{" "}
                         <span className="font-medium text-primary-600">

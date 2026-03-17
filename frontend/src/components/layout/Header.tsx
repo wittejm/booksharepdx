@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useUser } from "../../contexts/UserContext";
 import { useInterest } from "../../contexts/InterestContext";
+import { useActivity } from "../../contexts/ActivityContext";
 import { authService } from "../../services";
 import logo from "../../assets/logo.png";
 
 export default function Header() {
   const { currentUser, updateCurrentUser } = useUser();
   const { summary: interestSummary } = useInterest();
+  const { summary: activitySummary } = useActivity();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -76,9 +78,14 @@ export default function Header() {
                 </Link>
                 <Link
                   to="/activity"
-                  className="text-gray-700 hover:text-[#164E4A] font-medium transition-colors"
+                  className="text-gray-700 hover:text-[#164E4A] font-medium transition-colors relative"
                 >
                   My Activity
+                  {activitySummary.activeCount > 0 && (
+                    <span className="absolute -top-2 -right-3 min-w-[18px] h-[18px] bg-blue-600 text-white text-xs font-semibold rounded-full flex items-center justify-center px-1">
+                      {activitySummary.activeCount}
+                    </span>
+                  )}
                 </Link>
               </>
             ) : (
@@ -224,10 +231,15 @@ export default function Header() {
                 </Link>
                 <Link
                   to="/activity"
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg font-medium"
+                  className="flex items-center justify-between px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg font-medium"
                   onClick={closeMenu}
                 >
-                  My Activity
+                  <span>My Activity</span>
+                  {activitySummary.activeCount > 0 && (
+                    <span className="min-w-[20px] h-[20px] bg-blue-600 text-white text-xs font-semibold rounded-full flex items-center justify-center px-1">
+                      {activitySummary.activeCount}
+                    </span>
+                  )}
                 </Link>
                 <div className="border-t border-gray-200 pt-2 mt-2">
                   <Link

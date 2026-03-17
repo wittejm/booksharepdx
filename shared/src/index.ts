@@ -68,6 +68,7 @@ export interface Post {
   archivedAt?: number;
   givenTo?: string; // userId
   loanDuration?: number; // in days: 30, 60, or 90 (only for loan posts)
+  comment?: string; // poster's note about the book
 }
 
 // BookInfo - used for embedded book data (e.g., ReadingPreferences)
@@ -108,6 +109,7 @@ export interface CreatePostInput {
   book: BookInput;
   type: 'giveaway' | 'exchange' | 'loan';
   loanDuration?: number;
+  comment?: string;
 }
 
 export interface AgreedExchange {

@@ -197,6 +197,7 @@ export async function createPostViaApi(
     title: string;
     author: string;
     type: "giveaway" | "exchange" | "loan";
+    loanDuration?: number;
   },
 ): Promise<PostData> {
   const response = await page.request.post(`${API_URL}/api/posts`, {
@@ -206,6 +207,7 @@ export async function createPostViaApi(
         author: options.author,
       },
       type: options.type,
+      ...(options.loanDuration !== undefined && { loanDuration: options.loanDuration }),
     },
     timeout: API_TIMEOUT,
   });
@@ -406,6 +408,44 @@ export async function dismissThreadViaApi(
     },
   );
   expect(response.ok(), "Failed to dismiss thread").toBe(true);
+  const { data } = await response.json();
+  return data;
+}
+
+// Accept a loan request (owner action) via API - sets loanDueDate
+export async function acceptLoanViaApi(
+  page: Page,
+  threadId: string,
+  loanDueDays: number = 30,
+): Promise<ThreadData> {
+  const dueDate = new Date();
+  dueDate.setDate(dueDate.getDate() + loanDueDays);
+  const response = await page.request.patch(
+    `${API_URL}/api/messages/threads/${threadId}/status`,
+    {
+      data: { status: "accepted", loanDueDate: dueDate.getTime() },
+      timeout: API_TIMEOUT,
+    },
+  );
+  expect(response.ok(), "Failed to accept loan request").toBe(true);
+  const { data } = await response.json();
+  return data;
+}
+
+// Confirm loan return via API
+export async function confirmReturnViaApi(
+  page: Page,
+  threadId: string,
+  relistPost?: boolean,
+): Promise<{ bothConfirmedReturn: boolean }> {
+  const response = await page.request.post(
+    `${API_URL}/api/messages/threads/${threadId}/confirm-return`,
+    {
+      data: { relistPost },
+      timeout: API_TIMEOUT,
+    },
+  );
+  expect(response.ok(), "Failed to confirm return").toBe(true);
   const { data } = await response.json();
   return data;
 }

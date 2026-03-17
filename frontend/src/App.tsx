@@ -9,6 +9,7 @@ import Footer from "./components/layout/Footer";
 import ScrollToTop from "./components/ScrollToTop";
 import VerificationBanner from "./components/VerificationBanner";
 import InterestBanner from "./components/InterestBanner";
+import ActivityBanner from "./components/ActivityBanner";
 import ToastContainer from "./components/ToastContainer";
 import { useToast } from "./components/useToast";
 import { setGlobalToastListener } from "./utils/globalToast";
@@ -22,6 +23,7 @@ import ActivityPage from "./pages/ActivityPage";
 import SharePage from "./pages/SharePage";
 import ProfilePage from "./pages/ProfilePage";
 import GettingStartedPage from "./pages/GettingStartedPage";
+import NotFoundPage from "./pages/NotFoundPage";
 // Note: SettingsPage removed - settings are now in MyProfilePage
 
 // Lazy-loaded pages (code splitting)
@@ -32,6 +34,7 @@ import VerifyMagicLinkPage from "./pages/VerifyMagicLinkPage";
 // Context for current user
 import { UserContext, useUser } from "./contexts/UserContext";
 import { InterestProvider } from "./contexts/InterestContext";
+import { ActivityProvider } from "./contexts/ActivityContext";
 
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -58,9 +61,14 @@ function AppRoutes() {
   // Restore session from cookies on mount
   useEffect(() => {
     const restoreSession = async () => {
-      const user = await authService.getCurrentUser();
-      setCurrentUser(user);
-      setLoading(false);
+      try {
+        const user = await authService.getCurrentUser();
+        setCurrentUser(user);
+      } catch {
+        // Network error toast is already shown by apiClient
+      } finally {
+        setLoading(false);
+      }
     };
     restoreSession();
   }, []);
@@ -81,12 +89,14 @@ function AppRoutes() {
   return (
     <UserContext.Provider value={{ currentUser, updateCurrentUser }}>
       <InterestProvider>
+      <ActivityProvider>
         <ScrollToTop />
         <ToastContainer toasts={toasts} onDismiss={dismiss} />
         <div className="flex flex-col min-h-screen">
           <Header />
           <VerificationBanner />
           <InterestBanner />
+          <ActivityBanner />
           <main className="flex-grow">
             <Suspense
               fallback={
@@ -163,12 +173,13 @@ function AppRoutes() {
                 />
 
                 {/* 404 */}
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </Suspense>
           </main>
           <Footer />
         </div>
+      </ActivityProvider>
       </InterestProvider>
     </UserContext.Provider>
   );

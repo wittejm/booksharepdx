@@ -31,6 +31,7 @@ const createPostSchema = z.object({
   bookId: z.string().optional(),
   type: z.enum(["giveaway", "exchange", "loan"]),
   loanDuration: z.number().optional(),
+  comment: z.string().max(280).optional(),
 });
 
 const updatePostSchema = z.object({
@@ -298,6 +299,7 @@ router.post(
         type: req.body.type,
         status: "active",
         loanDuration: req.body.loanDuration,
+        comment: req.body.comment,
       });
 
       await postRepo.save(post);

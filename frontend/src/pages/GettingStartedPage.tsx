@@ -16,7 +16,7 @@ export default function GettingStartedPage() {
 
   const fetchPosts = useCallback(async () => {
     if (!currentUser) return [];
-    return postService.getByUserId(currentUser.id);
+    return postService.getByUserId(currentUser.id, "all");
   }, [currentUser]);
 
   const { data: posts, loading } = useAsync(fetchPosts, [currentUser], []);
@@ -147,6 +147,31 @@ export default function GettingStartedPage() {
                 >
                   Share your first book →
                 </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 3: Join the Discord */}
+          <div className="card p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center text-sm font-bold">
+                3
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-semibold text-gray-900 mb-1">
+                  Consider joining the Discord
+                </h2>
+                <p className="text-gray-600 text-sm mb-4">
+                  Join the chat server to hang out online with the community.
+                </p>
+                <a
+                  href="https://discord.gg/zkRP8eurZ9"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary-600 hover:text-primary-700 font-medium hover:underline"
+                >
+                  Join the Discord →
+                </a>
               </div>
             </div>
           </div>

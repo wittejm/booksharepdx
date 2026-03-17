@@ -64,6 +64,7 @@ router.get("/", optionalAuth, async (req, res, next) => {
       | "active"
       | "agreed_upon"
       | "archived"
+      | "all"
       | undefined;
     const search = req.query.search as string | undefined;
     const userId = req.query.userId as string | undefined;
@@ -81,10 +82,10 @@ router.get("/", optionalAuth, async (req, res, next) => {
       .leftJoinAndSelect("post.book", "book")
       .orderBy("post.createdAt", "DESC");
 
-    // Filter by status (default to active)
-    if (status) {
+    // Filter by status (default to active, "all" skips filter)
+    if (status && status !== "all") {
       query = query.andWhere("post.status = :status", { status });
-    } else {
+    } else if (!status) {
       query = query.andWhere("post.status = :status", { status: "active" });
     }
 

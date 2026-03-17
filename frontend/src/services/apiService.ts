@@ -155,7 +155,7 @@ export const postService = {
 
   getByUserId: async (
     userId: string,
-    status?: "active" | "agreed_upon" | "archived",
+    status?: "active" | "agreed_upon" | "archived" | "all",
   ): Promise<Post[]> => {
     const statusParam = status ? `&status=${status}` : "";
     const response = await apiClient.get<{ data: Post[] }>(

@@ -86,17 +86,17 @@ export default function MyProfilePage() {
     }
   };
 
-  const handleSaveProfilePicture = async (imageBase64: string) => {
+  const handleSaveProfilePicture = async (imageUrl: string) => {
     if (!currentUser) return;
 
     try {
       const updatedUser = await authService.updateCurrentUser({
-        profilePicture: imageBase64 || undefined,
+        profilePicture: imageUrl || undefined,
       });
       if (updatedUser) {
         updateCurrentUser(updatedUser);
         showToast(
-          imageBase64 ? "Profile picture updated" : "Profile picture removed",
+          imageUrl ? "Profile picture updated" : "Profile picture removed",
           "success",
         );
       }
@@ -277,12 +277,11 @@ export default function MyProfilePage() {
         {/* Profile Header */}
         <div className="card p-6 mb-6">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-            {/* Profile Picture - TODO: re-enable upload when R2 storage is configured */}
-            <div className="flex-shrink-0">
-            {/* <button
+            {/* Profile Picture */}
+            <button
               onClick={() => setShowProfilePictureModal(true)}
               className="flex-shrink-0 relative group cursor-pointer"
-            > */}
+            >
               {currentUser.profilePicture ? (
                 <img
                   src={currentUser.profilePicture}
@@ -296,7 +295,7 @@ export default function MyProfilePage() {
                   </span>
                 </div>
               )}
-              {/* Edit indicator - always visible in bottom right
+              {/* Edit indicator */}
               <div className="absolute bottom-0 right-0 w-7 h-7 md:w-8 md:h-8 bg-white rounded-full border-2 border-gray-200 flex items-center justify-center shadow-sm">
                 <svg
                   className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-500"
@@ -312,8 +311,7 @@ export default function MyProfilePage() {
                   />
                 </svg>
               </div>
-            </button> */}
-            </div>
+            </button>
 
             {/* Profile Info */}
             <div className="flex-1 w-full md:w-auto">

@@ -1,8 +1,9 @@
 import { useState, useRef } from "react";
+import { apiClient } from "../services/apiClient";
 
 interface ProfilePictureUploadModalProps {
   currentImage?: string;
-  onSave: (imageBase64: string) => Promise<void>;
+  onSave: (imageUrl: string) => Promise<void>;
   onClose: () => void;
 }
 
@@ -12,6 +13,7 @@ export default function ProfilePictureUploadModal({
   onClose,
 }: ProfilePictureUploadModalProps) {
   const [preview, setPreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -32,6 +34,9 @@ export default function ProfilePictureUploadModal({
       return;
     }
 
+    setSelectedFile(file);
+
+    // Generate local preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreview(reader.result as string);
@@ -40,14 +45,17 @@ export default function ProfilePictureUploadModal({
   };
 
   const handleSave = async () => {
-    if (!preview) return;
+    if (!selectedFile) return;
 
     setSaving(true);
     try {
-      await onSave(preview);
+      const response = await apiClient.uploadFile<{
+        data: { url: string };
+      }>("/uploads", selectedFile);
+      await onSave(response.data.url);
       onClose();
     } catch {
-      setError("Failed to save image");
+      setError("Failed to upload image");
     } finally {
       setSaving(false);
     }
@@ -150,7 +158,7 @@ export default function ProfilePictureUploadModal({
               className="w-full btn-primary"
               disabled={saving}
             >
-              {saving ? "Saving..." : "Save"}
+              {saving ? "Uploading..." : "Save"}
             </button>
           )}
 

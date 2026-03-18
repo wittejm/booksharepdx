@@ -198,6 +198,52 @@ class ApiClient {
   async delete<T>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, { method: "DELETE" });
   }
+
+  async uploadFile<T>(endpoint: string, file: File): Promise<T> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const url = `${this.baseURL}${endpoint}`;
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+        // No Content-Type header — browser sets multipart boundary automatically
+      });
+    } catch {
+      const error = new ApiError(
+        ERROR_MESSAGES.NETWORK_ERROR,
+        "NETWORK_ERROR",
+        0,
+      );
+      showGlobalToast(error.getUserMessage(), "error");
+      throw error;
+    }
+
+    if (!response.ok) {
+      let errorBody: any;
+      try {
+        errorBody = await response.json();
+      } catch {
+        errorBody = {};
+      }
+      const errorData = errorBody.error || errorBody;
+      const error = new ApiError(
+        errorData.message || "Upload failed",
+        errorData.code || "UPLOAD_ERROR",
+        response.status,
+      );
+      if (response.status >= 500) {
+        showGlobalToast(error.getUserMessage(), "error");
+      }
+      throw error;
+    }
+
+    return response.json();
+  }
 }
 
 export const apiClient = new ApiClient(API_URL);

@@ -68,8 +68,8 @@ jobs:
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
-            --set-env-vars="NODE_ENV=staging,FRONTEND_URL=https://staging.booksharepdx.com,EMAIL_VERIFICATION_ENABLED=true,COOKIE_DOMAIN=.booksharepdx.com" \
-            --set-secrets="DATABASE_URL=DATABASE_URL_STAGING:latest,JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
+            --set-env-vars="NODE_ENV=staging,FRONTEND_URL=https://staging.booksharepdx.com,EMAIL_VERIFICATION_ENABLED=true,COOKIE_DOMAIN=.booksharepdx.com,STORAGE_PROVIDER=r2" \
+            --set-secrets="DATABASE_URL=DATABASE_URL_STAGING:latest,JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest,R2_ACCOUNT_ID=R2_ACCOUNT_ID:latest,R2_ACCESS_KEY_ID=R2_ACCESS_KEY_ID:latest,R2_SECRET_ACCESS_KEY=R2_SECRET_ACCESS_KEY:latest,R2_BUCKET_NAME=R2_BUCKET_NAME:latest,R2_PUBLIC_URL=R2_PUBLIC_URL:latest" \
             --min-instances=0 \
             --max-instances=2 \
             --memory=256Mi \
@@ -132,8 +132,8 @@ jobs:
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
-            --set-env-vars="NODE_ENV=production,FRONTEND_URL=https://booksharepdx.com,EMAIL_VERIFICATION_ENABLED=true,COOKIE_DOMAIN=.booksharepdx.com" \
-            --set-secrets="DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
+            --set-env-vars="NODE_ENV=production,FRONTEND_URL=https://booksharepdx.com,EMAIL_VERIFICATION_ENABLED=true,COOKIE_DOMAIN=.booksharepdx.com,STORAGE_PROVIDER=r2" \
+            --set-secrets="DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest,R2_ACCOUNT_ID=R2_ACCOUNT_ID:latest,R2_ACCESS_KEY_ID=R2_ACCESS_KEY_ID:latest,R2_SECRET_ACCESS_KEY=R2_SECRET_ACCESS_KEY:latest,R2_BUCKET_NAME=R2_BUCKET_NAME:latest,R2_PUBLIC_URL=R2_PUBLIC_URL:latest" \
             --min-instances=0 \
             --max-instances=5 \
             --memory=256Mi \

@@ -16,6 +16,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1012.0",
     "@booksharepdx/shared": "*",
     "bcrypt": "^5.1.1",
     "cookie-parser": "^1.4.6",

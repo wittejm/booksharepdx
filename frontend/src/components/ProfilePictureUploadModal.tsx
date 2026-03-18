@@ -54,8 +54,9 @@ export default function ProfilePictureUploadModal({
       }>("/uploads", selectedFile);
       await onSave(response.data.url);
       onClose();
-    } catch {
-      setError("Failed to upload image");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setError(`Failed to upload image: ${message}`);
     } finally {
       setSaving(false);
     }

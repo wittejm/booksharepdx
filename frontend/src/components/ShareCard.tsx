@@ -55,7 +55,7 @@ export default function ShareCard({
       ? post.agreedExchange.sharerPostId
       : post.agreedExchange.responderPostId;
   };
-  const { summary: interestSummary } = useInterest();
+  const { summary: interestSummary, refresh: refreshInterests } = useInterest();
   const { confirm, alert, ConfirmDialogComponent } = useConfirm();
   const { confirmAction, ConfirmDialogComponent: ConfirmActionDialog } =
     useConfirmAction();
@@ -413,7 +413,8 @@ export default function ShareCard({
     try {
       await messageService.updateThreadStatus(interest.id, "declined_by_owner");
       showToast("Request declined", "info");
-      await loadInterests(); // Refresh the list
+      await loadInterests();
+      await refreshInterests();
     } catch (error) {
       showToast("Failed to decline request: " + (error as Error).message, "error");
     } finally {

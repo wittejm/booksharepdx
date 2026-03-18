@@ -4,6 +4,7 @@ import { useUser } from "../../contexts/UserContext";
 import { useInterest } from "../../contexts/InterestContext";
 import { useActivity } from "../../contexts/ActivityContext";
 import { authService } from "../../services";
+import Avatar from "../Avatar";
 import logo from "../../assets/logo.png";
 
 export default function Header() {
@@ -107,9 +108,7 @@ export default function Header() {
                   onClick={toggleProfileDropdown}
                   className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-full bg-[#164E4A] text-white flex items-center justify-center text-sm font-semibold">
-                    {currentUser.username?.charAt(0).toUpperCase() || "U"}
-                  </div>
+                  <Avatar src={currentUser.profilePicture} username={currentUser.username || "U"} size="md" />
                   <span className="text-gray-700 font-medium hidden sm:inline">
                     {currentUser.username}
                   </span>
